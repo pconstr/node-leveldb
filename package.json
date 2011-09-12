@@ -19,6 +19,7 @@
    "bugs" : { "web" : "https://github.com/my8bird/node-leveldb/issues" },
    "dependencies": 
    {
+     "nodeunit"
    },
 	"contributors": [
 	    "Randall Leeds <randall.leeds@gmail.com> (http://claimid.com/randallleeds)",
