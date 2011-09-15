@@ -1,33 +1,62 @@
 assert  = require 'assert'
 leveldb = require '../lib'
 fs      = require 'fs'
+testCase = require('nodeunit').testCase
 
-exports['create delete database'] = (test) ->
-   path = "/tmp/test-database"
-   db = new leveldb.DB()
-   db.open path, {create_if_missing: true}, (err) =>
-      # make sure the database opened correctly.
-      assert.ok(not err)
+#{ File Assertions
+_file_exists = (path) ->
+   has_file = true
+   try
+      fs.statSync path
+   catch ex
+      assert.equal(ex.code, 'ENOENT', ex)
+      has_file = false
 
-      # make sure the database exits now, this will except otherwise
-      fs.statSync(path)
+   return has_file
+   
+assert.fileExists = (path) ->
+   assert.ok(_file_exists(path), "File should exist: " + path)
+assert.fileDoesNotExist = (path) ->
+   assert.ok(not _file_exists(path), 'File should not exist: ' + path)
+#}
 
-      # close the database
-      db.close()
 
-      # clean up the disk space
-      leveldb.DB.destroyDB(path, {})
+module.exports = testCase({
+   setUp: (done) ->
+      @path = "/tmp/test-database"
+      done()
 
-      # make sure it cleaned up correctly.
-      no_file = false
-      try
-         fs.statSync path
-      catch ex
-         # The file did not exist
-         assert.equal(ex.code, 'ENOENT')
-         no_file = true
+   tearDown: (done) ->
+      if @db
+         leveldb.DB.destroyDB(@path, {})
+         assert.fileDoesNotExist(@path)
+      done()
 
-      assert.ok no_file
+   'create delete database': (test) ->
+      @db = new leveldb.DB()
 
-      test.done()
+      @db.open @path, {create_if_missing: true}, (err) =>
+         assert.ok(not err, err)
+         assert.fileExists @path
+
+         # close the database
+         @db.close()
+
+         # make sure it cleaned up correctly.
+         test.done()
+
+   'can not create if database already exists': (test) ->
+      assert.fileDoesNotExist @path
+      fh = fs.openSync(@path, "w+")
+      assert.ok fh
+      fs.writeSync(fh, "test data")
+      fs.closeSync(fh)
+
+      db = new leveldb.DB()
+
+      db.open @path, {}, (err) =>
+         assert.ok(err, "Since something exists at path the database should not be created.")
+         fs.unlinkSync(@path)
+         test.done()
+})
 
