@@ -20,7 +20,7 @@
       "leveldb"
    ],
    "bugs":{
-      "web":"https://github.com/my8bird/node-leveldb/issues"
+      "url":"https://github.com/my8bird/node-leveldb/issues"
    },
    "dependencies":{
       "nodeunit":">=0.5.5"
