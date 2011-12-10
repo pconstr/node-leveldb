@@ -1,28 +1,33 @@
 {
-   "name": "leveldb",
-	"tags": ["database", "cache"],
-   "description": "Bindings for using LevelDB through node.",
-   "homepage": "https://github.com/my8bird/node-leveldb",
-   "version": "0.3.6",
-   "author": {
-      "name": "Nathan Landis", 
-      "email": "my8bird@gmail.com"},
-   "main": "lib",
-	"scripts": {
-		"preinstall": "node-waf configure build"
-	},
-   "repository" : { 
-      "type" : "git",
-      "url" : "https://github.com/my8bird/node-leveldb.git"
+   "name":"leveldb",
+   "tags":[
+      "database",
+      "cache"
+   ],
+   "description":"Bindings for using LevelDB through node.",
+   "homepage":"https://github.com/my8bird/node-leveldb",
+   "version":"0.4.0",
+   "main":"lib",
+   "scripts":{
+      "preinstall":"node-waf configure build"
    },
-   "keywords": ["database", "leveldb"],
-   "bugs" : { "web" : "https://github.com/my8bird/node-leveldb/issues" },
-   "dependencies": 
-   {
-     "nodeunit": ">=0.5.5"
+   "repository":{
+      "type":"git",
+      "url":"https://github.com/my8bird/node-leveldb.git"
    },
-	"contributors": [
-	    "Randall Leeds <randall.leeds@gmail.com> (http://claimid.com/randallleeds)",
-	    "Damon Oehlman <damon.oehlman@sidelab.com> (http://www.sidelab.com/)"
-	]
+   "keywords":[
+      "database",
+      "leveldb"
+   ],
+   "bugs":{
+      "web":"https://github.com/my8bird/node-leveldb/issues"
+   },
+   "dependencies":{
+      "nodeunit":">=0.5.5"
+   },
+   "contributors":[
+      "Nathan Landis <my8bird@gmail.com>",
+      "Randall Leeds <randall.leeds@gmail.com> (http://claimid.com/randallleeds)",
+      "Damon Oehlman <damon.oehlman@sidelab.com> (http://www.sidelab.com/)"
+   ]
 }
