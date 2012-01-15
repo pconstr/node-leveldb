@@ -6,13 +6,14 @@
 #include "helpers.h"
 
 #include <stdlib.h>
+#include <sstream>
 #include <algorithm>
 
 using namespace node_leveldb;
 
 Persistent<FunctionTemplate> DB::persistent_function_template;
 
-DB::DB() 
+DB::DB()
   : db(NULL)
 {
 }
@@ -50,6 +51,11 @@ void DB::Init(Handle<Object> target) {
 
   // Binding our constructor function to the target variable
   target->Set(String::NewSymbol("DB"), persistent_function_template->GetFunction());
+
+  // Set version
+  std::stringstream version;
+  version << leveldb::kMajorVersion << "." << leveldb::kMinorVersion;
+  target->Set(String::New("version"), String::New(version.str().c_str()));
 }
 
 bool DB::HasInstance(Handle<Value> val) {
@@ -87,7 +93,7 @@ Handle<Value> DB::Open(const Arguments& args) {
     return ThrowException(Exception::TypeError(String::New("DB.open() expects a filename")));
   }
   String::Utf8Value name(args[0]);
-  
+
   int pos = 1;
 
   // Optional options
@@ -133,7 +139,7 @@ int DB::EIO_AfterOpen(eio_req *req) {
 
   OpenParams *params = static_cast<OpenParams*>(req->data);
   params->Callback();
-  
+
   delete params;
   return 0;
 }
@@ -167,7 +173,7 @@ Handle<Value> DB::Close(const Arguments& args) {
 
   // Get this and arguments
   DB* self = ObjectWrap::Unwrap<DB>(args.This());
-  
+
   // Optional callback
   Local<Function> callback;
   if (0 < args.Length() && args[0]->IsFunction()) {
@@ -178,7 +184,7 @@ Handle<Value> DB::Close(const Arguments& args) {
 
   Params *params = new Params(self, callback);
   EIO_BeforeClose(params);
-  
+
   return args.This();
 }
 
@@ -196,7 +202,7 @@ eio_return_type DB::EIO_Close(eio_req *req) {
 int DB::EIO_AfterClose(eio_req *req) {
   Params *params = static_cast<Params*>(req->data);
   params->Callback();
-  
+
   delete params;
   return 0;
 }
@@ -208,13 +214,13 @@ int DB::EIO_AfterClose(eio_req *req) {
 
 Handle<Value> DB::Put(const Arguments& args) {
   HandleScope scope;
-  
+
   // Get this and arguments
   DB* self = ObjectWrap::Unwrap<DB>(args.This());
   if (self->db == NULL) {
     return ThrowException(Exception::Error(String::New("DB has not been opened")));
   }
-  
+
   // Check args
   if (args.Length() < 2 || (!args[0]->IsString() && !Buffer::HasInstance(args[0])) || (!args[1]->IsString() && !Buffer::HasInstance(args[1]))) {
     return ThrowException(Exception::TypeError(String::New("DB.put() expects key, value")));
@@ -241,7 +247,7 @@ Handle<Value> DB::Put(const Arguments& args) {
     callback = Local<Function>::Cast(args[pos]);
     pos++;
   }
-  
+
   WriteParams *params = new WriteParams(self, writeBatch, options, callback);
   params->disposeWriteBatch = true;
   EIO_BeforeWrite(params);
@@ -256,13 +262,13 @@ Handle<Value> DB::Put(const Arguments& args) {
 
 Handle<Value> DB::Del(const Arguments& args) {
   HandleScope scope;
-  
+
   // Get this and arguments
   DB* self = ObjectWrap::Unwrap<DB>(args.This());
   if (self->db == NULL) {
     return ThrowException(Exception::Error(String::New("DB has not been opened")));
   }
-  
+
   // Check args
   if (args.Length() < 1 || (!args[0]->IsString() && !Buffer::HasInstance(args[0]))) {
     return ThrowException(Exception::TypeError(String::New("DB.del() expects key")));
@@ -272,7 +278,7 @@ Handle<Value> DB::Del(const Arguments& args) {
   WriteBatch *writeBatch = new WriteBatch();
   leveldb::Slice key = JsToSlice(args[0], &writeBatch->strings);
   writeBatch->wb.Delete(key);
-  
+
   int pos = 1;
 
   // Optional write options
@@ -288,7 +294,7 @@ Handle<Value> DB::Del(const Arguments& args) {
     callback = Local<Function>::Cast(args[pos]);
     pos++;
   }
-  
+
   WriteParams *params = new WriteParams(self, writeBatch, options, callback);
   params->disposeWriteBatch = true;
   EIO_BeforeWrite(params);
@@ -309,14 +315,19 @@ Handle<Value> DB::Write(const Arguments& args) {
   if (self->db == NULL) {
     return ThrowException(Exception::Error(String::New("DB has not been opened")));
   }
-  
+
   // Required WriteBatch
   if (args.Length() < 1 || !args[0]->IsObject()) {
     return ThrowException(Exception::TypeError(String::New("DB.write() expects a WriteBatch object")));
   }
+
   Local<Object> writeBatchObject = Object::Cast(*args[0]);
   WriteBatch* writeBatch = ObjectWrap::Unwrap<WriteBatch>(writeBatchObject);
-  
+
+  if (writeBatch == NULL) {
+    return ThrowException(Exception::TypeError(String::New("DB.write() expects a WriteBatch object")));
+  }
+
   int pos = 1;
 
   // Optional write options
@@ -363,7 +374,7 @@ eio_return_type DB::EIO_Write(eio_req *req) {
 
 int DB::EIO_AfterWrite(eio_req *req) {
   HandleScope scope;
-  
+
   WriteParams *params = static_cast<WriteParams*>(req->data);
   params->Callback();
 
@@ -394,7 +405,7 @@ Handle<Value> DB::Get(const Arguments& args) {
   if (self->db == NULL) {
     return ThrowException(Exception::Error(String::New("DB has not been opened")));
   }
-  
+
   int pos = 1;
 
   // Optional read options
@@ -417,7 +428,7 @@ Handle<Value> DB::Get(const Arguments& args) {
     callback = Local<Function>::Cast(args[pos]);
     pos++;
   }
-  
+
   // Pass parameters to async function
   ReadParams *params = new ReadParams(self, options, asBuffer, callback);
 
@@ -460,7 +471,7 @@ eio_return_type DB::EIO_Read(eio_req *req) {
 
 int DB::EIO_AfterRead(eio_req *req) {
   HandleScope scope;
-  
+
   ReadParams *params = static_cast<ReadParams*>(req->data);
   if (params->asBuffer) {
     params->Callback(Bufferize(params->result));
@@ -500,7 +511,7 @@ Handle<Value> DB::NewIterator(const Arguments& args) {
   if (!(args.Length() == 1 && args[0]->IsObject())) {
     return ThrowException(Exception::TypeError(String::New("Invalid arguments: Expected (Object)")));
   } // if
-  
+
   DB* self = ObjectWrap::Unwrap<DB>(args.This());
   leveldb::ReadOptions options = JsToReadOptions(args[0]);
   leveldb::Iterator* it = self->db->NewIterator(options);
