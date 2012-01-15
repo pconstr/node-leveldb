@@ -9,7 +9,7 @@
    "version":"0.4.0",
    "main":"lib",
    "scripts":{
-      "preinstall":"node-waf configure build"
+      "preinstall":"git submodule update && node-waf configure build"
    },
    "repository":{
       "type":"git",
