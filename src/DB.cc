@@ -9,6 +9,13 @@
 #include <sstream>
 #include <algorithm>
 
+
+#define CHECK_VALID_STATE                                               \
+  if (self->db == NULL) {                                               \
+    return ThrowError("Illegal state: DB.open() has not been called");  \
+  }
+
+
 using namespace node_leveldb;
 
 Persistent<FunctionTemplate> DB::persistent_function_template;
@@ -84,33 +91,32 @@ Handle<Value> DB::New(const Arguments& args) {
 // Open
 //
 
+#define DB_OPEN_ARGS_ERROR(msg) \
+  return ThrowTypeError(msg ": DB.open(<filename>, <options?>, <callback?>)")
+
 Handle<Value> DB::Open(const Arguments& args) {
   HandleScope scope;
 
   // Get this and arguments
   DB* self = ObjectWrap::Unwrap<DB>(args.This());
+  int argv = args.Length();
+
+  if (argv < 1)
+    DB_OPEN_ARGS_ERROR("Invalid number of arguments");
+
+  if (!args[0]->IsString())
+    DB_OPEN_ARGS_ERROR("Argument 1 must be a string");
 
   // Required filename
-  if (args.Length() < 1 || !args[0]->IsString()) {
-    return ThrowException(Exception::TypeError(String::New("DB.open() expects a filename")));
-  }
   String::Utf8Value name(args[0]);
-
-  int pos = 1;
 
   // Optional options
   leveldb::Options options = leveldb::Options();
-  if (pos < args.Length() && args[pos]->IsObject() && !args[pos]->IsFunction()) {
-    options = JsToOptions(args[pos]);
-    pos++;
-  }
+  if (argv > 1 && args[1]->IsObject() && !args[1]->IsFunction())
+    options = JsToOptions(args[1]);
 
   // Optional callback
-  Local<Function> callback;
-  if (pos < args.Length() && args[pos]->IsFunction()) {
-    callback = Local<Function>::Cast(args[pos]);
-    pos++;
-  }
+  Local<Function> callback = GET_CALLBACK_ARG(args, argv);
 
   // Pass parameters to async function
   OpenParams *params = new OpenParams(self, *name, options, callback);
@@ -175,12 +181,10 @@ Handle<Value> DB::Close(const Arguments& args) {
 
   // Get this and arguments
   DB* self = ObjectWrap::Unwrap<DB>(args.This());
+  int argv = args.Length();
 
   // Optional callback
-  Local<Function> callback;
-  if (0 < args.Length() && args[0]->IsFunction()) {
-    callback = Local<Function>::Cast(args[0]);
-  }
+  Local<Function> callback = GET_CALLBACK_ARG(args, argv);
 
   self->Close();
 
@@ -214,19 +218,26 @@ int DB::EIO_AfterClose(eio_req *req) {
 // Put
 //
 
+#define DB_PUT_ARGS_ERROR(msg) \
+  return ThrowTypeError(msg ": DB.put(<key>, <value>, <options?>, <callback?>)")
+
 Handle<Value> DB::Put(const Arguments& args) {
   HandleScope scope;
 
   // Get this and arguments
   DB* self = ObjectWrap::Unwrap<DB>(args.This());
-  if (self->db == NULL) {
-    return ThrowException(Exception::Error(String::New("DB has not been opened")));
-  }
+  int argv = args.Length();
 
-  // Check args
-  if (args.Length() < 2 || (!args[0]->IsString() && !Buffer::HasInstance(args[0])) || (!args[1]->IsString() && !Buffer::HasInstance(args[1]))) {
-    return ThrowException(Exception::TypeError(String::New("DB.put() expects key, value")));
-  }
+  CHECK_VALID_STATE;
+
+  if (argv < 2)
+    DB_PUT_ARGS_ERROR("Invalid number of arguments");
+
+  if (!args[0]->IsString() && !Buffer::HasInstance(args[0]))
+    DB_OPEN_ARGS_ERROR("Argument 1 must be a string or buffer");
+
+  if (!args[1]->IsString() && !Buffer::HasInstance(args[1]))
+    DB_OPEN_ARGS_ERROR("Argument 2 must be a string or buffer");
 
   // Use temporary WriteBatch to implement Put
   WriteBatch *writeBatch = new WriteBatch();
@@ -234,21 +245,13 @@ Handle<Value> DB::Put(const Arguments& args) {
   leveldb::Slice value = JsToSlice(args[1], &writeBatch->strings);
   writeBatch->wb.Put(key, value);
 
-  int pos = 2;
-
   // Optional write options
   leveldb::WriteOptions options = leveldb::WriteOptions();
-  if (pos < args.Length() && args[pos]->IsObject() && !args[pos]->IsFunction()) {
-    options = JsToWriteOptions(args[pos]);
-    pos++;
-  }
+  if (argv > 2 && args[2]->IsObject() && !args[2]->IsFunction())
+    options = JsToWriteOptions(args[2]);
 
   // Optional callback
-  Local<Function> callback;
-  if (pos < args.Length() && args[pos]->IsFunction()) {
-    callback = Local<Function>::Cast(args[pos]);
-    pos++;
-  }
+  Local<Function> callback = GET_CALLBACK_ARG(args, argv);
 
   WriteParams *params = new WriteParams(self, writeBatch, options, callback);
   params->disposeWriteBatch = true;
@@ -262,40 +265,31 @@ Handle<Value> DB::Put(const Arguments& args) {
 // Del
 //
 
+#define DB_DEL_ARGS_ERROR(msg) \
+  return ThrowTypeError(msg ": DB.del(<key>, <options?>, <callback?>)")
+
 Handle<Value> DB::Del(const Arguments& args) {
   HandleScope scope;
 
   // Get this and arguments
   DB* self = ObjectWrap::Unwrap<DB>(args.This());
-  if (self->db == NULL) {
-    return ThrowException(Exception::Error(String::New("DB has not been opened")));
-  }
+  int argv = args.Length();
 
-  // Check args
-  if (args.Length() < 1 || (!args[0]->IsString() && !Buffer::HasInstance(args[0]))) {
-    return ThrowException(Exception::TypeError(String::New("DB.del() expects key")));
-  }
+  CHECK_VALID_STATE;
+
+  if (argv < 1)
+    DB_DEL_ARGS_ERROR("Invalid number of arguments");
 
   // Use temporary WriteBatch to implement Del
   WriteBatch *writeBatch = new WriteBatch();
   leveldb::Slice key = JsToSlice(args[0], &writeBatch->strings);
   writeBatch->wb.Delete(key);
 
-  int pos = 1;
-
   // Optional write options
-  leveldb::WriteOptions options = leveldb::WriteOptions();
-  if (pos < args.Length() && args[pos]->IsObject() && !args[pos]->IsFunction()) {
-    options = JsToWriteOptions(args[pos]);
-    pos++;
-  }
+  leveldb::WriteOptions options = GET_WRITE_OPTIONS_ARG(args, argv, 1);
 
   // Optional callback
-  Local<Function> callback;
-  if (pos < args.Length() && args[pos]->IsFunction()) {
-    callback = Local<Function>::Cast(args[pos]);
-    pos++;
-  }
+  Local<Function> callback = GET_CALLBACK_ARG(args, argv);
 
   WriteParams *params = new WriteParams(self, writeBatch, options, callback);
   params->disposeWriteBatch = true;
@@ -309,49 +303,41 @@ Handle<Value> DB::Del(const Arguments& args) {
 // Write
 //
 
+#define DB_WRITE_ARGS_ERROR(msg) \
+  return ThrowTypeError(msg ": DB.write(<key>, <options?>, <callback?>)")
+
 Handle<Value> DB::Write(const Arguments& args) {
   HandleScope scope;
 
   // Get this and arguments
   DB* self = ObjectWrap::Unwrap<DB>(args.This());
-  if (self->db == NULL) {
-    return ThrowException(Exception::Error(String::New("DB has not been opened")));
-  }
+  int argv = args.Length();
+
+  CHECK_VALID_STATE;
+
+  if (argv < 1)
+    DB_WRITE_ARGS_ERROR("Invalid number of arguments");
 
   // Required WriteBatch
-  if (args.Length() < 1 || !args[0]->IsObject()) {
-    return ThrowException(Exception::TypeError(String::New("DB.write() expects a WriteBatch object")));
-  }
+  if (!args[0]->IsObject())
+    DB_WRITE_ARGS_ERROR("Argument 1 must be a WriteBatch object");
 
   Local<Object> writeBatchObject = Object::Cast(*args[0]);
   WriteBatch* writeBatch = ObjectWrap::Unwrap<WriteBatch>(writeBatchObject);
 
-  if (writeBatch == NULL) {
-    return ThrowException(Exception::TypeError(String::New("DB.write() expects a WriteBatch object")));
-  }
-
-  int pos = 1;
+  if (writeBatch == NULL)
+    DB_WRITE_ARGS_ERROR("Argument 1 must be a WriteBatch object");
 
   // Optional write options
-  leveldb::WriteOptions options = leveldb::WriteOptions();
-  if (pos < args.Length() && args[pos]->IsObject() && !args[pos]->IsFunction()) {
-    options = JsToWriteOptions(args[pos]);
-    pos++;
-  }
+  leveldb::WriteOptions options = GET_WRITE_OPTIONS_ARG(args, argv, 2);
 
   // Optional callback
-  Local<Function> callback;
-  if (pos < args.Length() && args[pos]->IsFunction()) {
-    callback = Local<Function>::Cast(args[pos]);
-    pos++;
-  }
+  Local<Function> callback = GET_CALLBACK_ARG(args, argv);
 
   // Pass parameters to async function
   WriteParams *params = new WriteParams(self, writeBatch, options, callback);
 
-  if (!params->disposeWriteBatch) {
-    writeBatch->Ref();
-  }
+  if (!params->disposeWriteBatch) writeBatch->Ref();
 
   EIO_BeforeWrite(params);
 
@@ -395,41 +381,30 @@ int DB::EIO_AfterWrite(eio_req *req) {
 // Get
 //
 
+#define DB_GET_ARGS_ERROR(msg) \
+  return ThrowTypeError(msg ": DB.get(<key>, <options?>, <callback?>)")
+
 Handle<Value> DB::Get(const Arguments& args) {
   HandleScope scope;
 
-  // Check args
-  if (args.Length() < 1 || (!args[0]->IsString() && !Buffer::HasInstance(args[0]))) {
-    return ThrowException(Exception::TypeError(String::New("DB.get() expects key")));
-  }
-
   DB* self = ObjectWrap::Unwrap<DB>(args.This());
-  if (self->db == NULL) {
-    return ThrowException(Exception::Error(String::New("DB has not been opened")));
-  }
+  int argv = args.Length();
 
-  int pos = 1;
+  CHECK_VALID_STATE;
+
+  if (argv < 1)
+    DB_GET_ARGS_ERROR("Invalid number of arguments");
+
+  if (!args[0]->IsString() && !Buffer::HasInstance(args[0]))
+    DB_GET_ARGS_ERROR("Argument 1 must be a string or buffer");
+
+  bool asBuffer = false;
 
   // Optional read options
-  leveldb::ReadOptions options = leveldb::ReadOptions();
-  if (pos < args.Length() && args[pos]->IsObject() && !args[pos]->IsFunction()) {
-    options = JsToReadOptions(args[pos]);
-    pos++;
-  }
-
-  // Optional asBuffer setting
-  bool asBuffer = false;
-  if (pos < args.Length() && args[pos]->IsBoolean()) {
-    asBuffer = args[pos]->ToBoolean()->BooleanValue();
-    pos++;
-  }
+  leveldb::ReadOptions options = GET_READ_OPTIONS_ARG(asBuffer, args, argv, 1);
 
   // Optional callback
-  Local<Function> callback;
-  if (pos < args.Length() && args[pos]->IsFunction()) {
-    callback = Local<Function>::Cast(args[pos]);
-    pos++;
-  }
+  Local<Function> callback = GET_CALLBACK_ARG(args, argv);
 
   // Pass parameters to async function
   ReadParams *params = new ReadParams(self, options, asBuffer, callback);
@@ -510,20 +485,19 @@ void DB::unrefIterator(Persistent<Value> object, void* parameter) {
 Handle<Value> DB::NewIterator(const Arguments& args) {
   HandleScope scope;
 
-  if (!(args.Length() == 1 && args[0]->IsObject())) {
-    return ThrowException(Exception::TypeError(String::New("Invalid arguments: Expected (Object)")));
-  } // if
-
   DB* self = ObjectWrap::Unwrap<DB>(args.This());
-  leveldb::ReadOptions options = JsToReadOptions(args[0]);
+  int argv = args.Length();
+
+  CHECK_VALID_STATE;
+
+  bool asBuffer = false;
+
+  leveldb::ReadOptions options = GET_READ_OPTIONS_ARG(asBuffer, args, argv, 0);
   leveldb::Iterator* it = self->db->NewIterator(options);
 
-  // DJO: Don't like writing code I don't understand, but I found this is how the node-gd library
-  // converts an actual instance to it's binding representation
-  // https://github.com/taggon/node-gd/blob/master/gd_bindings.cc#L79
-  // Guess, I'll understand it soon...
-  Local<Value> argv[] = {External::New(it), args.This()};
-  Handle<Object> itHandle = Iterator::persistent_function_template->GetFunction()->NewInstance(2, argv);
+  // https://github.com/joyent/node/blob/master/deps/v8/include/v8.h#L2102
+  Local<Value> itArgs[] = {External::New(it), args.This()};
+  Handle<Object> itHandle = Iterator::persistent_function_template->GetFunction()->NewInstance(2, itArgs);
 
   // Keep a weak reference
   Persistent<Object> weakHandle = Persistent<Object>::New(itHandle);
@@ -558,16 +532,26 @@ Handle<Value> DB::GetApproximateSizes(const Arguments& args) {
 // DestroyDB
 //
 
+#define DB_DESTROY_DB_ARGS_ERROR(msg) \
+  return ThrowTypeError(msg ": DB.destroyDB(<filename>, <options?>)")
+
 Handle<Value> DB::DestroyDB(const Arguments& args) {
   HandleScope scope;
 
+  DB* self = ObjectWrap::Unwrap<DB>(args.This());
+  int argv = args.Length();
+
+  CHECK_VALID_STATE;
+
+  if (argv < 1)
+    DB_DESTROY_DB_ARGS_ERROR("Invalid number of arguments");
+
   // Check args
-  if (!(args.Length() == 2 && args[0]->IsString() && args[1]->IsObject())) {
-    return ThrowException(Exception::TypeError(String::New("Invalid arguments: Expected (String, Object)")));
-  }
+  if (!args[0]->IsString())
+    DB_DESTROY_DB_ARGS_ERROR("Argument 1 must be a string");
 
   String::Utf8Value name(args[0]);
-  leveldb::Options options = JsToOptions(args[1]);
+  leveldb::Options options = GET_OPTIONS_ARG(args, argv, 1);
 
   return processStatus(leveldb::DestroyDB(*name, options));
 }
@@ -577,16 +561,26 @@ Handle<Value> DB::DestroyDB(const Arguments& args) {
 // RepairDB
 //
 
+#define DB_REPAIR_DB_ARGS_ERROR(msg) \
+  return ThrowTypeError(msg ": DB.repairDB(<filename>, <options?>)")
+
 Handle<Value> DB::RepairDB(const Arguments& args) {
   HandleScope scope;
 
+  DB* self = ObjectWrap::Unwrap<DB>(args.This());
+  int argv = args.Length();
+
+  CHECK_VALID_STATE;
+
+  if (argv < 1)
+    DB_REPAIR_DB_ARGS_ERROR("Invalid number of arguments");
+
   // Check args
-  if (!(args.Length() == 2 && args[0]->IsString() && args[1]->IsObject())) {
-    return ThrowException(Exception::TypeError(String::New("Invalid arguments: Expected (String, Object)")));
-  }
+  if (!args[0]->IsString())
+    DB_REPAIR_DB_ARGS_ERROR("Argument 1 must be a string");
 
   String::Utf8Value name(args[0]);
-  leveldb::Options options = JsToOptions(args[1]);
+  leveldb::Options options = GET_OPTIONS_ARG(args, argv, 1);
 
   return processStatus(leveldb::RepairDB(*name, options));
 }

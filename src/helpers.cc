@@ -30,7 +30,7 @@ leveldb::Options JsToOptions(Handle<Value> val) {
   return options;
 }
 
-leveldb::ReadOptions JsToReadOptions(Handle<Value> val) {
+leveldb::ReadOptions JsToReadOptions(Handle<Value> val, bool &asBuffer) {
   HandleScope scope;
   leveldb::ReadOptions options;
   Local<Object> obj = Object::Cast(*val);
@@ -39,6 +39,9 @@ leveldb::ReadOptions JsToReadOptions(Handle<Value> val) {
   }
   if (obj->Has(String::New("fill_cache"))) {
     options.fill_cache = obj->Get(String::New("fill_cache"))->BooleanValue();
+  }
+  if (obj->Has(String::New("as_buffer"))) {
+    asBuffer = obj->Get(String::New("as_buffer"))->ToBoolean()->BooleanValue();
   }
   return options;
 }

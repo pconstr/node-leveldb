@@ -22,11 +22,43 @@ using namespace v8;
   #define eio_return_stmt return 0
 #endif
 
+#define GET_CALLBACK_ARG(args, argv) (                      \
+  ((argv) > 1 && (args)[(argv) - 1]->IsFunction())          \
+    ? Local<Function>::Cast((args)[(argv) - 1])             \
+    : Local<Function>()                                     \
+  )
+
+#define GET_WRITE_OPTIONS_ARG(args, argv, idx) (            \
+  ((argv) >= (idx) && (args)[(idx)]->IsObject() && !(args)[(idx)]->IsFunction()) \
+    ? JsToWriteOptions((args)[(idx)])                       \
+    : leveldb::WriteOptions()                               \
+  )
+
+#define GET_READ_OPTIONS_ARG(asBool, args, argv, idx) (     \
+  ((argv) >= (idx) && (args)[(idx)]->IsObject() && !(args)[(idx)]->IsFunction()) \
+    ? JsToReadOptions((args)[(idx)], (asBool))              \
+    : leveldb::ReadOptions()                                \
+  )
+
+#define GET_OPTIONS_ARG(args, argv, idx) (                  \
+  ((argv) >= (idx) && (args)[(idx)]->IsObject() && !(args)[(idx)]->IsFunction()) \
+    ? JsToOptions((args)[(idx)])                  \
+    : leveldb::Options()                                    \
+  )
+
 namespace node_leveldb {
+
+  inline Handle<Value> ThrowTypeError(const char* err) {
+    return ThrowException(Exception::TypeError(String::New(err)));
+  }
+
+  inline Handle<Value> ThrowError(const char* err) {
+    return ThrowException(Exception::Error(String::New(err)));
+  }
 
   // Helper to convert vanilla JS objects into leveldb objects
   leveldb::Options JsToOptions(Handle<Value> val);
-  leveldb::ReadOptions JsToReadOptions(Handle<Value> val);
+  leveldb::ReadOptions JsToReadOptions(Handle<Value> val, bool &asBuffer);
   leveldb::WriteOptions JsToWriteOptions(Handle<Value> val);
   leveldb::Slice JsToSlice(Handle<Value> val, std::vector<std::string> *strings);
 
