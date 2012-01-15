@@ -55,7 +55,7 @@ void DB::Init(Handle<Object> target) {
   // Set version
   std::stringstream version;
   version << leveldb::kMajorVersion << "." << leveldb::kMinorVersion;
-  target->Set(String::New("version"), String::New(version.str().c_str()));
+  target->Set(String::New("bindingVersion"), String::New(version.str().c_str()));
 }
 
 bool DB::HasInstance(Handle<Value> val) {
