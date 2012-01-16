@@ -19,8 +19,6 @@ class DB : ObjectWrap {
   DB();
   ~DB();
 
-  void Close();
-
   static void Init(Handle<Object> target);
 
   static bool HasInstance(Handle<Value> val);
@@ -51,8 +49,9 @@ class DB : ObjectWrap {
 
  private:
 
-  static void unrefIterator(Persistent<Value> object, void* parameter);
+  void Close();
 
+  static void unrefIterator(Persistent<Value> object, void* parameter);
 
   struct Params {
     Params(DB* self, Handle<Function> cb);

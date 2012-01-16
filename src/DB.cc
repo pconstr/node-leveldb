@@ -76,6 +76,11 @@ bool DB::HasInstance(Handle<Value> val) {
   return false;
 }
 
+
+//
+// Constructor
+//
+
 Handle<Value> DB::New(const Arguments& args) {
   HandleScope scope;
 
@@ -259,6 +264,8 @@ Handle<Value> DB::Put(const Arguments& args) {
   return args.This();
 }
 
+#undef DB_PUT_ARGS_ERROR
+
 
 //
 // Del
@@ -296,6 +303,8 @@ Handle<Value> DB::Del(const Arguments& args) {
 
   return args.This();
 }
+
+#undef DB_DEL_ARGS_ERROR
 
 
 //
@@ -342,6 +351,8 @@ Handle<Value> DB::Write(const Arguments& args) {
 
   return args.This();
 }
+
+#undef DB_WRITE_ARGS_ERROR
 
 void DB::EIO_BeforeWrite(WriteParams *params) {
   eio_custom(EIO_Write, EIO_PRI_DEFAULT, EIO_AfterWrite, params);
@@ -427,6 +438,8 @@ Handle<Value> DB::Get(const Arguments& args) {
   return args.This();
 }
 
+#undef DB_GET_ARGS_ERROR
+
 void DB::EIO_BeforeRead(ReadParams *params) {
   eio_custom(EIO_Read, EIO_PRI_DEFAULT, EIO_AfterRead, params);
 }
@@ -465,21 +478,10 @@ int DB::EIO_AfterRead(eio_req *req) {
   return 0;
 }
 
-bool CheckAlive(Persistent<Object> o) {
-  return !o.IsNearDeath();
-};
 
-void DB::unrefIterator(Persistent<Value> object, void* parameter) {
-  std::vector< Persistent<Object> > *iteratorList =
-    (std::vector< Persistent<Object> > *) parameter;
-
-  Iterator *itTarget = ObjectWrap::Unwrap<Iterator>(object->ToObject());
-
-  std::vector< Persistent<Object> >::iterator i =
-    partition(iteratorList->begin(), iteratorList->end(), CheckAlive);
-
-  iteratorList->erase(i, iteratorList->end());
-}
+//
+// NewIterator
+//
 
 Handle<Value> DB::NewIterator(const Arguments& args) {
   HandleScope scope;
@@ -506,25 +508,66 @@ Handle<Value> DB::NewIterator(const Arguments& args) {
   return scope.Close(itHandle);
 }
 
+bool CheckAlive(Persistent<Object> o) {
+  return !o.IsNearDeath();
+};
+
+void DB::unrefIterator(Persistent<Value> object, void* parameter) {
+  std::vector< Persistent<Object> > *iteratorList =
+    (std::vector< Persistent<Object> > *) parameter;
+
+  Iterator *itTarget = ObjectWrap::Unwrap<Iterator>(object->ToObject());
+
+  std::vector< Persistent<Object> >::iterator i =
+    partition(iteratorList->begin(), iteratorList->end(), CheckAlive);
+
+  iteratorList->erase(i, iteratorList->end());
+}
+
+
+//
+// GetSnapshot
+//
+
 Handle<Value> DB::GetSnapshot(const Arguments& args) {
   HandleScope scope;
   return ThrowError("Method not implemented");
 }
+
+
+//
+// ReleaseSnapshot
+//
 
 Handle<Value> DB::ReleaseSnapshot(const Arguments& args) {
   HandleScope scope;
   return ThrowError("Method not implemented");
 }
 
+
+//
+// GetProperty
+//
+
 Handle<Value> DB::GetProperty(const Arguments& args) {
   HandleScope scope;
   return ThrowError("Method not implemented");
 }
 
+
+//
+// GetApproximateSizes
+//
+
 Handle<Value> DB::GetApproximateSizes(const Arguments& args) {
   HandleScope scope;
   return ThrowError("Method not implemented");
 }
+
+
+//
+// CompactRange
+//
 
 Handle<Value> DB::CompactRange(const Arguments& args) {
   HandleScope scope;
@@ -559,6 +602,8 @@ Handle<Value> DB::DestroyDB(const Arguments& args) {
 
   return processStatus(leveldb::DestroyDB(*name, options));
 }
+
+#undef DB_DESTROY_DB_ARGS_ERROR
 
 
 //
