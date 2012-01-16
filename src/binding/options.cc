@@ -5,7 +5,7 @@
 
 namespace node_leveldb {
 
-void ToOptions(Handle<Value> val, leveldb::Options &options) {
+void Options::Parse(Handle<Value> val, leveldb::Options &options) {
   HandleScope scope;
   Local<Object> obj = Object::Cast(*val);
 
@@ -43,7 +43,7 @@ void ToOptions(Handle<Value> val, leveldb::Options &options) {
   // compression
 }
 
-void ToReadOptions(Handle<Value> val, leveldb::ReadOptions &options, bool &asBuffer) {
+void Options::ParseForRead(Handle<Value> val, leveldb::ReadOptions &options, bool &asBuffer) {
   HandleScope scope;
   Local<Object> obj = Object::Cast(*val);
 
@@ -62,7 +62,7 @@ void ToReadOptions(Handle<Value> val, leveldb::ReadOptions &options, bool &asBuf
 
 }
 
-void ToWriteOptions(Handle<Value> val, leveldb::WriteOptions &options) {
+void Options::ParseForWrite(Handle<Value> val, leveldb::WriteOptions &options) {
   HandleScope scope;
   Local<Object> obj = Object::Cast(*val);
 

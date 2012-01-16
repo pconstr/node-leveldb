@@ -10,9 +10,12 @@ using namespace v8;
 
 namespace node_leveldb {
 
-void ToOptions(Handle<Value> val, leveldb::Options &options);
-void ToReadOptions(Handle<Value> val, leveldb::ReadOptions &options, bool &asBuffer);
-void ToWriteOptions(Handle<Value> val, leveldb::WriteOptions &options);
+class Options {
+ public:
+  static void Parse(Handle<Value> val, leveldb::Options &options);
+  static void ParseForRead(Handle<Value> val, leveldb::ReadOptions &options, bool &asBuffer);
+  static void ParseForWrite(Handle<Value> val, leveldb::WriteOptions &options);
+};
 
 } // namespace node_leveldb
 

@@ -69,10 +69,9 @@ void DB::Init(Handle<Object> target) {
               static_cast<v8::PropertyAttribute>(v8::ReadOnly|v8::DontDelete));
 }
 
-bool DB::HasInstance(Handle<Value> val) {
-  if (!val->IsObject()) return false;
-  Local<Object> obj = val->ToObject();
-  return persistent_function_template->HasInstance(obj);
+bool DB::HasInstance(Handle<Value> value) {
+  return value->IsObject() &&
+    persistent_function_template->HasInstance(value->ToObject());
 }
 
 
@@ -118,7 +117,7 @@ Handle<Value> DB::Open(const Arguments& args) {
   // Optional options
   leveldb::Options options = leveldb::Options();
   if (argv > 1 && args[1]->IsObject() && !args[1]->IsFunction())
-    ToOptions(args[1], options);
+    Options::Parse(args[1], options);
 
   // Optional callback
   Local<Function> callback = GET_CALLBACK_ARG(args, argv);
@@ -255,7 +254,7 @@ Handle<Value> DB::Put(const Arguments& args) {
   // Optional write options
   leveldb::WriteOptions options;
   if (argv > 2 && args[2]->IsObject() && !args[2]->IsFunction())
-    ToWriteOptions(args[2], options);
+    Options::ParseForWrite(args[2], options);
 
   // Optional callback
   Local<Function> callback = GET_CALLBACK_ARG(args, argv);

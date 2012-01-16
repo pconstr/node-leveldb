@@ -30,17 +30,17 @@ using namespace v8;
 
 #define GET_WRITE_OPTIONS_ARG(options, args, argv, idx)     \
   if ((argv) >= (idx) && (args)[(idx)]->IsObject() && !(args)[(idx)]->IsFunction()) { \
-    ToWriteOptions((args)[(idx)], options);                 \
+    Options::ParseForWrite((args)[(idx)], options);                 \
   }
 
 #define GET_READ_OPTIONS_ARG(options, asBool, args, argv, idx) \
   if ((argv) >= (idx) && (args)[(idx)]->IsObject() && !(args)[(idx)]->IsFunction()) { \
-    ToReadOptions((args)[(idx)], (options), (asBool));      \
+    Options::ParseForRead((args)[(idx)], (options), (asBool));      \
   }
 
 #define GET_OPTIONS_ARG(options, args, argv, idx)           \
   if ((argv) >= (idx) && (args)[(idx)]->IsObject() && !(args)[(idx)]->IsFunction()) { \
-    ToOptions((args)[(idx)], (options));                    \
+    Options::Parse((args)[(idx)], (options));                    \
   }
 
 namespace node_leveldb {
