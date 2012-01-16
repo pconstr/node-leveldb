@@ -78,7 +78,7 @@ Handle<Value> Iterator::New(const Arguments& args) {
   iterator->db = Persistent<Object>::New(args[1]->ToObject());
   iterator->Wrap(args.This());
 
-  return args.This();
+  return scope.Close( args.This() );
 }
 
 
@@ -87,13 +87,13 @@ Handle<Value> Iterator::New(const Arguments& args) {
 //
 
 Handle<Value> Iterator::Valid(const Arguments& args) {
-    HandleScope scope;
+  HandleScope scope;
 
-    Iterator* self = ObjectWrap::Unwrap<Iterator>(args.This());
+  Iterator* self = ObjectWrap::Unwrap<Iterator>(args.This());
 
-    CHECK_VALID_STATE;
+  CHECK_VALID_STATE;
 
-    return self->it->Valid() ? True() : False();
+  return self->it->Valid() ? True() : False();
 }
 
 
@@ -102,32 +102,32 @@ Handle<Value> Iterator::Valid(const Arguments& args) {
 //
 
 Handle<Value> Iterator::SeekToFirst(const Arguments& args) {
-    HandleScope scope;
+  HandleScope scope;
 
-    Iterator* self = ObjectWrap::Unwrap<Iterator>(args.This());
+  Iterator* self = ObjectWrap::Unwrap<Iterator>(args.This());
 
-    CHECK_VALID_STATE;
+  CHECK_VALID_STATE;
 
-    Local<Function> callback;
-    callback = Local<Function>::Cast(args[0]);
+  Local<Function> callback;
+  callback = Local<Function>::Cast(args[0]);
 
-    SeekParams *params = new SeekParams(self, leveldb::Slice(), callback);
-    EIO_BeforeSeekToFirst(params);
+  SeekParams *params = new SeekParams(self, leveldb::Slice(), callback);
+  EIO_BeforeSeekToFirst(params);
 
-    return Undefined();
+  return scope.Close( Undefined() );
 }
 
 void Iterator::EIO_BeforeSeekToFirst(SeekParams *params) {
-   eio_custom(EIO_SeekToFirst, EIO_PRI_DEFAULT, EIO_AfterSeek, params);
+  eio_custom(EIO_SeekToFirst, EIO_PRI_DEFAULT, EIO_AfterSeek, params);
 }
 
 EIO_RETURN_TYPE Iterator::EIO_SeekToFirst(eio_req *req) {
-   SeekParams *params = static_cast<SeekParams*>(req->data);
-   Iterator *self = params->self;
+  SeekParams *params = static_cast<SeekParams*>(req->data);
+  Iterator *self = params->self;
 
-   self->it->SeekToFirst();
+  self->it->SeekToFirst();
 
-   EIO_RETURN_STMT;
+  EIO_RETURN_STMT;
 }
 
 
@@ -136,30 +136,31 @@ EIO_RETURN_TYPE Iterator::EIO_SeekToFirst(eio_req *req) {
 //
 
 Handle<Value> Iterator::SeekToLast(const Arguments& args) {
-    Iterator* self = ObjectWrap::Unwrap<Iterator>(args.This());
+  HandleScope scope;
+  Iterator* self = ObjectWrap::Unwrap<Iterator>(args.This());
 
-    CHECK_VALID_STATE;
+  CHECK_VALID_STATE;
 
-    Local<Function> callback;
-    callback = Local<Function>::Cast(args[0]);
+  Local<Function> callback;
+  callback = Local<Function>::Cast(args[0]);
 
-    SeekParams *params = new SeekParams(self, leveldb::Slice(), callback);
-    EIO_BeforeSeekToLast(params);
+  SeekParams *params = new SeekParams(self, leveldb::Slice(), callback);
+  EIO_BeforeSeekToLast(params);
 
-    return Undefined();
+  return scope.Close( Undefined() );
 }
 
 void Iterator::EIO_BeforeSeekToLast(SeekParams *params) {
-   eio_custom(EIO_SeekToLast, EIO_PRI_DEFAULT, EIO_AfterSeek, params);
+  eio_custom(EIO_SeekToLast, EIO_PRI_DEFAULT, EIO_AfterSeek, params);
 }
 
 EIO_RETURN_TYPE Iterator::EIO_SeekToLast(eio_req *req) {
-   SeekParams *params = static_cast<SeekParams*>(req->data);
-   Iterator *self = params->self;
+  SeekParams *params = static_cast<SeekParams*>(req->data);
+  Iterator *self = params->self;
 
-   self->it->SeekToLast();
+  self->it->SeekToLast();
 
-   EIO_RETURN_STMT;
+  EIO_RETURN_STMT;
 }
 
 
@@ -168,43 +169,43 @@ EIO_RETURN_TYPE Iterator::EIO_SeekToLast(eio_req *req) {
 //
 
 Handle<Value> Iterator::Seek(const Arguments& args) {
-    Iterator* self = ObjectWrap::Unwrap<Iterator>(args.This());
-    HandleScope scope;
+  HandleScope scope;
+  Iterator* self = ObjectWrap::Unwrap<Iterator>(args.This());
 
-    CHECK_VALID_STATE;
+  CHECK_VALID_STATE;
 
-    // XXX: Throw away vector that makes JsToSlice work.
-    //      the helper needs to be updated.
-    std::vector<std::string> strings;
+  // XXX: Throw away vector that makes JsToSlice work.
+  //      the helper needs to be updated.
+  std::vector<std::string> strings;
 
-    leveldb::Slice key = JsToSlice(args[0], &strings);
-    Local<Function> callback;
-    callback = Local<Function>::Cast(args[1]);
+  leveldb::Slice key = JsToSlice(args[0], &strings);
+  Local<Function> callback;
+  callback = Local<Function>::Cast(args[1]);
 
-    SeekParams *params = new SeekParams(self, key, callback);
-    EIO_BeforeSeek(params);
+  SeekParams *params = new SeekParams(self, key, callback);
+  EIO_BeforeSeek(params);
 
-    return scope.Close(Undefined());
+  return scope.Close( Undefined() );
 }
 
 void Iterator::EIO_BeforeSeek(SeekParams *params) {
-   eio_custom(EIO_Seek, EIO_PRI_DEFAULT, EIO_AfterSeek, params);
+  eio_custom(EIO_Seek, EIO_PRI_DEFAULT, EIO_AfterSeek, params);
 }
 
 EIO_RETURN_TYPE Iterator::EIO_Seek(eio_req *req) {
-   SeekParams *params = static_cast<SeekParams*>(req->data);
-   Iterator *self = params->self;
+  SeekParams *params = static_cast<SeekParams*>(req->data);
+  Iterator *self = params->self;
 
-   self->it->Seek(params->key);
+  self->it->Seek(params->key);
 
-   EIO_RETURN_STMT;
+  EIO_RETURN_STMT;
 }
 
 int Iterator::EIO_AfterSeek(eio_req *req) {
-   SeekParams *params = static_cast<SeekParams*>(req->data);
-   params->Callback();
-   delete params;
-   return 0;
+  SeekParams *params = static_cast<SeekParams*>(req->data);
+  params->Callback();
+  delete params;
+  return 0;
 }
 
 
@@ -213,13 +214,14 @@ int Iterator::EIO_AfterSeek(eio_req *req) {
 //
 
 Handle<Value> Iterator::Next(const Arguments& args) {
-    Iterator *self = ObjectWrap::Unwrap<Iterator>(args.This());
+  HandleScope scope;
+  Iterator *self = ObjectWrap::Unwrap<Iterator>(args.This());
 
-    CHECK_VALID_STATE;
+  CHECK_VALID_STATE;
 
-    self->it->Next();
+  self->it->Next();
 
-    return Undefined();
+  return scope.Close( Undefined() );
 }
 
 
@@ -228,13 +230,14 @@ Handle<Value> Iterator::Next(const Arguments& args) {
 //
 
 Handle<Value> Iterator::Prev(const Arguments& args) {
-    Iterator *self = ObjectWrap::Unwrap<Iterator>(args.This());
+  HandleScope scope;
+  Iterator *self = ObjectWrap::Unwrap<Iterator>(args.This());
 
-    CHECK_VALID_STATE;
+  CHECK_VALID_STATE;
 
-    self->it->Prev();
+  self->it->Prev();
 
-    return Undefined();
+  return scope.Close( Undefined() );
 }
 
 
@@ -243,18 +246,17 @@ Handle<Value> Iterator::Prev(const Arguments& args) {
 //
 
 Handle<Value> Iterator::key(const Arguments& args) {
-    HandleScope scope;
-    Iterator *self = ObjectWrap::Unwrap<Iterator>(args.This());
+  HandleScope scope;
+  Iterator *self = ObjectWrap::Unwrap<Iterator>(args.This());
 
-    CHECK_VALID_STATE;
+  CHECK_VALID_STATE;
 
-    if (!self->it->Valid()) {
-      return scope.Close(Null());
-    }
+  if (!self->it->Valid())
+    return scope.Close( Null() );
 
-    leveldb::Slice k = self->it->key();
+  leveldb::Slice k = self->it->key();
 
-    return scope.Close(Bufferize(k.ToString()));
+  return scope.Close( Bufferize(k.ToString()) );
 }
 
 
@@ -263,17 +265,17 @@ Handle<Value> Iterator::key(const Arguments& args) {
 //
 
 Handle<Value> Iterator::value(const Arguments& args) {
-    HandleScope scope;
-    Iterator *self = ObjectWrap::Unwrap<Iterator>(args.This());
+  HandleScope scope;
+  Iterator *self = ObjectWrap::Unwrap<Iterator>(args.This());
 
-    CHECK_VALID_STATE;
+  CHECK_VALID_STATE;
 
-    if (!self->it->Valid())
-      return scope.Close(Null());
+  if (!self->it->Valid())
+    return scope.Close( Null() );
 
-    leveldb::Slice v = self->it->value();
+  leveldb::Slice v = self->it->value();
 
-    return scope.Close(Bufferize(v.ToString()));
+  return scope.Close( Bufferize(v.ToString()) );
 }
 
 
@@ -282,13 +284,14 @@ Handle<Value> Iterator::value(const Arguments& args) {
 //
 
 Handle<Value> Iterator::status(const Arguments& args) {
-    Iterator *self = ObjectWrap::Unwrap<Iterator>(args.This());
+  HandleScope scope;
+  Iterator *self = ObjectWrap::Unwrap<Iterator>(args.This());
 
-    CHECK_VALID_STATE;
+  CHECK_VALID_STATE;
 
-    leveldb::Status status = self->it->status();
+  leveldb::Status status = self->it->status();
 
-    return processStatus(status);
+  return scope.Close( processStatus(status) );
 }
 
 void Iterator::SeekParams::Callback(Handle<Value> result) {

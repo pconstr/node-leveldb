@@ -45,7 +45,7 @@ Handle<Value> WriteBatch::New(const Arguments& args) {
   WriteBatch* writeBatch = new WriteBatch();
   writeBatch->Wrap(args.This());
 
-  return args.This();
+  return scope.Close( args.This() );
 }
 
 
@@ -53,8 +53,10 @@ Handle<Value> WriteBatch::New(const Arguments& args) {
 // Put
 //
 
-#define USAGE_ERROR(msg) \
-  return ThrowTypeError(msg ": WriteBatch.put(<key>, <value>)")
+#define USAGE_ERROR(msg)                                                  \
+  return scope.Close(                                                     \
+    ThrowTypeError(msg ": WriteBatch.put(<key>, <value>)")                \
+  );
 
 Handle<Value> WriteBatch::Put(const Arguments& args) {
   HandleScope scope;
@@ -75,7 +77,7 @@ Handle<Value> WriteBatch::Put(const Arguments& args) {
 
   self->wb.Put(key, value);
 
-  return args.This();
+  return scope.Close( args.This() );
 }
 
 #undef USAGE_ERROR
@@ -85,8 +87,10 @@ Handle<Value> WriteBatch::Put(const Arguments& args) {
 // Del
 //
 
-#define USAGE_ERROR(msg) \
-  return ThrowTypeError(msg ": WriteBatch.del(<key>)")
+#define USAGE_ERROR(msg)                                                  \
+  return scope.Close(                                                     \
+    ThrowTypeError(msg ": WriteBatch.del(<key>)")                         \
+  );
 
 Handle<Value> WriteBatch::Del(const Arguments& args) {
   HandleScope scope;
@@ -102,7 +106,7 @@ Handle<Value> WriteBatch::Del(const Arguments& args) {
 
   self->wb.Delete(key);
 
-  return args.This();
+  return scope.Close( args.This() );
 }
 
 #undef USAGE_ERROR
@@ -119,7 +123,7 @@ Handle<Value> WriteBatch::Clear(const Arguments& args) {
   self->wb.Clear();
   self->strings.clear();
 
-  return args.This();
+  return scope.Close( args.This() );
 }
 
 }  // namespace node_leveldb
