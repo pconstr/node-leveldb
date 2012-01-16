@@ -6,6 +6,7 @@
 
 #include "leveldb/iterator.h"
 
+#include "DB.h"
 #include "helpers.h"
 
 using namespace v8;
@@ -14,65 +15,74 @@ using namespace node;
 namespace node_leveldb {
 
 class Iterator : ObjectWrap {
-  public:
-    Iterator();
-    ~Iterator();
+ friend class DB;
 
-    void Close();
+ public:
+  ~Iterator();
 
-    static Persistent<FunctionTemplate> persistent_function_template;
-    static void Init(Handle<Object> target);
-    static Handle<Value> New(const Arguments& args);
-    
-    static Handle<Value> Valid(const Arguments& args);
-    static Handle<Value> SeekToFirst(const Arguments& args);
-    static Handle<Value> SeekToLast(const Arguments& args);
-    static Handle<Value> Seek(const Arguments& args);
-    static Handle<Value> Next(const Arguments& args);
-    static Handle<Value> Prev(const Arguments& args);
-    
-    static Handle<Value> key(const Arguments& args);
-    static Handle<Value> value(const Arguments& args);
-    static Handle<Value> status(const Arguments& args);
+  void Close();
 
-  private:
-    leveldb::Iterator* it;
-    Persistent<Object> db;
+  static Persistent<FunctionTemplate> persistent_function_template;
 
-    struct SeekParams {
-       SeekParams(Iterator* it, leveldb::Slice k, Handle<Function> cb) {
-          self = it;
-          key = k;
-          callback = Persistent<Function>::New(cb);
+  static void Init(Handle<Object> target);
+  static Handle<Value> New(const Arguments& args);
 
-          self->Ref();
-          ev_ref(EV_DEFAULT_UC);
-       }
+  static Handle<Value> Valid(const Arguments& args);
+  static Handle<Value> SeekToFirst(const Arguments& args);
+  static Handle<Value> SeekToLast(const Arguments& args);
+  static Handle<Value> Seek(const Arguments& args);
+  static Handle<Value> Next(const Arguments& args);
+  static Handle<Value> Prev(const Arguments& args);
 
-       ~SeekParams() {
-          self->Unref();
-          ev_unref(EV_DEFAULT_UC);
-          callback.Dispose();
-       }
+  static Handle<Value> key(const Arguments& args);
+  static Handle<Value> value(const Arguments& args);
+  static Handle<Value> status(const Arguments& args);
 
-       virtual void Callback(Handle<Value> result = Handle<Value>());
+ private:
+  leveldb::Iterator* it;
+  Persistent<Object> db;
 
-       Iterator* self;
-       leveldb::Slice key;
-       Persistent<Function> callback;
-       
-    };
+  struct SeekParams {
+     SeekParams(Iterator* it, leveldb::Slice k, Handle<Function> cb) {
+        self = it;
+        key = k;
+        callback = Persistent<Function>::New(cb);
 
-    static void EIO_BeforeSeek(SeekParams *params);
-    static eio_return_type EIO_Seek(eio_req *req);
+        self->Ref();
+        ev_ref(EV_DEFAULT_UC);
+     }
 
-    static void EIO_BeforeSeekToLast(SeekParams *params);
-    static eio_return_type EIO_SeekToLast(eio_req *req);
+     ~SeekParams() {
+        self->Unref();
+        ev_unref(EV_DEFAULT_UC);
+        callback.Dispose();
+     }
 
-    static void EIO_BeforeSeekToFirst(SeekParams *params);
-    static eio_return_type EIO_SeekToFirst(eio_req *req);
+     virtual void Callback(Handle<Value> result = Handle<Value>());
 
-    static int EIO_AfterSeek(eio_req *req);
+     Iterator* self;
+     leveldb::Slice key;
+     Persistent<Function> callback;
+
+  };
+
+  // No instance creation outside of DB
+  Iterator();
+
+  // No copying allowed
+  Iterator(const Iterator&);
+  void operator=(const Iterator&);
+
+  static void EIO_BeforeSeek(SeekParams *params);
+  static eio_return_type EIO_Seek(eio_req *req);
+
+  static void EIO_BeforeSeekToLast(SeekParams *params);
+  static eio_return_type EIO_SeekToLast(eio_req *req);
+
+  static void EIO_BeforeSeekToFirst(SeekParams *params);
+  static eio_return_type EIO_SeekToFirst(eio_req *req);
+
+  static int EIO_AfterSeek(eio_req *req);
 };
 
 } // node_leveldb

@@ -28,7 +28,6 @@ void Iterator::Init(Handle<Object> target) {
   persistent_function_template = Persistent<FunctionTemplate>::New(local_function_template);
   persistent_function_template->InstanceTemplate()->SetInternalFieldCount(1);
   persistent_function_template->SetClassName(String::NewSymbol("Iterator"));
-  
 
   NODE_SET_PROTOTYPE_METHOD(persistent_function_template, "valid", Valid);
   NODE_SET_PROTOTYPE_METHOD(persistent_function_template, "seekToFirst", SeekToFirst);
@@ -52,9 +51,9 @@ void Iterator::Close() {
 
 Handle<Value> Iterator::New(const Arguments& args) {
   HandleScope scope;
-  
+
   Iterator* iterator = new Iterator();
-  
+
   if (args.Length() >= 2 &&
       args[0]->IsExternal() &&
       args[1]->IsObject() && DB::HasInstance(args[1])) {
@@ -63,9 +62,9 @@ Handle<Value> Iterator::New(const Arguments& args) {
   } else {
     return ThrowException(Exception::TypeError(String::New("Invalid arguments: Please use DB#newIterator.")));
   } // if
-  
+
   iterator->Wrap(args.This());
-  
+
   return args.This();
 }
 
@@ -77,7 +76,7 @@ Handle<Value> Iterator::Valid(const Arguments& args) {
     if (self->it == NULL) {
       return ThrowException(Exception::Error(String::New("Iterator or underlying DB has been closed")));
     }
-    
+
     return self->it->Valid() ? True() : False();
 }
 
@@ -93,7 +92,7 @@ Handle<Value> Iterator::SeekToFirst(const Arguments& args) {
 
     SeekParams *params = new SeekParams(self, leveldb::Slice(), callback);
     EIO_BeforeSeekToFirst(params);
-    
+
     return Undefined();
 }
 
@@ -122,7 +121,7 @@ Handle<Value> Iterator::SeekToLast(const Arguments& args) {
 
     SeekParams *params = new SeekParams(self, leveldb::Slice(), callback);
     EIO_BeforeSeekToLast(params);
-    
+
     return Undefined();
 }
 
@@ -201,7 +200,7 @@ Handle<Value> Iterator::Prev(const Arguments& args) {
     }
 
     self->it->Prev();
-    
+
     return Undefined();
 }
 
@@ -218,7 +217,7 @@ Handle<Value> Iterator::key(const Arguments& args) {
     }
 
     leveldb::Slice k = self->it->key();
-    
+
     return scope.Close(Bufferize(k.ToString()));
 }
 
@@ -247,7 +246,7 @@ Handle<Value> Iterator::status(const Arguments& args) {
     }
 
     leveldb::Status status = self->it->status();
-    
+
     return processStatus(status);
 }
 
@@ -267,4 +266,4 @@ void Iterator::SeekParams::Callback(Handle<Value> result) {
     }
   }
 }
- 
+
