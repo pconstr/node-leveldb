@@ -44,10 +44,10 @@ describe 'db', ->
       result = leveldb.DB.destroyDB filename
       assert.equal result, 'OK'
 
-  describe 'ascii', ->
+  describe 'with ascii values', ->
     itShouldBehaveLikeAKeyValueStore "Hello", "World"
 
-  describe 'buffer', ->
+  describe 'with buffer values', ->
     key = new Buffer [1,9,9,9]
     val = new Buffer [1,2,3,4]
     itShouldBehaveLikeAKeyValueStore key, val
