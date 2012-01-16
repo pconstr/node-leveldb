@@ -30,6 +30,7 @@ describe 'db', ->
     db.get key, (err, result) ->
       assert.ifError err
       assert.equal result, undefined
+      done()
 
   it 'should close database', (done) ->
     db.close done
