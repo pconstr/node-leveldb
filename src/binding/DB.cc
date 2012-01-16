@@ -645,6 +645,8 @@ Handle<Value> DB::RepairDB(const Arguments& args) {
   return scope.Close( processStatus(leveldb::RepairDB(*name, options)) );
 }
 
+#undef USAGE_ERROR
+
 
 //
 // Implementation of Params, which are passed from JS thread to EIO thread and back again

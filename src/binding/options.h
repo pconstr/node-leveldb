@@ -1,10 +1,11 @@
-#ifndef OPTIONS_H_
-#define OPTIONS_H_
+#ifndef NODE_LEVELDB_OPTIONS_H_
+#define NODE_LEVELDB_OPTIONS_H_
 
 #include <leveldb/options.h>
 #include <node.h>
 #include <v8.h>
 
+using namespace node;
 using namespace v8;
 
 namespace node_leveldb {
@@ -15,4 +16,4 @@ void ToWriteOptions(Handle<Value> val, leveldb::WriteOptions &options);
 
 } // namespace node_leveldb
 
-#endif  // OPTIONS_H_
+#endif  // NODE_LEVELDB_OPTIONS_H_

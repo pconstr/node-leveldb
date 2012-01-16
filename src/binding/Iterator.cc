@@ -91,9 +91,7 @@ Handle<Value> Iterator::Valid(const Arguments& args) {
 
   Iterator* self = ObjectWrap::Unwrap<Iterator>(args.This());
 
-  CHECK_VALID_STATE;
-
-  return self->it->Valid() ? True() : False();
+  return self->it != NULL && self->it->Valid() ? True() : False();
 }
 
 
@@ -114,7 +112,7 @@ Handle<Value> Iterator::SeekToFirst(const Arguments& args) {
   SeekParams *params = new SeekParams(self, leveldb::Slice(), callback);
   EIO_BeforeSeekToFirst(params);
 
-  return scope.Close( Undefined() );
+  return Undefined();
 }
 
 void Iterator::EIO_BeforeSeekToFirst(SeekParams *params) {
@@ -147,7 +145,7 @@ Handle<Value> Iterator::SeekToLast(const Arguments& args) {
   SeekParams *params = new SeekParams(self, leveldb::Slice(), callback);
   EIO_BeforeSeekToLast(params);
 
-  return scope.Close( Undefined() );
+  return Undefined();
 }
 
 void Iterator::EIO_BeforeSeekToLast(SeekParams *params) {
@@ -185,7 +183,7 @@ Handle<Value> Iterator::Seek(const Arguments& args) {
   SeekParams *params = new SeekParams(self, key, callback);
   EIO_BeforeSeek(params);
 
-  return scope.Close( Undefined() );
+  return Undefined();
 }
 
 void Iterator::EIO_BeforeSeek(SeekParams *params) {
@@ -221,7 +219,7 @@ Handle<Value> Iterator::Next(const Arguments& args) {
 
   self->it->Next();
 
-  return scope.Close( Undefined() );
+  return Undefined();
 }
 
 
@@ -237,7 +235,7 @@ Handle<Value> Iterator::Prev(const Arguments& args) {
 
   self->it->Prev();
 
-  return scope.Close( Undefined() );
+  return Undefined();
 }
 
 
@@ -310,4 +308,3 @@ void Iterator::SeekParams::Callback(Handle<Value> result) {
     }
   }
 }
-

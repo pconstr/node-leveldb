@@ -1,10 +1,10 @@
 #ifndef DB_H_
 #define DB_H_
 
-#include <v8.h>
+#include <leveldb/db.h>
 #include <node.h>
+#include <v8.h>
 
-#include "leveldb/db.h"
 #include "WriteBatch.h"
 
 #include "helpers.h"
@@ -48,7 +48,6 @@ class DB : ObjectWrap {
   static Handle<Value> RepairDB(const Arguments& args);
 
  private:
-
   void Close();
 
   static void unrefIterator(Persistent<Value> object, void* parameter);
