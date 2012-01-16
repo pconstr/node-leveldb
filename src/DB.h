@@ -93,19 +93,19 @@ class DB : ObjectWrap {
   };
 
   static void EIO_BeforeOpen(OpenParams *params);
-  static eio_return_type EIO_Open(eio_req *req);
+  static EIO_RETURN_TYPE EIO_Open(eio_req *req);
   static int EIO_AfterOpen(eio_req *req);
 
   static void EIO_BeforeClose(Params *params);
-  static eio_return_type EIO_Close(eio_req *req);
+  static EIO_RETURN_TYPE EIO_Close(eio_req *req);
   static int EIO_AfterClose(eio_req *req);
 
   static void EIO_BeforeRead(ReadParams *params);
-  static eio_return_type EIO_Read(eio_req *req);
+  static EIO_RETURN_TYPE EIO_Read(eio_req *req);
   static int EIO_AfterRead(eio_req *req);
 
   static void EIO_BeforeWrite(WriteParams *params);
-  static eio_return_type EIO_Write(eio_req *req);
+  static EIO_RETURN_TYPE EIO_Write(eio_req *req);
   static int EIO_AfterWrite(eio_req *req);
 
   leveldb::DB* db;

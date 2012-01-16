@@ -100,13 +100,13 @@ void Iterator::EIO_BeforeSeekToFirst(SeekParams *params) {
    eio_custom(EIO_SeekToFirst, EIO_PRI_DEFAULT, EIO_AfterSeek, params);
 }
 
-eio_return_type Iterator::EIO_SeekToFirst(eio_req *req) {
+EIO_RETURN_TYPE Iterator::EIO_SeekToFirst(eio_req *req) {
    SeekParams *params = static_cast<SeekParams*>(req->data);
    Iterator *self = params->self;
 
    self->it->SeekToFirst();
 
-   eio_return_stmt;
+   EIO_RETURN_STMT;
 }
 
 Handle<Value> Iterator::SeekToLast(const Arguments& args) {
@@ -129,22 +129,21 @@ void Iterator::EIO_BeforeSeekToLast(SeekParams *params) {
    eio_custom(EIO_SeekToLast, EIO_PRI_DEFAULT, EIO_AfterSeek, params);
 }
 
-eio_return_type Iterator::EIO_SeekToLast(eio_req *req) {
+EIO_RETURN_TYPE Iterator::EIO_SeekToLast(eio_req *req) {
    SeekParams *params = static_cast<SeekParams*>(req->data);
    Iterator *self = params->self;
 
    self->it->SeekToLast();
 
-   eio_return_stmt;
+   EIO_RETURN_STMT;
 }
 
 Handle<Value> Iterator::Seek(const Arguments& args) {
     Iterator* self = ObjectWrap::Unwrap<Iterator>(args.This());
     HandleScope scope;
 
-    if (self->it == NULL) {
-      return ThrowException(Exception::Error(String::New("Iterator or underlying DB has been closed")));
-    }
+    if (self->it == NULL)
+      return ThrowError("Iterator or underlying DB has been closed");
 
     // XXX: Throw away vector that makes JsToSlice work.
     //      the helper needs to be updated.
@@ -164,13 +163,13 @@ void Iterator::EIO_BeforeSeek(SeekParams *params) {
    eio_custom(EIO_Seek, EIO_PRI_DEFAULT, EIO_AfterSeek, params);
 }
 
-eio_return_type Iterator::EIO_Seek(eio_req *req) {
+EIO_RETURN_TYPE Iterator::EIO_Seek(eio_req *req) {
    SeekParams *params = static_cast<SeekParams*>(req->data);
    Iterator *self = params->self;
 
    self->it->Seek(params->key);
 
-   eio_return_stmt;
+   EIO_RETURN_STMT;
 }
 
 int Iterator::EIO_AfterSeek(eio_req *req) {

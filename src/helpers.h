@@ -15,11 +15,11 @@ using namespace node;
 using namespace v8;
 
 #if NODE_VERSION_AT_LEAST(0, 5, 4)
-  #define eio_return_type void
-  #define eio_return_stmt return
+  #define EIO_RETURN_TYPE void
+  #define EIO_RETURN_STMT return
 #else
-  #define eio_return_type int
-  #define eio_return_stmt return 0
+  #define EIO_RETURN_TYPE int
+  #define EIO_RETURN_STMT return 0
 #endif
 
 #define GET_CALLBACK_ARG(args, argv) (                      \

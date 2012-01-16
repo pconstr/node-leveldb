@@ -134,7 +134,7 @@ void DB::EIO_BeforeOpen(OpenParams *params) {
   eio_custom(EIO_Open, EIO_PRI_DEFAULT, EIO_AfterOpen, params);
 }
 
-eio_return_type DB::EIO_Open(eio_req *req) {
+EIO_RETURN_TYPE DB::EIO_Open(eio_req *req) {
   OpenParams *params = static_cast<OpenParams*>(req->data);
   DB *self = params->self;
 
@@ -144,7 +144,7 @@ eio_return_type DB::EIO_Open(eio_req *req) {
   // Do the actual work
   params->status = leveldb::DB::Open(params->options, params->name, &self->db);
 
-  eio_return_stmt;
+  EIO_RETURN_STMT;
 }
 
 int DB::EIO_AfterOpen(eio_req *req) {
@@ -203,11 +203,11 @@ void DB::EIO_BeforeClose(Params *params) {
   eio_custom(EIO_Close, EIO_PRI_DEFAULT, EIO_AfterClose, params);
 }
 
-eio_return_type DB::EIO_Close(eio_req *req) {
+EIO_RETURN_TYPE DB::EIO_Close(eio_req *req) {
   Params *params = static_cast<Params*>(req->data);
   DB *self = params->self;
 
-  eio_return_stmt;
+  EIO_RETURN_STMT;
 }
 
 int DB::EIO_AfterClose(eio_req *req) {
@@ -361,7 +361,7 @@ void DB::EIO_BeforeWrite(WriteParams *params) {
   eio_custom(EIO_Write, EIO_PRI_DEFAULT, EIO_AfterWrite, params);
 }
 
-eio_return_type DB::EIO_Write(eio_req *req) {
+EIO_RETURN_TYPE DB::EIO_Write(eio_req *req) {
   WriteParams *params = static_cast<WriteParams*>(req->data);
   DB *self = params->self;
 
@@ -370,7 +370,7 @@ eio_return_type DB::EIO_Write(eio_req *req) {
     params->status = self->db->Write(params->options, &params->writeBatch->wb);
   }
 
-  eio_return_stmt;
+  EIO_RETURN_STMT;
 }
 
 int DB::EIO_AfterWrite(eio_req *req) {
@@ -448,7 +448,7 @@ void DB::EIO_BeforeRead(ReadParams *params) {
   eio_custom(EIO_Read, EIO_PRI_DEFAULT, EIO_AfterRead, params);
 }
 
-eio_return_type DB::EIO_Read(eio_req *req) {
+EIO_RETURN_TYPE DB::EIO_Read(eio_req *req) {
   ReadParams *params = static_cast<ReadParams*>(req->data);
   DB *self = params->self;
 
@@ -459,7 +459,7 @@ eio_return_type DB::EIO_Read(eio_req *req) {
     params->status = self->db->Get(params->options, key, &params->result);
   }
 
-  eio_return_stmt;
+  EIO_RETURN_STMT;
 }
 
 int DB::EIO_AfterRead(eio_req *req) {
