@@ -187,8 +187,6 @@ Handle<Value> DB::Close(const Arguments& args) {
   // Optional callback
   Local<Function> callback = GET_CALLBACK_ARG(args, argv);
 
-  self->Close();
-
   Params *params = new Params(self, callback);
   EIO_BeforeClose(params);
 
@@ -202,6 +200,8 @@ void DB::EIO_BeforeClose(Params *params) {
 EIO_RETURN_TYPE DB::EIO_Close(eio_req *req) {
   Params *params = static_cast<Params*>(req->data);
   DB *self = params->self;
+
+  self->Close();
 
   EIO_RETURN_STMT;
 }
