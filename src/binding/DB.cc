@@ -587,12 +587,9 @@ Handle<Value> DB::DestroyDB(const Arguments& args) {
   DB* self = ObjectWrap::Unwrap<DB>(args.This());
   int argv = args.Length();
 
-  CHECK_VALID_STATE;
-
   if (argv < 1)
     USAGE_ERROR("Invalid number of arguments");
 
-  // Check args
   if (!args[0]->IsString())
     USAGE_ERROR("Argument 1 must be a string");
 
@@ -619,12 +616,9 @@ Handle<Value> DB::RepairDB(const Arguments& args) {
   DB* self = ObjectWrap::Unwrap<DB>(args.This());
   int argv = args.Length();
 
-  CHECK_VALID_STATE;
-
   if (argv < 1)
     USAGE_ERROR("Invalid number of arguments");
 
-  // Check args
   if (!args[0]->IsString())
     USAGE_ERROR("Argument 1 must be a string");
 

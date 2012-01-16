@@ -1,18 +1,18 @@
 assert  = require 'assert'
 leveldb = require '../lib'
-
+path    = require 'path'
 
 
 
 
 describe 'db', ->
   db = new leveldb.DB
-  path = "#{__dirname}/../tmp/db-test-file"
+  filename = "#{__dirname}/../tmp/db-test-file"
 
   itShouldBehaveLikeAKeyValueStore = (key, val) ->
 
     it 'should open database', (done) ->
-      db.open path, { create_if_missing: true, paranoid_checks: true }, done
+      db.open filename, { create_if_missing: true, paranoid_checks: true }, done
 
     it 'should put key/value pair', (done) ->
       db.put key, val, done
@@ -34,6 +34,15 @@ describe 'db', ->
 
     it 'should close database', (done) ->
       db.close done
+
+    it 'should repair database', ->
+      result = leveldb.DB.repairDB filename
+      assert.equal result, 'OK'
+      assert path.existsSync filename
+
+    it 'should destroy database', ->
+      result = leveldb.DB.destroyDB filename
+      assert.equal result, 'OK'
 
   describe 'ascii', ->
     itShouldBehaveLikeAKeyValueStore "Hello", "World"
