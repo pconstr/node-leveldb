@@ -9,14 +9,12 @@
 #include <sstream>
 #include <algorithm>
 
-
 #define CHECK_VALID_STATE                                               \
   if (self->db == NULL) {                                               \
     return ThrowError("Illegal state: DB.open() has not been called");  \
   }
 
-
-using namespace node_leveldb;
+namespace node_leveldb {
 
 Persistent<FunctionTemplate> DB::persistent_function_template;
 
@@ -51,6 +49,7 @@ void DB::Init(Handle<Object> target) {
   NODE_SET_PROTOTYPE_METHOD(persistent_function_template, "releaseSnapshot", ReleaseSnapshot);
   NODE_SET_PROTOTYPE_METHOD(persistent_function_template, "getProperty", GetProperty);
   NODE_SET_PROTOTYPE_METHOD(persistent_function_template, "getApproximateSizes", GetApproximateSizes);
+  NODE_SET_PROTOTYPE_METHOD(persistent_function_template, "compactRange", CompactRange);
 
   // Static methods
   NODE_SET_METHOD(persistent_function_template, "destroyDB", DestroyDB);
@@ -509,22 +508,27 @@ Handle<Value> DB::NewIterator(const Arguments& args) {
 
 Handle<Value> DB::GetSnapshot(const Arguments& args) {
   HandleScope scope;
-  return ThrowException(Exception::Error(String::New("TODO: IMPLEMENT ME")));
+  return ThrowError("Method not implemented");
 }
 
 Handle<Value> DB::ReleaseSnapshot(const Arguments& args) {
   HandleScope scope;
-  return ThrowException(Exception::Error(String::New("TODO: IMPLEMENT ME")));
+  return ThrowError("Method not implemented");
 }
 
 Handle<Value> DB::GetProperty(const Arguments& args) {
   HandleScope scope;
-  return ThrowException(Exception::Error(String::New("TODO: IMPLEMENT ME")));
+  return ThrowError("Method not implemented");
 }
 
 Handle<Value> DB::GetApproximateSizes(const Arguments& args) {
   HandleScope scope;
-  return ThrowException(Exception::Error(String::New("TODO: IMPLEMENT ME")));
+  return ThrowError("Method not implemented");
+}
+
+Handle<Value> DB::CompactRange(const Arguments& args) {
+  HandleScope scope;
+  return ThrowError("Method not implemented");
 }
 
 
@@ -630,3 +634,5 @@ void DB::Params::Callback(Handle<Value> result) {
     }
   }
 }
+
+} // namespace node_leveldb
