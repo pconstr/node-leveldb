@@ -5,7 +5,7 @@ leveldb = require '../lib'
 
 
 
-describe 'db-async', ->
+describe 'db', ->
   db = new leveldb.DB
   path = "#{__dirname}/../tmp/db-test-file"
 
