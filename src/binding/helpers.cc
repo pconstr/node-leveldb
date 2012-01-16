@@ -1,4 +1,9 @@
+#include <node.h>
+#include <v8.h>
+
 #include "helpers.h"
+
+using namespace v8;
 
 namespace node_leveldb {
 
@@ -19,8 +24,9 @@ leveldb::Slice JsToSlice(Handle<Value> val, std::vector<std::string> *strings) {
 }
 
 Handle<Value> processStatus(leveldb::Status status) {
-  if (status.ok()) return String::New(status.ToString().c_str());
-  return ThrowException(Exception::Error(String::New(status.ToString().c_str())));
+  static const Persistent<String> kOK = NODE_PSYMBOL("OK");
+  if (status.ok()) return kOK;
+  return ThrowError(status.ToString().c_str());
 }
 
 Local<Object> Bufferize(std::string value) {
