@@ -78,7 +78,7 @@ Handle<Value> Iterator::New(const Arguments& args) {
   iterator->db = Persistent<Object>::New(args[1]->ToObject());
   iterator->Wrap(args.This());
 
-  return scope.Close( args.This() );
+  return args.This();
 }
 
 

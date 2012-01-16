@@ -45,7 +45,7 @@ Handle<Value> WriteBatch::New(const Arguments& args) {
   WriteBatch* writeBatch = new WriteBatch();
   writeBatch->Wrap(args.This());
 
-  return scope.Close( args.This() );
+  return args.This();
 }
 
 
@@ -77,7 +77,7 @@ Handle<Value> WriteBatch::Put(const Arguments& args) {
 
   self->wb.Put(key, value);
 
-  return scope.Close( args.This() );
+  return args.This();
 }
 
 #undef USAGE_ERROR
@@ -106,7 +106,7 @@ Handle<Value> WriteBatch::Del(const Arguments& args) {
 
   self->wb.Delete(key);
 
-  return scope.Close( args.This() );
+  return args.This();
 }
 
 #undef USAGE_ERROR
@@ -123,7 +123,7 @@ Handle<Value> WriteBatch::Clear(const Arguments& args) {
   self->wb.Clear();
   self->strings.clear();
 
-  return scope.Close( args.This() );
+  return args.This();
 }
 
 }  // namespace node_leveldb

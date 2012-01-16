@@ -21,13 +21,9 @@ namespace node_leveldb {
 
 Persistent<FunctionTemplate> DB::persistent_function_template;
 
-DB::DB()
-  : db(NULL)
-{
-}
+DB::DB() : db(NULL) {}
 
 DB::~DB() {
-  // Close database and delete db
   Close();
 }
 
@@ -85,7 +81,7 @@ Handle<Value> DB::New(const Arguments& args) {
   DB* self = new DB();
   self->Wrap(args.This());
 
-  return scope.Close( args.This() );
+  return args.This();
 }
 
 
@@ -126,7 +122,7 @@ Handle<Value> DB::Open(const Arguments& args) {
   OpenParams *params = new OpenParams(self, *name, options, callback);
   EIO_BeforeOpen(params);
 
-  return scope.Close( args.This() );
+  return args.This();
 }
 
 #undef USAGE_ERROR
@@ -193,7 +189,7 @@ Handle<Value> DB::Close(const Arguments& args) {
   Params *params = new Params(self, callback);
   EIO_BeforeClose(params);
 
-  return scope.Close( args.This() );
+  return args.This();
 }
 
 void DB::EIO_BeforeClose(Params *params) {
@@ -263,7 +259,7 @@ Handle<Value> DB::Put(const Arguments& args) {
   params->disposeWriteBatch = true;
   EIO_BeforeWrite(params);
 
-  return scope.Close( args.This() );
+  return args.This();
 }
 
 #undef USAGE_ERROR
@@ -306,7 +302,7 @@ Handle<Value> DB::Del(const Arguments& args) {
   params->disposeWriteBatch = true;
   EIO_BeforeWrite(params);
 
-  return scope.Close( args.This() );
+  return args.This();
 }
 
 #undef USAGE_ERROR
@@ -355,7 +351,7 @@ Handle<Value> DB::Write(const Arguments& args) {
   if (!params->disposeWriteBatch) writeBatch->Ref();
   EIO_BeforeWrite(params);
 
-  return scope.Close( args.This() );
+  return args.This();
 }
 
 #undef USAGE_ERROR
@@ -444,7 +440,7 @@ Handle<Value> DB::Get(const Arguments& args) {
   }
   EIO_BeforeRead(params);
 
-  return scope.Close( args.This() );
+  return args.This();
 }
 
 #undef USAGE_ERROR
