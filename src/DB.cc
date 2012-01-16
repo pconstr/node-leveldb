@@ -5,10 +5,10 @@
 #include <node_buffer.h>
 
 #include "DB.h"
-#include "Iterator.h"
-#include "WriteBatch.h"
-#include "options.h"
 #include "helpers.h"
+#include "Iterator.h"
+#include "options.h"
+#include "WriteBatch.h"
 
 #define CHECK_VALID_STATE                                               \
   if (self->db == NULL) {                                               \
@@ -70,11 +70,7 @@ void DB::Init(Handle<Object> target) {
 bool DB::HasInstance(Handle<Value> val) {
   if (!val->IsObject()) return false;
   Local<Object> obj = val->ToObject();
-
-  if (persistent_function_template->HasInstance(obj))
-    return true;
-
-  return false;
+  return persistent_function_template->HasInstance(obj);
 }
 
 
@@ -96,7 +92,7 @@ Handle<Value> DB::New(const Arguments& args) {
 // Open
 //
 
-#define DB_OPEN_ARGS_ERROR(msg) \
+#define USAGE_ERROR(msg) \
   return ThrowTypeError(msg ": DB.open(<filename>, <options?>, <callback?>)")
 
 Handle<Value> DB::Open(const Arguments& args) {
@@ -107,10 +103,10 @@ Handle<Value> DB::Open(const Arguments& args) {
   int argv = args.Length();
 
   if (argv < 1)
-    DB_OPEN_ARGS_ERROR("Invalid number of arguments");
+    USAGE_ERROR("Invalid number of arguments");
 
   if (!args[0]->IsString())
-    DB_OPEN_ARGS_ERROR("Argument 1 must be a string");
+    USAGE_ERROR("Argument 1 must be a string");
 
   // Required filename
   String::Utf8Value name(args[0]);
@@ -169,9 +165,7 @@ void DB::Close() {
     std::vector< Persistent<Object> >::iterator it;
     for (it = iteratorList.begin(); it != iteratorList.end(); it++) {
       Iterator *itObj = ObjectWrap::Unwrap<Iterator>(*it);
-      if (itObj) {
-        itObj->Close();
-      }
+      if (itObj) itObj->Close();
       it->Dispose();
       it->Clear();
     }
@@ -223,7 +217,7 @@ int DB::EIO_AfterClose(eio_req *req) {
 // Put
 //
 
-#define DB_PUT_ARGS_ERROR(msg) \
+#define USAGE_ERROR(msg) \
   return ThrowTypeError(msg ": DB.put(<key>, <value>, <options?>, <callback?>)")
 
 Handle<Value> DB::Put(const Arguments& args) {
@@ -236,13 +230,13 @@ Handle<Value> DB::Put(const Arguments& args) {
   CHECK_VALID_STATE;
 
   if (argv < 2)
-    DB_PUT_ARGS_ERROR("Invalid number of arguments");
+    USAGE_ERROR("Invalid number of arguments");
 
   if (!args[0]->IsString() && !Buffer::HasInstance(args[0]))
-    DB_OPEN_ARGS_ERROR("Argument 1 must be a string or buffer");
+    USAGE_ERROR("Argument 1 must be a string or buffer");
 
   if (!args[1]->IsString() && !Buffer::HasInstance(args[1]))
-    DB_OPEN_ARGS_ERROR("Argument 2 must be a string or buffer");
+    USAGE_ERROR("Argument 2 must be a string or buffer");
 
   // Use temporary WriteBatch to implement Put
   WriteBatch *writeBatch = new WriteBatch();
@@ -265,14 +259,14 @@ Handle<Value> DB::Put(const Arguments& args) {
   return args.This();
 }
 
-#undef DB_PUT_ARGS_ERROR
+#undef USAGE_ERROR
 
 
 //
 // Del
 //
 
-#define DB_DEL_ARGS_ERROR(msg) \
+#define USAGE_ERROR(msg) \
   return ThrowTypeError(msg ": DB.del(<key>, <options?>, <callback?>)")
 
 Handle<Value> DB::Del(const Arguments& args) {
@@ -285,7 +279,7 @@ Handle<Value> DB::Del(const Arguments& args) {
   CHECK_VALID_STATE;
 
   if (argv < 1)
-    DB_DEL_ARGS_ERROR("Invalid number of arguments");
+    USAGE_ERROR("Invalid number of arguments");
 
   // Use temporary WriteBatch to implement Del
   WriteBatch *writeBatch = new WriteBatch();
@@ -306,14 +300,14 @@ Handle<Value> DB::Del(const Arguments& args) {
   return args.This();
 }
 
-#undef DB_DEL_ARGS_ERROR
+#undef USAGE_ERROR
 
 
 //
 // Write
 //
 
-#define DB_WRITE_ARGS_ERROR(msg) \
+#define USAGE_ERROR(msg) \
   return ThrowTypeError(msg ": DB.write(<key>, <options?>, <callback?>)")
 
 Handle<Value> DB::Write(const Arguments& args) {
@@ -326,17 +320,17 @@ Handle<Value> DB::Write(const Arguments& args) {
   CHECK_VALID_STATE;
 
   if (argv < 1)
-    DB_WRITE_ARGS_ERROR("Invalid number of arguments");
+    USAGE_ERROR("Invalid number of arguments");
 
   // Required WriteBatch
   if (!args[0]->IsObject())
-    DB_WRITE_ARGS_ERROR("Argument 1 must be a WriteBatch object");
+    USAGE_ERROR("Argument 1 must be a WriteBatch object");
 
   Local<Object> writeBatchObject = Object::Cast(*args[0]);
   WriteBatch* writeBatch = ObjectWrap::Unwrap<WriteBatch>(writeBatchObject);
 
   if (writeBatch == NULL)
-    DB_WRITE_ARGS_ERROR("Argument 1 must be a WriteBatch object");
+    USAGE_ERROR("Argument 1 must be a WriteBatch object");
 
   // Optional write options
   leveldb::WriteOptions options;
@@ -355,7 +349,7 @@ Handle<Value> DB::Write(const Arguments& args) {
   return args.This();
 }
 
-#undef DB_WRITE_ARGS_ERROR
+#undef USAGE_ERROR
 
 void DB::EIO_BeforeWrite(WriteParams *params) {
   eio_custom(EIO_Write, EIO_PRI_DEFAULT, EIO_AfterWrite, params);
@@ -394,7 +388,7 @@ int DB::EIO_AfterWrite(eio_req *req) {
 // Get
 //
 
-#define DB_GET_ARGS_ERROR(msg) \
+#define USAGE_ERROR(msg) \
   return ThrowTypeError(msg ": DB.get(<key>, <options?>, <callback?>)")
 
 Handle<Value> DB::Get(const Arguments& args) {
@@ -406,10 +400,10 @@ Handle<Value> DB::Get(const Arguments& args) {
   CHECK_VALID_STATE;
 
   if (argv < 1)
-    DB_GET_ARGS_ERROR("Invalid number of arguments");
+    USAGE_ERROR("Invalid number of arguments");
 
   if (!args[0]->IsString() && !Buffer::HasInstance(args[0]))
-    DB_GET_ARGS_ERROR("Argument 1 must be a string or buffer");
+    USAGE_ERROR("Argument 1 must be a string or buffer");
 
   bool asBuffer = false;
 
@@ -442,7 +436,7 @@ Handle<Value> DB::Get(const Arguments& args) {
   return args.This();
 }
 
-#undef DB_GET_ARGS_ERROR
+#undef USAGE_ERROR
 
 void DB::EIO_BeforeRead(ReadParams *params) {
   eio_custom(EIO_Read, EIO_PRI_DEFAULT, EIO_AfterRead, params);
@@ -585,7 +579,7 @@ Handle<Value> DB::CompactRange(const Arguments& args) {
 // DestroyDB
 //
 
-#define DB_DESTROY_DB_ARGS_ERROR(msg) \
+#define USAGE_ERROR(msg) \
   return ThrowTypeError(msg ": DB.destroyDB(<filename>, <options?>)")
 
 Handle<Value> DB::DestroyDB(const Arguments& args) {
@@ -597,11 +591,11 @@ Handle<Value> DB::DestroyDB(const Arguments& args) {
   CHECK_VALID_STATE;
 
   if (argv < 1)
-    DB_DESTROY_DB_ARGS_ERROR("Invalid number of arguments");
+    USAGE_ERROR("Invalid number of arguments");
 
   // Check args
   if (!args[0]->IsString())
-    DB_DESTROY_DB_ARGS_ERROR("Argument 1 must be a string");
+    USAGE_ERROR("Argument 1 must be a string");
 
   String::Utf8Value name(args[0]);
   leveldb::Options options;
@@ -610,14 +604,14 @@ Handle<Value> DB::DestroyDB(const Arguments& args) {
   return processStatus(leveldb::DestroyDB(*name, options));
 }
 
-#undef DB_DESTROY_DB_ARGS_ERROR
+#undef USAGE_ERROR
 
 
 //
 // RepairDB
 //
 
-#define DB_REPAIR_DB_ARGS_ERROR(msg) \
+#define USAGE_ERROR(msg) \
   return ThrowTypeError(msg ": DB.repairDB(<filename>, <options?>)")
 
 Handle<Value> DB::RepairDB(const Arguments& args) {
@@ -629,11 +623,11 @@ Handle<Value> DB::RepairDB(const Arguments& args) {
   CHECK_VALID_STATE;
 
   if (argv < 1)
-    DB_REPAIR_DB_ARGS_ERROR("Invalid number of arguments");
+    USAGE_ERROR("Invalid number of arguments");
 
   // Check args
   if (!args[0]->IsString())
-    DB_REPAIR_DB_ARGS_ERROR("Argument 1 must be a string");
+    USAGE_ERROR("Argument 1 must be a string");
 
   String::Utf8Value name(args[0]);
   leveldb::Options options;
