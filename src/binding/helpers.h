@@ -23,7 +23,7 @@ using namespace v8;
 #endif
 
 #define GET_CALLBACK_ARG(args, argv) (                      \
-  ((argv) > 1 && (args)[(argv) - 1]->IsFunction())          \
+  ((argv) >= 1 && (args)[(argv) - 1]->IsFunction())         \
     ? Local<Function>::Cast((args)[(argv) - 1])             \
     : Local<Function>()                                     \
   )
