@@ -1,10 +1,9 @@
 #ifndef ITERATOR_H_
 #define ITERATOR_H_
 
-#include <v8.h>
+#include <leveldb/iterator.h>
 #include <node.h>
-
-#include "leveldb/iterator.h"
+#include <v8.h>
 
 #include "DB.h"
 #include "helpers.h"
@@ -15,8 +14,6 @@ using namespace node;
 namespace node_leveldb {
 
 class Iterator : ObjectWrap {
- friend class DB;
-
  public:
   ~Iterator();
 
@@ -39,6 +36,8 @@ class Iterator : ObjectWrap {
   static Handle<Value> status(const Arguments& args);
 
  private:
+  friend class DB;
+
   leveldb::Iterator* it;
   Persistent<Object> db;
 
@@ -63,7 +62,6 @@ class Iterator : ObjectWrap {
      Iterator* self;
      leveldb::Slice key;
      Persistent<Function> callback;
-
   };
 
   // No instance creation outside of DB
