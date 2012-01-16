@@ -28,23 +28,20 @@ using namespace v8;
     : Local<Function>()                                     \
   )
 
-#define GET_WRITE_OPTIONS_ARG(args, argv, idx) (            \
-  ((argv) >= (idx) && (args)[(idx)]->IsObject() && !(args)[(idx)]->IsFunction()) \
-    ? JsToWriteOptions((args)[(idx)])                       \
-    : leveldb::WriteOptions()                               \
-  )
+#define GET_WRITE_OPTIONS_ARG(options, args, argv, idx)     \
+  if ((argv) >= (idx) && (args)[(idx)]->IsObject() && !(args)[(idx)]->IsFunction()) { \
+    ToWriteOptions((args)[(idx)], options);                 \
+  }
 
-#define GET_READ_OPTIONS_ARG(asBool, args, argv, idx) (     \
-  ((argv) >= (idx) && (args)[(idx)]->IsObject() && !(args)[(idx)]->IsFunction()) \
-    ? JsToReadOptions((args)[(idx)], (asBool))              \
-    : leveldb::ReadOptions()                                \
-  )
+#define GET_READ_OPTIONS_ARG(options, asBool, args, argv, idx) \
+  if ((argv) >= (idx) && (args)[(idx)]->IsObject() && !(args)[(idx)]->IsFunction()) { \
+    ToReadOptions((args)[(idx)], (options), (asBool));      \
+  }
 
-#define GET_OPTIONS_ARG(args, argv, idx) (                  \
-  ((argv) >= (idx) && (args)[(idx)]->IsObject() && !(args)[(idx)]->IsFunction()) \
-    ? JsToOptions((args)[(idx)])                  \
-    : leveldb::Options()                                    \
-  )
+#define GET_OPTIONS_ARG(options, args, argv, idx)           \
+  if ((argv) >= (idx) && (args)[(idx)]->IsObject() && !(args)[(idx)]->IsFunction()) { \
+    ToOptions((args)[(idx)], (options));                    \
+  }
 
 namespace node_leveldb {
 
@@ -57,9 +54,6 @@ namespace node_leveldb {
   }
 
   // Helper to convert vanilla JS objects into leveldb objects
-  leveldb::Options JsToOptions(Handle<Value> val);
-  leveldb::ReadOptions JsToReadOptions(Handle<Value> val, bool &asBuffer);
-  leveldb::WriteOptions JsToWriteOptions(Handle<Value> val);
   leveldb::Slice JsToSlice(Handle<Value> val, std::vector<std::string> *strings);
 
   // Helper to convert a leveldb::Status instance to a V8 return value

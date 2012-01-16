@@ -1,13 +1,14 @@
+#include <algorithm>
+#include <sstream>
+#include <stdlib.h>
+
+#include <node_buffer.h>
+
 #include "DB.h"
 #include "Iterator.h"
 #include "WriteBatch.h"
-
-#include <node_buffer.h>
+#include "options.h"
 #include "helpers.h"
-
-#include <stdlib.h>
-#include <sstream>
-#include <algorithm>
 
 #define CHECK_VALID_STATE                                               \
   if (self->db == NULL) {                                               \
@@ -117,7 +118,7 @@ Handle<Value> DB::Open(const Arguments& args) {
   // Optional options
   leveldb::Options options = leveldb::Options();
   if (argv > 1 && args[1]->IsObject() && !args[1]->IsFunction())
-    options = JsToOptions(args[1]);
+    ToOptions(args[1], options);
 
   // Optional callback
   Local<Function> callback = GET_CALLBACK_ARG(args, argv);
@@ -250,9 +251,9 @@ Handle<Value> DB::Put(const Arguments& args) {
   writeBatch->wb.Put(key, value);
 
   // Optional write options
-  leveldb::WriteOptions options = leveldb::WriteOptions();
+  leveldb::WriteOptions options;
   if (argv > 2 && args[2]->IsObject() && !args[2]->IsFunction())
-    options = JsToWriteOptions(args[2]);
+    ToWriteOptions(args[2], options);
 
   // Optional callback
   Local<Function> callback = GET_CALLBACK_ARG(args, argv);
@@ -292,7 +293,8 @@ Handle<Value> DB::Del(const Arguments& args) {
   writeBatch->wb.Delete(key);
 
   // Optional write options
-  leveldb::WriteOptions options = GET_WRITE_OPTIONS_ARG(args, argv, 1);
+  leveldb::WriteOptions options;
+  GET_WRITE_OPTIONS_ARG(options, args, argv, 1);
 
   // Optional callback
   Local<Function> callback = GET_CALLBACK_ARG(args, argv);
@@ -337,7 +339,8 @@ Handle<Value> DB::Write(const Arguments& args) {
     DB_WRITE_ARGS_ERROR("Argument 1 must be a WriteBatch object");
 
   // Optional write options
-  leveldb::WriteOptions options = GET_WRITE_OPTIONS_ARG(args, argv, 2);
+  leveldb::WriteOptions options;
+  GET_WRITE_OPTIONS_ARG(options, args, argv, 2);
 
   // Optional callback
   Local<Function> callback = GET_CALLBACK_ARG(args, argv);
@@ -411,7 +414,8 @@ Handle<Value> DB::Get(const Arguments& args) {
   bool asBuffer = false;
 
   // Optional read options
-  leveldb::ReadOptions options = GET_READ_OPTIONS_ARG(asBuffer, args, argv, 1);
+  leveldb::ReadOptions options;
+  GET_READ_OPTIONS_ARG(options, asBuffer, args, argv, 1);
 
   // Optional callback
   Local<Function> callback = GET_CALLBACK_ARG(args, argv);
@@ -493,7 +497,9 @@ Handle<Value> DB::NewIterator(const Arguments& args) {
 
   bool asBuffer = false;
 
-  leveldb::ReadOptions options = GET_READ_OPTIONS_ARG(asBuffer, args, argv, 0);
+  leveldb::ReadOptions options;
+  GET_READ_OPTIONS_ARG(options, asBuffer, args, argv, 0);
+
   leveldb::Iterator* it = self->db->NewIterator(options);
 
   // https://github.com/joyent/node/blob/master/deps/v8/include/v8.h#L2102
@@ -598,7 +604,8 @@ Handle<Value> DB::DestroyDB(const Arguments& args) {
     DB_DESTROY_DB_ARGS_ERROR("Argument 1 must be a string");
 
   String::Utf8Value name(args[0]);
-  leveldb::Options options = GET_OPTIONS_ARG(args, argv, 1);
+  leveldb::Options options;
+  GET_OPTIONS_ARG(options, args, argv, 1);
 
   return processStatus(leveldb::DestroyDB(*name, options));
 }
@@ -629,7 +636,8 @@ Handle<Value> DB::RepairDB(const Arguments& args) {
     DB_REPAIR_DB_ARGS_ERROR("Argument 1 must be a string");
 
   String::Utf8Value name(args[0]);
-  leveldb::Options options = GET_OPTIONS_ARG(args, argv, 1);
+  leveldb::Options options;
+  GET_OPTIONS_ARG(options, args, argv, 1);
 
   return processStatus(leveldb::RepairDB(*name, options));
 }

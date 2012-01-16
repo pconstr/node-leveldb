@@ -8,7 +8,7 @@ blddir = "build"
 VERSION = "0.0.1"
 
 leveldb_dir = join(srcdir, "deps/leveldb")
-leveldb_src = [
+leveldb_src = ["deps/leveldb" + path for path in [
   "/db/builder.cc",
   "/db/c.cc",
   "/db/db_impl.cc",
@@ -44,25 +44,24 @@ leveldb_src = [
   "/util/logging.cc",
   "/util/options.cc",
   "/util/status.cc"
-]
-leveldb_src = ["deps/leveldb" + path for path in leveldb_src]
+]]
 
 snappy_dir = join(srcdir, "deps/snappy")
-snappy_src = [
+snappy_src = ["deps/snappy/" + path for path in [
   "snappy.cc",
   "snappy-sinksource.cc",
   "snappy-stubs-internal.cc",
   "snappy-c.cc"
-]
-snappy_src = ["deps/snappy/" + path for path in snappy_src]
+]]
 
-node_leveldb_src = [
-  "src/leveldb.cc",
-  "src/DB.cc",
-  "src/WriteBatch.cc",
-  "src/Iterator.cc",
-  "src/helpers.cc"
-]
+node_leveldb_src = ["src/" + path for path in [
+  "leveldb.cc",
+  "options.cc",
+  "DB.cc",
+  "WriteBatch.cc",
+  "Iterator.cc",
+  "helpers.cc"
+]]
 
 build_config = join(leveldb_dir, 'build_config.mk')
 
