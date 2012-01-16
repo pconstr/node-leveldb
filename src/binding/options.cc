@@ -38,6 +38,9 @@ void ToOptions(Handle<Value> val, leveldb::Options &options) {
   if (obj->Has(kBlockRestartInterval))
     options.block_restart_interval = obj->Get(kBlockRestartInterval)->Int32Value();
 
+  // comparator
+  // logger
+  // compression
 }
 
 void ToReadOptions(Handle<Value> val, leveldb::ReadOptions &options, bool &asBuffer) {
