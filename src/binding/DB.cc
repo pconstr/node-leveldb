@@ -597,7 +597,6 @@ Handle<Value> DB::CompactRange(const Arguments& args) {
 Handle<Value> DB::DestroyDB(const Arguments& args) {
   HandleScope scope;
 
-  DB* self = ObjectWrap::Unwrap<DB>(args.This());
   int argv = args.Length();
 
   if (argv < 1)
@@ -628,7 +627,6 @@ Handle<Value> DB::DestroyDB(const Arguments& args) {
 Handle<Value> DB::RepairDB(const Arguments& args) {
   HandleScope scope;
 
-  DB* self = ObjectWrap::Unwrap<DB>(args.This());
   int argv = args.Length();
 
   if (argv < 1)
