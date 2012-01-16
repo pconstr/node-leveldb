@@ -73,7 +73,7 @@ class DB : ObjectWrap {
 
   struct ReadParams : Params {
     ReadParams(DB *self, leveldb::ReadOptions &options, bool asBuffer, Handle<Function> callback)
-    : Params(self, callback), key(NULL), keyLen(0), options(options), asBuffer(asBuffer) {}
+      : Params(self, callback), key(NULL), keyLen(0), options(options), asBuffer(asBuffer) {}
 
     char *key;
     int keyLen;

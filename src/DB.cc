@@ -126,6 +126,8 @@ Handle<Value> DB::Open(const Arguments& args) {
   return args.This();
 }
 
+#undef USAGE_ERROR
+
 void DB::EIO_BeforeOpen(OpenParams *params) {
   eio_custom(EIO_Open, EIO_PRI_DEFAULT, EIO_AfterOpen, params);
 }
@@ -144,12 +146,10 @@ EIO_RETURN_TYPE DB::EIO_Open(eio_req *req) {
 }
 
 int DB::EIO_AfterOpen(eio_req *req) {
-  HandleScope scope;
-
   OpenParams *params = static_cast<OpenParams*>(req->data);
   params->Callback();
-
   delete params;
+
   return 0;
 }
 
@@ -160,16 +160,18 @@ int DB::EIO_AfterOpen(eio_req *req) {
 
 void DB::Close() {
   if (db != NULL) {
-    // Close iterators because they must run their destructors before
-    // we can delete the db object.
+    // Close iterators deleting db object
     std::vector< Persistent<Object> >::iterator it;
+
     for (it = iteratorList.begin(); it != iteratorList.end(); it++) {
-      Iterator *itObj = ObjectWrap::Unwrap<Iterator>(*it);
-      if (itObj) itObj->Close();
+      Iterator *iterator = ObjectWrap::Unwrap<Iterator>(*it);
+      if (iterator) iterator->Close();
       it->Dispose();
       it->Clear();
     }
+
     iteratorList.clear();
+
     delete db;
     db = NULL;
   }
@@ -207,8 +209,8 @@ EIO_RETURN_TYPE DB::EIO_Close(eio_req *req) {
 int DB::EIO_AfterClose(eio_req *req) {
   Params *params = static_cast<Params*>(req->data);
   params->Callback();
-
   delete params;
+
   return 0;
 }
 
@@ -341,9 +343,7 @@ Handle<Value> DB::Write(const Arguments& args) {
 
   // Pass parameters to async function
   WriteParams *params = new WriteParams(self, writeBatch, options, callback);
-
   if (!params->disposeWriteBatch) writeBatch->Ref();
-
   EIO_BeforeWrite(params);
 
   return args.This();
@@ -446,10 +446,9 @@ EIO_RETURN_TYPE DB::EIO_Read(eio_req *req) {
   ReadParams *params = static_cast<ReadParams*>(req->data);
   DB *self = params->self;
 
-  leveldb::Slice key(params->key, params->keyLen);
-
   // Do the actual work
   if (self->db != NULL) {
+    leveldb::Slice key(params->key, params->keyLen);
     params->status = self->db->Get(params->options, key, &params->result);
   }
 
@@ -677,7 +676,7 @@ void DB::Params::Callback(Handle<Value> result) {
       callback->Call(self->handle_, 1, argv);
     }
     if (try_catch.HasCaught()) {
-        FatalException(try_catch);
+      FatalException(try_catch);
     }
   }
 }
