@@ -544,10 +544,32 @@ Handle<Value> DB::GetSnapshot(const Arguments& args) {
 // GetProperty
 //
 
+#define USAGE_ERROR(msg) \
+  return ThrowTypeError(msg ": DB.getProperty(<name>)");
+
 Handle<Value> DB::GetProperty(const Arguments& args) {
   HandleScope scope;
-  return scope.Close( ThrowError("Method not implemented") );
+  DB* self = ObjectWrap::Unwrap<DB>(args.This());
+
+  CHECK_VALID_STATE;
+
+  if (args.Length() < 1)
+    USAGE_ERROR("Invalid number of arguments");
+
+  if (!args[0]->IsString())
+    USAGE_ERROR("Argument 1 must be a string");
+
+  std::string name(*String::Utf8Value(args[0]));
+  std::string value;
+
+  if (self->db->GetProperty(leveldb::Slice(name), &value)) {
+    return scope.Close( String::New(value.c_str()) );
+  } else {
+    return Undefined();
+  }
 }
+
+#undef USAGE_ERROR
 
 
 //
