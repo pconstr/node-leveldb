@@ -13,9 +13,7 @@
 
 #define CHECK_VALID_STATE                                               \
   if (self->db == NULL) {                                               \
-    return scope.Close(                                                 \
-      ThrowError("Illegal state: DB.open() has not been called")        \
-    );                                                                  \
+    return ThrowError("Illegal state: DB.open() has not been called");  \
   }
 
 namespace node_leveldb {
@@ -93,10 +91,8 @@ Handle<Value> DB::New(const Arguments& args) {
 // Open
 //
 
-#define USAGE_ERROR(msg)                                                  \
-  return scope.Close(                                                     \
-    ThrowTypeError(msg ": DB.open(<filename>, <options?>, <callback?>)")  \
-  );
+#define USAGE_ERROR(msg) \
+  return ThrowTypeError(msg ": DB.open(<filename>, <options?>, <callback?>)");
 
 Handle<Value> DB::Open(const Arguments& args) {
   HandleScope scope;
@@ -222,10 +218,8 @@ int DB::EIO_AfterClose(eio_req *req) {
 // Put
 //
 
-#define USAGE_ERROR(msg)                                                  \
-  return scope.Close(                                                     \
-    ThrowTypeError(msg ": DB.put(<key>, <value>, <options?>, <callback?>)") \
-  );
+#define USAGE_ERROR(msg) \
+  return ThrowTypeError(msg ": DB.put(<key>, <value>, <options?>, <callback?>)");
 
 Handle<Value> DB::Put(const Arguments& args) {
   HandleScope scope;
@@ -273,10 +267,8 @@ Handle<Value> DB::Put(const Arguments& args) {
 // Del
 //
 
-#define USAGE_ERROR(msg)                                                  \
-  return scope.Close(                                                     \
-    ThrowTypeError(msg ": DB.del(<key>, <options?>, <callback?>)")        \
-  );
+#define USAGE_ERROR(msg) \
+  return ThrowTypeError(msg ": DB.del(<key>, <options?>, <callback?>)");
 
 Handle<Value> DB::Del(const Arguments& args) {
   HandleScope scope;
@@ -316,10 +308,8 @@ Handle<Value> DB::Del(const Arguments& args) {
 // Write
 //
 
-#define USAGE_ERROR(msg)                                                  \
-  return scope.Close(                                                     \
-    ThrowTypeError(msg ": DB.write(<key>, <options?>, <callback?>)")      \
-  );
+#define USAGE_ERROR(msg) \
+  return ThrowTypeError(msg ": DB.write(<key>, <options?>, <callback?>)");
 
 Handle<Value> DB::Write(const Arguments& args) {
   HandleScope scope;
@@ -397,10 +387,8 @@ int DB::EIO_AfterWrite(eio_req *req) {
 // Get
 //
 
-#define USAGE_ERROR(msg)                                                  \
-  return scope.Close(                                                     \
-    ThrowTypeError(msg ": DB.get(<key>, <options?>, <callback?>)")        \
-  );
+#define USAGE_ERROR(msg) \
+  return ThrowTypeError(msg ": DB.get(<key>, <options?>, <callback?>)");
 
 Handle<Value> DB::Get(const Arguments& args) {
   HandleScope scope;
@@ -568,7 +556,7 @@ Handle<Value> DB::GetProperty(const Arguments& args) {
 
 Handle<Value> DB::GetApproximateSizes(const Arguments& args) {
   HandleScope scope;
-  return scope.Close( ThrowError("Method not implemented") );
+  return ThrowError("Method not implemented");
 }
 
 
@@ -578,7 +566,7 @@ Handle<Value> DB::GetApproximateSizes(const Arguments& args) {
 
 Handle<Value> DB::CompactRange(const Arguments& args) {
   HandleScope scope;
-  return scope.Close( ThrowError("Method not implemented") );
+  return ThrowError("Method not implemented");
 }
 
 
@@ -586,10 +574,8 @@ Handle<Value> DB::CompactRange(const Arguments& args) {
 // DestroyDB
 //
 
-#define USAGE_ERROR(msg)                                                  \
-  return scope.Close(                                                     \
-    ThrowTypeError(msg ": DB.destroyDB(<filename>, <options?>)")          \
-  );
+#define USAGE_ERROR(msg) \
+  return ThrowTypeError(msg ": DB.destroyDB(<filename>, <options?>)");
 
 Handle<Value> DB::DestroyDB(const Arguments& args) {
   HandleScope scope;
@@ -616,10 +602,8 @@ Handle<Value> DB::DestroyDB(const Arguments& args) {
 // RepairDB
 //
 
-#define USAGE_ERROR(msg)                                                  \
-  return scope.Close(                                                     \
-    ThrowTypeError(msg ": DB.repairDB(<filename>, <options?>)")           \
-  );
+#define USAGE_ERROR(msg) \
+  return ThrowTypeError(msg ": DB.repairDB(<filename>, <options?>)");
 
 Handle<Value> DB::RepairDB(const Arguments& args) {
   HandleScope scope;
