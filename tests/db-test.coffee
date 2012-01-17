@@ -6,13 +6,14 @@ path    = require 'path'
 
 
 describe 'db', ->
-  db = new leveldb.DB
+  db = null
   filename = "#{__dirname}/../tmp/db-test-file"
 
   itShouldBehaveLikeAKeyValueStore = (key, val) ->
 
     it 'should open database', (done) ->
-      db.open filename, { create_if_missing: true, paranoid_checks: true }, done
+      db = new leveldb.DB
+      db.open filename, create_if_missing: true, paranoid_checks: true, done
 
     it 'should put key/value pair', (done) ->
       db.put key, val, done
@@ -20,7 +21,7 @@ describe 'db', ->
     it 'should get key/value pair', (done) ->
       db.get key, (err, result) ->
         assert.ifError err
-        assert.equal result, val.toString()
+        assert.equal val.toString(), result
         done()
 
     it 'should delete key', (done) ->
@@ -29,7 +30,7 @@ describe 'db', ->
     it 'should not get key/value pair', (done) ->
       db.get key, (err, result) ->
         assert.ifError err
-        assert.equal result, undefined
+        assert.equal undefined, result
         done()
 
     it 'should close database', (done) ->
@@ -37,12 +38,57 @@ describe 'db', ->
 
     it 'should repair database', ->
       result = leveldb.DB.repairDB filename
-      assert.equal result, 'OK'
+      assert.equal 'OK', result
       assert path.existsSync filename
 
     it 'should destroy database', ->
       result = leveldb.DB.destroyDB filename
-      assert.equal result, 'OK'
+      assert.equal 'OK', result
+      db = null
+
+  describe 'admin', ->
+
+    it 'should open database', (done) ->
+      db = new leveldb.DB
+      db.open filename, create_if_missing: true, done
+
+    it 'should get property', ->
+      assert db.getProperty 'leveldb.stats'
+      assert.equal undefined, db.getProperty ''
+
+    it 'should get no approximate size', ->
+      assert.equal 0, db.getApproximateSizes []
+
+    it 'should get one approximate size', ->
+      db.getApproximateSizes '0', '1'
+
+    it 'should put values', (done) ->
+      db.put '' + i, 'Hello World!' for i in [0..999]
+      db.put '100', 'Goodbye World!', done
+
+    it 'should close database', (done) ->
+      db.close done
+      db = null
+
+    it 'should open database', (done) ->
+      db = new leveldb.DB
+      db.open filename, done
+
+    it 'should get value', (done) ->
+      db.get '100', (err, value) ->
+        assert.equal 'Goodbye World!', value
+        done()
+
+    it 'should get approximate sizes', ->
+      db.getApproximateSizes '0', '1000'
+
+    it 'should get approximate sizes', ->
+      db.getApproximateSizes [[ '0', '50' ], [ '50', '1000' ]]
+
+    it 'should close database', (done) ->
+      db.close ->
+        db = null
+        done()
 
   describe 'with ascii values', ->
     itShouldBehaveLikeAKeyValueStore "Hello", "World"

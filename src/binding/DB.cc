@@ -1,6 +1,8 @@
+#include <stdlib.h>
+
 #include <algorithm>
 #include <sstream>
-#include <stdlib.h>
+#include <vector>
 
 #include <node_buffer.h>
 
@@ -576,10 +578,88 @@ Handle<Value> DB::GetProperty(const Arguments& args) {
 // GetApproximateSizes
 //
 
+#define USAGE_ERROR(msg) \
+  return ThrowTypeError(msg ": DB.getApproximateSizes([<start>, <limit>] | [[start, limit]*])");
+
+static inline void AddRange(std::vector<leveldb::Range> &ranges, Handle<Value> startValue, Handle<Value> limitValue) {
+  leveldb::Slice start;
+  leveldb::Slice limit;
+
+  if (startValue->IsString()) {
+    std::string str(*String::Utf8Value(startValue));
+    start = leveldb::Slice(str.c_str());
+  } else if (Buffer::HasInstance(startValue)) {
+    Local<Object> buf = startValue->ToObject();
+    start = leveldb::Slice(Buffer::Data(buf), Buffer::Length(buf));
+  } else {
+    return;
+  }
+
+  if (limitValue->IsString()) {
+    std::string str(*String::Utf8Value(limitValue));
+    limit = leveldb::Slice(str.c_str());
+  } else if (Buffer::HasInstance(limitValue)) {
+    Local<Object> buf = limitValue->ToObject();
+    limit = leveldb::Slice(Buffer::Data(buf), Buffer::Length(buf));
+  } else {
+    return;
+  }
+
+  ranges.push_back(leveldb::Range(start, limit));
+}
+
 Handle<Value> DB::GetApproximateSizes(const Arguments& args) {
   HandleScope scope;
-  return ThrowError("Method not implemented");
+  DB* self = ObjectWrap::Unwrap<DB>(args.This());
+
+  CHECK_VALID_STATE;
+
+  int argc = args.Length();
+
+  if (argc < 1)
+    USAGE_ERROR("Invalid number of arguments");
+
+  std::vector<leveldb::Range> ranges;
+
+  if (args[0]->IsArray()) {
+
+    Local<Array> array(Array::Cast(*args[0]));
+    int len = array->Length();
+
+    for (int i = 0; i < len; ++i) {
+      if (array->Has(i)) {
+        Local<Value> elem = array->Get(i);
+        if (elem->IsArray()) {
+          Local<Array> bounds(Array::Cast(*elem));
+          if (bounds->Length() >= 2) {
+            AddRange(ranges, bounds->Get(0), bounds->Get(1));
+          }
+        }
+      }
+    }
+
+  } else if (argc >= 2) {
+
+    if (!args[0]->IsString() && !Buffer::HasInstance(args[0]))
+      USAGE_ERROR("Argument 1 must be a string or buffer");
+
+    if (!args[1]->IsString() && !Buffer::HasInstance(args[1]))
+      USAGE_ERROR("Argument 2 must be a string or buffer");
+
+    AddRange(ranges, args[0], args[1]);
+
+  } else {
+    USAGE_ERROR("Invalid arguments");
+  }
+
+  uint64_t sizes = 0;
+
+  self->db->GetApproximateSizes(&ranges[0], ranges.size(), &sizes);
+
+  return scope.Close( Integer::New((int32_t)sizes) );
 }
+
+#undef USAGE_ERROR
 
 
 //
