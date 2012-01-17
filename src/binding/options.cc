@@ -2,6 +2,7 @@
 #include <vector>
 
 #include "options.h"
+#include "snapshot.h"
 
 namespace node_leveldb {
 
@@ -49,6 +50,7 @@ void Options::ParseForRead(Handle<Value> val, leveldb::ReadOptions &options, boo
 
   static const Persistent<String> kVerifyChecksums = NODE_PSYMBOL("verify_checksums");
   static const Persistent<String> kFillCache = NODE_PSYMBOL("fill_cache");
+  static const Persistent<String> kSnapshot = NODE_PSYMBOL("snapshot");
   static const Persistent<String> kAsBuffer = NODE_PSYMBOL("as_buffer");
 
   if (obj->Has(kVerifyChecksums))
@@ -56,6 +58,14 @@ void Options::ParseForRead(Handle<Value> val, leveldb::ReadOptions &options, boo
 
   if (obj->Has(kFillCache))
     options.fill_cache = obj->Get(kFillCache)->BooleanValue();
+
+  if (obj->Has(kSnapshot)) {
+    Local<Value> value = obj->Get(kSnapshot);
+    if (Snapshot::HasInstance(value)) {
+      Snapshot *snapshot = ObjectWrap::Unwrap<Snapshot>(value->ToObject());
+      options.snapshot = **snapshot;
+    }
+  }
 
   if (obj->Has(kAsBuffer))
     asBuffer = obj->Get(kAsBuffer)->ToBoolean()->BooleanValue();

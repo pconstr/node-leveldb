@@ -57,6 +57,7 @@ snappy_src = ["deps/snappy/" + path for path in [
 node_leveldb_src = ["src/binding/" + path for path in [
   "leveldb.cc",
   "options.cc",
+  "snapshot.cc",
   "DB.cc",
   "WriteBatch.cc",
   "Iterator.cc",

@@ -8,6 +8,7 @@
 #include "helpers.h"
 #include "Iterator.h"
 #include "options.h"
+#include "snapshot.h"
 #include "WriteBatch.h"
 
 #define CHECK_VALID_STATE                                               \
@@ -45,7 +46,6 @@ void DB::Init(Handle<Object> target) {
   NODE_SET_PROTOTYPE_METHOD(persistent_function_template, "get", Get);
   NODE_SET_PROTOTYPE_METHOD(persistent_function_template, "newIterator", NewIterator);
   NODE_SET_PROTOTYPE_METHOD(persistent_function_template, "getSnapshot", GetSnapshot);
-  NODE_SET_PROTOTYPE_METHOD(persistent_function_template, "releaseSnapshot", ReleaseSnapshot);
   NODE_SET_PROTOTYPE_METHOD(persistent_function_template, "getProperty", GetProperty);
   NODE_SET_PROTOTYPE_METHOD(persistent_function_template, "getApproximateSizes", GetApproximateSizes);
   NODE_SET_PROTOTYPE_METHOD(persistent_function_template, "compactRange", CompactRange);
@@ -68,6 +68,10 @@ void DB::Init(Handle<Object> target) {
 bool DB::HasInstance(Handle<Value> value) {
   return value->IsObject() &&
     persistent_function_template->HasInstance(value->ToObject());
+}
+
+leveldb::DB* DB::operator*() {
+  return db;
 }
 
 
@@ -537,17 +541,14 @@ void DB::unrefIterator(Persistent<Value> object, void* parameter) {
 
 Handle<Value> DB::GetSnapshot(const Arguments& args) {
   HandleScope scope;
-  return scope.Close( ThrowError("Method not implemented") );
-}
+  DB* self = ObjectWrap::Unwrap<DB>(args.This());
 
+  CHECK_VALID_STATE;
 
-//
-// ReleaseSnapshot
-//
+  Local<Value> snapshotArgs[] = {args.This()};
+  Handle<Object> snapshot = Snapshot::constructor->GetFunction()->NewInstance(1, snapshotArgs);
 
-Handle<Value> DB::ReleaseSnapshot(const Arguments& args) {
-  HandleScope scope;
-  return scope.Close( ThrowError("Method not implemented") );
+  return scope.Close( snapshot );
 }
 
 

@@ -19,6 +19,9 @@ class DB : ObjectWrap {
   DB();
   ~DB();
 
+  void Close();
+  leveldb::DB* operator*();
+
   static void Init(Handle<Object> target);
 
   static bool HasInstance(Handle<Value> val);
@@ -37,7 +40,6 @@ class DB : ObjectWrap {
   static Handle<Value> NewIterator(const Arguments& args);
 
   static Handle<Value> GetSnapshot(const Arguments& args);
-  static Handle<Value> ReleaseSnapshot(const Arguments& args);
 
   static Handle<Value> GetProperty(const Arguments& args);
   static Handle<Value> GetApproximateSizes(const Arguments& args);
@@ -48,8 +50,6 @@ class DB : ObjectWrap {
   static Handle<Value> RepairDB(const Arguments& args);
 
  private:
-  void Close();
-
   static void unrefIterator(Persistent<Value> object, void* parameter);
 
   struct Params {
