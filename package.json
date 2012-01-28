@@ -10,7 +10,7 @@
   "main": "lib",
   "scripts": {
     "preinstall": "git submodule update && node-waf configure build && coffee -b -c -o lib src",
-    "test": "mkdir -p tmp && find tests -name '*-test.*' -print0 | xargs -0 mocha -R spec ; rm -r tmp"
+    "test": "mkdir -p tmp && find tests/ -name '*test.*' -print0 | xargs -0 mocha -R spec ; rm -r tmp"
   },
   "repository": {
     "type": "git",
