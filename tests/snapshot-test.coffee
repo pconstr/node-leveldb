@@ -3,8 +3,6 @@ leveldb = require '../lib'
 path    = require 'path'
 
 
-
-
 describe 'snapshot', ->
   db = new leveldb.DB
   filename = "#{__dirname}/../tmp/snapshot-test-file"

@@ -12,7 +12,7 @@ _file_exists = (path) ->
       has_file = false
 
    return has_file
-   
+
 assert.fileExists = (path) ->
    assert.ok(_file_exists(path), "File should exist: " + path)
 assert.fileDoesNotExist = (path) ->

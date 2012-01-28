@@ -1,21 +1,20 @@
 assert   = require './asserts'
 leveldb  = require '../lib'
 fs       = require 'fs'
-testCase = require('nodeunit').testCase
 
 
-module.exports = testCase({
-   setUp: (done) ->
+describe 'LevelDB Database level Operations', ->
+   beforeEach (done) ->
       @path = "/tmp/test-database"
       done()
 
-   tearDown: (done) ->
+   afterEach (done) ->
       if @db
          leveldb.DB.destroyDB(@path, {})
          assert.fileDoesNotExist(@path)
       done()
 
-   'create delete database': (test) ->
+   it 'create delete database', (done) ->
       @db = new leveldb.DB()
 
       @db.open @path, {create_if_missing: true}, (err) =>
@@ -26,9 +25,9 @@ module.exports = testCase({
          @db.close()
 
          # make sure it cleaned up correctly.
-         test.done()
+         done()
 
-   'can not create if database already exists': (test) ->
+   it 'can not create if database already exists', (done) ->
       assert.fileDoesNotExist @path
       fh = fs.openSync(@path, "w+")
       assert.ok fh
@@ -40,6 +39,5 @@ module.exports = testCase({
       db.open @path, {}, (err) =>
          assert.ok(err, "Since something exists at path the database should not be created.")
          fs.unlinkSync(@path)
-         test.done()
-})
+         done()
 

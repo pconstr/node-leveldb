@@ -3,9 +3,6 @@ fs      = require 'fs'
 leveldb = require '../lib'
 
 
-
-
-
 describe 'package', ->
   package = JSON.parse fs.readFileSync __dirname + '/../package.json', 'utf8'
   bindingVersion = '1.2'

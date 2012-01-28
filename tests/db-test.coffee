@@ -3,8 +3,6 @@ leveldb = require '../lib'
 path    = require 'path'
 
 
-
-
 describe 'db', ->
   db = null
   filename = "#{__dirname}/../tmp/db-test-file"

@@ -26,9 +26,9 @@
   "dependencies": {
   },
   "devDependencies": {
+    "twisted-deferred": "0.2.x",
     "coffee-script": "~1.2.0",
-    "mocha": "~0.10.0",
-    "nodeunit": ">=0.5.5"
+    "mocha": "~0.10.0"
   },
   "contributors": [
     "Michael Phan-Ba <michael@mikepb.com>",

@@ -1,13 +1,10 @@
 assert   = require './asserts'
 leveldb  = require '../lib'
-fs       = require 'fs'
-testCase = require('nodeunit').testCase
 defer    = require "twisted-deferred"
-_        = require 'underscore'
 
 
-module.exports = testCase({
-   setUp: (done) ->
+describe 'LevelDB Common Operations', ->
+   beforeEach (done) ->
       @path = "/tmp/test-database"
       @db   = new leveldb.DB()
 
@@ -19,11 +16,10 @@ module.exports = testCase({
          assert.ok not err, err
          done()
 
-   tearDown: (done) ->
+   afterEach () ->
       leveldb.DB.destroyDB(@path, {})
-      done()
 
-   'getting and putting data': (test) ->
+   it 'can get and put data', (done) ->
       # put two keys and then ensure that we can each correctly
       d1 = defer.toDeferred @db.put, "1", "the data"
       d2 = defer.toDeferred @db.put, "2", "more data"
@@ -44,9 +40,9 @@ module.exports = testCase({
          console.log err.message.stack
          err
       d.addCallback () ->
-         test.done()
+         done()
 
-   'iterator': (test) ->
+   it 'can iterate over keys', (done) ->
       # put several keys into the database and then iterate over them
       d1 = defer.toDeferred @db.put, "1", "the data"
       d2 = defer.toDeferred @db.put, "2", "more data"
@@ -67,13 +63,12 @@ module.exports = testCase({
 
             assert.equal(keys[0], "1")
             assert.equal(keys[1], "2")
-     
+
          return d3
 
       d.addErrback (err) ->
          console.log err.message.stack
          err
       d.addCallback () ->
-         test.done()
-})
+         done()
 
