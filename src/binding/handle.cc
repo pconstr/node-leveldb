@@ -50,13 +50,14 @@ void JHandle::Close() {
         JIterator *iterator = ObjectWrap::Unwrap<JIterator>(*it);
         iterator->Close();
       }
+      iterators_.clear();
       for (it = snapshots_.begin(); it != snapshots_.end(); it++) {
         JHandle *handle = ObjectWrap::Unwrap<JHandle>(*it);
         handle->Close();
       }
       snapshots_.clear();
+      delete db_;
     }
-    delete db_;
     db_ = NULL;
   }
 };

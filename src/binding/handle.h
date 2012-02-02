@@ -122,12 +122,13 @@ class JHandle : public ObjectWrap {
   static async_rtn Get(uv_work_t* req);
   static async_rtn GetAfter(uv_work_t* req);
 
-  static async_rtn Destroy(uv_work_t* req);
-  static async_rtn Repair(uv_work_t* req);
-
   static async_rtn After(uv_work_t* req);
+
   static async_rtn Close(uv_work_t* req);
   static async_rtn Write(uv_work_t* req);
+
+  static async_rtn Destroy(uv_work_t* req);
+  static async_rtn Repair(uv_work_t* req);
 };
 
 } // namespace node_leveldb
