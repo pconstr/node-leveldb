@@ -10,8 +10,6 @@
 #include <node.h>
 #include <v8.h>
 
-#include <iostream>
-
 #include "batch.h"
 #include "node_async_shim.h"
 
