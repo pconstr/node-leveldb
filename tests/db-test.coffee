@@ -10,7 +10,10 @@ describe 'db', ->
   itShouldBehaveLikeAKeyValueStore = (key, val) ->
 
     it 'should open database', (done) ->
-      db = leveldb.open filename, create_if_missing: true, paranoid_checks: true, done
+      leveldb.open filename, create_if_missing: true, paranoid_checks: true, (err, handle) ->
+        assert.ifError err
+        db = handle
+        done()
 
     it 'should put key/value pair', (done) ->
       db.put key, val, done
@@ -70,7 +73,10 @@ describe 'db', ->
       db = null
 
     it 'should open database', (done) ->
-      db = leveldb.open filename, done
+      leveldb.open filename, (err, handle) ->
+        assert.ifError err
+        db = handle
+        done()
 
     it 'should get value', (done) ->
       db.get '100', (err, value) ->
