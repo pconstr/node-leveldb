@@ -1,5 +1,12 @@
-#ifndef HELPERS_H_
-#define HELPERS_H_
+#ifndef NODE_LEVELDB_HELPERS_H_
+#define NODE_LEVELDB_HELPERS_H_
+
+#include <assert.h>
+#include <stdlib.h>
+#include <string.h>
+
+#include <string>
+#include <vector>
 
 #include <v8.h>
 #include <node.h>
@@ -7,65 +14,62 @@
 #include <node_buffer.h>
 
 #include "leveldb/db.h"
-#include <vector>
-#include <string>
-#include <iostream>   // for debugging
+#include "leveldb/slice.h"
+#include "node_async_shim.h"
 
 using namespace node;
 using namespace v8;
 
-#if NODE_VERSION_AT_LEAST(0, 5, 4)
-  #define EIO_RETURN_TYPE void
-  #define EIO_RETURN_STMT return
-#else
-  #define EIO_RETURN_TYPE int
-  #define EIO_RETURN_STMT return 0
-#endif
-
-#define GET_CALLBACK_ARG(args, argv) (                      \
-  ((argv) >= 1 && (args)[(argv) - 1]->IsFunction())         \
-    ? Local<Function>::Cast((args)[(argv) - 1])             \
-    : Local<Function>()                                     \
-  )
-
-#define GET_WRITE_OPTIONS_ARG(options, args, argv, idx)     \
-  if ((argv) >= (idx) && (args)[(idx)]->IsObject() && !(args)[(idx)]->IsFunction()) { \
-    Options::ParseForWrite((args)[(idx)], options);                 \
-  }
-
-#define GET_READ_OPTIONS_ARG(options, asBool, args, argv, idx) \
-  if ((argv) >= (idx) && (args)[(idx)]->IsObject() && !(args)[(idx)]->IsFunction()) { \
-    Options::ParseForRead((args)[(idx)], (options), (asBool));      \
-  }
-
-#define GET_OPTIONS_ARG(options, args, argv, idx)           \
-  if ((argv) >= (idx) && (args)[(idx)]->IsObject() && !(args)[(idx)]->IsFunction()) { \
-    Options::Parse((args)[(idx)], (options));                    \
-  }
-
 namespace node_leveldb {
 
-  inline Handle<Value> ThrowTypeError(const char* err) {
-    return ThrowException(Exception::TypeError(String::New(err)));
+static inline Handle<Value> ThrowTypeError(const char* err) {
+  return ThrowException(Exception::TypeError(String::New(err)));
+}
+
+static inline Handle<Value> ThrowError(const char* err) {
+  return ThrowException(Exception::Error(String::New(err)));
+}
+
+static inline bool IsStringOrBuffer(Handle<Value> val) {
+  return val->IsString() || Buffer::HasInstance(val);
+}
+
+static inline leveldb::Slice ToSlice(Handle<Value> value, std::vector<char*>* buffers = NULL) {
+  if (value->IsString()) {
+    Local<String> str = value->ToString();
+    if (str.IsEmpty()) return leveldb::Slice();
+    int len = str->Utf8Length();
+    char* buf = (char*)malloc(len + 1);
+    assert(buf != NULL);
+    str->WriteUtf8(buf);
+    if (buffers != NULL) buffers->push_back(buf);
+    return leveldb::Slice(buf, len);
+  } else if (Buffer::HasInstance(value)) {
+    Local<Object> obj = value->ToObject();
+    int len = Buffer::Length(obj);
+    char* buf = (char*)malloc(len);
+    memcpy(buf, Buffer::Data(obj), len);
+    if (buffers != NULL) buffers->push_back(buf);
+    return leveldb::Slice(buf, len);
+  } else {
+    return leveldb::Slice();
   }
+}
 
-  inline Handle<Value> ThrowError(const char* err) {
-    return ThrowException(Exception::Error(String::New(err)));
-  }
+static inline Handle<Value> ToBuffer(const leveldb::Slice& val) {
+  return Buffer::New(String::New(val.data(), val.size()));
+}
 
-  // Helper to convert vanilla JS objects into leveldb objects
-  leveldb::Slice JsToSlice(Handle<Value> val, std::vector<std::string> *strings);
+static inline Handle<Value> ToString(const leveldb::Slice& val) {
+  return String::New(val.data(), val.size());
+}
 
-  // Helper to convert a leveldb::Status instance to a V8 return value
-  Handle<Value> processStatus(leveldb::Status status);
-
-  // Helpers to work with buffers
-  Local<Object> Bufferize(std::string value);
-  char* BufferData(Buffer *b);
-  size_t BufferLength(Buffer *b);
-  char* BufferData(Handle<Object> buf_obj);
-  size_t BufferLength(Handle<Object> buf_obj);
+static inline Local<Function> GetCallback(const Arguments& args) {
+  int idx = args.Length() - 1;
+  if (args[idx]->IsFunction()) return Local<Function>::Cast(args[idx]);
+  return Local<Function>();
+}
 
 } // node_leveldb
 
-#endif  // HELPERS_H_
+#endif // NODE_LEVELDB_HELPERS_H_

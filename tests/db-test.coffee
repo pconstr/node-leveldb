@@ -10,8 +10,7 @@ describe 'db', ->
   itShouldBehaveLikeAKeyValueStore = (key, val) ->
 
     it 'should open database', (done) ->
-      db = new leveldb.DB
-      db.open filename, create_if_missing: true, paranoid_checks: true, done
+      db = leveldb.open filename, create_if_missing: true, paranoid_checks: true, done
 
     it 'should put key/value pair', (done) ->
       db.put key, val, done
@@ -35,30 +34,32 @@ describe 'db', ->
       db.close done
 
     it 'should repair database', ->
-      result = leveldb.DB.repairDB filename
+      result = leveldb.repair filename
       assert.equal 'OK', result
       assert path.existsSync filename
 
     it 'should destroy database', ->
-      result = leveldb.DB.destroyDB filename
+      result = leveldb.destroy filename
       assert.equal 'OK', result
       db = null
 
   describe 'admin', ->
 
     it 'should open database', (done) ->
-      db = new leveldb.DB
-      db.open filename, create_if_missing: true, done
+      leveldb.open filename, create_if_missing: true, (err, handle) ->
+        assert.ifError err
+        db = handle
+        done()
 
     it 'should get property', ->
-      assert db.getProperty 'leveldb.stats'
-      assert.equal undefined, db.getProperty ''
+      assert db.property 'leveldb.stats'
+      assert.equal undefined, db.property ''
 
     it 'should get no approximate size', ->
-      assert.equal 0, db.getApproximateSizes []
+      assert.equal 0, db.approximateSizes []
 
     it 'should get one approximate size', ->
-      db.getApproximateSizes '0', '1'
+      db.approximateSizes '0', '1'
 
     it 'should put values', (done) ->
       db.put '' + i, 'Hello World!' for i in [0..999]
@@ -69,8 +70,7 @@ describe 'db', ->
       db = null
 
     it 'should open database', (done) ->
-      db = new leveldb.DB
-      db.open filename, done
+      db = leveldb.open filename, done
 
     it 'should get value', (done) ->
       db.get '100', (err, value) ->
@@ -78,10 +78,10 @@ describe 'db', ->
         done()
 
     it 'should get approximate sizes', ->
-      db.getApproximateSizes '0', '1000'
+      db.approximateSizes '0', '1000'
 
     it 'should get approximate sizes', ->
-      db.getApproximateSizes [[ '0', '50' ], [ '50', '1000' ]]
+      db.approximateSizes [[ '0', '50' ], [ '50', '1000' ]]
 
     it 'should close database', (done) ->
       db.close ->
