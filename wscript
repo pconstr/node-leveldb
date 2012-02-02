@@ -55,13 +55,12 @@ snappy_src = ["deps/snappy/" + path for path in [
 ]]
 
 node_leveldb_src = ["src/binding/" + path for path in [
-  "leveldb.cc",
-  "options.cc",
-  "snapshot.cc",
-  "DB.cc",
-  "WriteBatch.cc",
-  "Iterator.cc",
-  "helpers.cc"
+  "binding.cc",
+  "handle.cc",
+  "handle_async.cc",
+  "batch.cc",
+  "iterator.cc",
+  "iterator_async.cc"
 ]]
 
 build_config = join(leveldb_dir, 'build_config.mk')
@@ -88,7 +87,7 @@ def configure(conf):
   conf.check_tool("compiler_cc")
   conf.check_tool("node_addon")
 
-  Utils.exec_command('./configure', cwd = './deps/libsnappy')
+  Utils.exec_command('./configure', cwd = './deps/snappy')
 
   if not exists(build_config):
       system('cd %s && sh build_detect_platform' % leveldb_dir)

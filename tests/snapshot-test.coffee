@@ -6,17 +6,17 @@ path    = require 'path'
 
 
 describe 'snapshot', ->
-  db = new leveldb.DB
+  db = null
   filename = "#{__dirname}/../tmp/snapshot-test-file"
   snapshot = null
   key = "Hello"
   val = "World"
 
   it 'should open database', (done) ->
-    db.open filename, create_if_missing: true, done
+    db = leveldb.open filename, create_if_missing: true, done
 
   it 'should create a snapshot', ->
-    snapshot = db.getSnapshot()
+    snapshot = db.snapshot()
 
   it 'should have a snapshot', ->
     assert snapshot.valid()

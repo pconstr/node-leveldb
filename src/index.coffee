@@ -1,7 +1,7 @@
-leveldb = exports = module.exports = require '../build/leveldb.node'
+leveldb = exports = module.exports = require './leveldb/handle'
+
 leveldb.version = '0.5.0'
 
-leveldb.createClient = ->
-  client = new leveldb.DB
-  client.open.apply client, arguments
-  client
+leveldb.binding = binding = require '../build/leveldb.node'
+
+leveldb.Batch = binding.Batch
