@@ -70,9 +70,17 @@ static void UnpackReadOptions(Handle<Value> val, leveldb::ReadOptions& options, 
   if (!val->IsObject()) return;
   Local<Object> obj = val->ToObject();
 
+  static const Persistent<String> kSnapshot = NODE_PSYMBOL("snapshot");
   static const Persistent<String> kVerifyChecksums = NODE_PSYMBOL("verify_checksums");
   static const Persistent<String> kFillCache = NODE_PSYMBOL("fill_cache");
   static const Persistent<String> kAsBuffer = NODE_PSYMBOL("as_buffer");
+
+  if (obj->Has(kSnapshot)) {
+    Handle<Value> ext = obj->Get(kSnapshot);
+    if (ext->IsExternal()) {
+      options.snapshot = (leveldb::Snapshot*)External::Unwrap(ext);
+    }
+  }
 
   if (obj->Has(kVerifyChecksums))
     options.verify_checksums = obj->Get(kVerifyChecksums)->BooleanValue();

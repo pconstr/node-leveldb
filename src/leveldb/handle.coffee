@@ -33,14 +33,18 @@ exports.repair = (path, options, callback) ->
 exports.repairSync = (path, options) ->
   binding.repair path, options
 
-class ReadHandle
+exports.Handle = class Handle
 
   constructor: (@self) ->
 
-  valid: -> @self.valid()
+  valid: ->
+    @self.valid()
 
-  close: (callback) -> @self.close(callback)
-  closeSync: -> @self.close()
+  close: (callback) ->
+    @self.close(callback)
+
+  closeSync: ->
+    @self.close()
 
   get: (key, options, callback) ->
     if typeof options is 'function'
@@ -48,12 +52,8 @@ class ReadHandle
       options = null
     @self.get key, options, callback or noop
 
-
   getSync: (key, options) ->
-    options = null if typeof options is 'function'
     @self.get key, options
-
-exports.Handle = class Handle extends ReadHandle
 
   put: (key, value, options, callback) ->
     batch = new Batch
@@ -88,7 +88,7 @@ exports.Handle = class Handle extends ReadHandle
     @self.iterator options
 
   snapshot: (options) ->
-    new ReadHandle @self.snapshot options
+    new Snapshot @, @self.snapshot options
 
   property: (name) ->
     @self.property(name)
@@ -102,3 +102,21 @@ exports.Handle = class Handle extends ReadHandle
   ###
 
   # TODO: compactRange
+
+class Snapshot
+
+  constructor: (@self, @snapshot) ->
+
+  get: (key, options = {}, callback) ->
+    if typeof options is 'function'
+      callback = options
+      options = {}
+    options.snapshot = @snapshot
+    @self.get key, options, callback or noop
+
+  getSync: (key, options = {}) ->
+    options.snapshot = @snapshot
+    @self.get key, options
+
+  valid: ->
+    @self.valid()
