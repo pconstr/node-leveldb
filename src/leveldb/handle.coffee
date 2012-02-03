@@ -93,7 +93,12 @@ exports.Handle = class Handle extends ReadHandle
   property: (name) ->
     @self.property(name)
 
+  ###
   approximateSizes: ->
-    @self.approximateSizes.apply @self, arguments
+    slices =
+      if Array.isArray arguments[0] then arguments[0]
+      else Array.prototype.slice.call arguments[0]
+    @self.approximateSizes slices
+  ###
 
   # TODO: compactRange
