@@ -33,14 +33,14 @@ exports.repair = (path, options, callback) ->
 exports.repairSync = (path, options) ->
   binding.repair path, options
 
-exports.Handle = class Handle
+class ReadHandle
 
   constructor: (@self) ->
 
+  valid: -> @self.valid()
+
   close: (callback) -> @self.close(callback)
   closeSync: -> @self.close()
-
-  valid: -> @self.valid()
 
   get: (key, options, callback) ->
     if typeof options is 'function'
@@ -52,6 +52,8 @@ exports.Handle = class Handle
   getSync: (key, options) ->
     options = null if typeof options is 'function'
     @self.get key, options
+
+exports.Handle = class Handle extends ReadHandle
 
   put: (key, value, options, callback) ->
     batch = new Batch
@@ -86,7 +88,7 @@ exports.Handle = class Handle
     @self.iterator options
 
   snapshot: (options) ->
-    @self.snapshot options
+    new ReadHandle @self.snapshot options
 
   property: (name) ->
     @self.property(name)

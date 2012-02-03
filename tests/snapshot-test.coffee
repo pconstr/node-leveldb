@@ -13,7 +13,10 @@ describe 'snapshot', ->
   val = "World"
 
   it 'should open database', (done) ->
-    db = leveldb.open filename, create_if_missing: true, done
+    leveldb.open filename, create_if_missing: true, (err, handle) ->
+      assert.ifError err
+      db = handle
+      done()
 
   it 'should create a snapshot', ->
     snapshot = db.snapshot()
@@ -21,8 +24,8 @@ describe 'snapshot', ->
   it 'should have a snapshot', ->
     assert snapshot.valid()
 
-  it 'should put key/value pair', (done) ->
-    db.put key, val, done
+  it 'should put key/value pair', ->
+    db.putSync key, val, sync: true
 
   it 'should get key/value pair', (done) ->
     db.get key, (err, result) ->
@@ -31,17 +34,16 @@ describe 'snapshot', ->
       done()
 
   it 'should not get snapshot key/value pair', (done) ->
-    db.get key, snapshot: snapshot, (err, result) ->
+    snapshot.get key, (err, result) ->
       assert.ifError err
       assert.equal result, undefined
       done()
 
-  it 'should release snapshot', ->
-    snapshot.close()
+  it 'should release snapshot', (done) ->
+    snapshot.close done
 
   it 'should close database', (done) ->
     db.close done
 
-  it 'should destroy database', ->
-    result = leveldb.DB.destroyDB filename
-    assert.equal result, 'OK'
+  it 'should destroy database', (done) ->
+    leveldb.destroy filename, done
