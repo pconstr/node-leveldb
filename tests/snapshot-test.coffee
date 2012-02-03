@@ -19,7 +19,7 @@ describe 'snapshot', ->
   it 'should create a snapshot', ->
     snapshot = db.snapshot()
 
-  it 'should have a snapshot', ->
+  it 'should be valid', ->
     assert snapshot.valid()
 
   it 'should put key/value pair', ->
@@ -37,11 +37,11 @@ describe 'snapshot', ->
       assert.equal result, undefined
       done()
 
-  it 'should release snapshot', (done) ->
-    snapshot.close done
-
   it 'should close database', (done) ->
     db.close done
+
+  it 'should not be valid', ->
+    assert.ifError snapshot.valid()
 
   it 'should destroy database', (done) ->
     leveldb.destroy filename, done

@@ -44,9 +44,8 @@ class JHandle : public ObjectWrap {
 
  private:
   leveldb::DB* db_;
-  const leveldb::Snapshot* snapshot_;
   std::vector< Persistent<Object> > iterators_;
-  std::vector< Persistent<Object> > snapshots_;
+  std::vector< const leveldb::Snapshot* > snapshots_;
 
   JHandle(leveldb::DB* db);
   virtual ~JHandle();
@@ -54,7 +53,7 @@ class JHandle : public ObjectWrap {
   void Close();
   bool Valid();
 
-  JHandle(leveldb::DB* db, const leveldb::Snapshot* snapshot);
+  static void UnrefSnapshot(Persistent<Value> object, void* parameter);
 
   struct Params {
     Params(JHandle* self, Handle<Function> cb) : self(self) {

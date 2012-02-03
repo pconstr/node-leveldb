@@ -31,10 +31,7 @@ static inline Handle<Value> Error(const leveldb::Status& status) {
 }
 
 JHandle::JHandle(leveldb::DB* db)
-  : ObjectWrap(), db_(db), snapshot_(NULL) {}
-
-JHandle::JHandle(leveldb::DB* db, const leveldb::Snapshot* snapshot)
-  : ObjectWrap(), db_(db), snapshot_(snapshot) {}
+  : ObjectWrap(), db_(db) {}
 
 JHandle::~JHandle() {
   Close();
@@ -42,22 +39,18 @@ JHandle::~JHandle() {
 
 void JHandle::Close() {
   if (db_ != NULL) {
-    if (snapshot_ != NULL) {
-      db_->ReleaseSnapshot(snapshot_);
-    } else {
-      std::vector< Persistent<Object> >::iterator it;
-      for (it = iterators_.begin(); it != iterators_.end(); it++) {
-        JIterator *iterator = ObjectWrap::Unwrap<JIterator>(*it);
-        iterator->Close();
-      }
-      iterators_.clear();
-      for (it = snapshots_.begin(); it != snapshots_.end(); it++) {
-        JHandle *handle = ObjectWrap::Unwrap<JHandle>(*it);
-        handle->Close();
-      }
-      snapshots_.clear();
-      delete db_;
+    std::vector< Persistent<Object> >::iterator it;
+    for (it = iterators_.begin(); it != iterators_.end(); ++it) {
+      JIterator *iterator = ObjectWrap::Unwrap<JIterator>(*it);
+      iterator->Close();
     }
+    iterators_.clear();
+    std::vector< const leveldb::Snapshot* >::iterator jt;
+    for (jt = snapshots_.begin(); jt != snapshots_.end(); ++jt) {
+      db_->ReleaseSnapshot(*jt);
+    }
+    snapshots_.clear();
+    delete db_;
     db_ = NULL;
   }
 };
@@ -106,20 +99,11 @@ void JHandle::Initialize(Handle<Object> target) {
 Handle<Value> JHandle::New(const Arguments& args) {
   HandleScope scope;
 
-  int argc = args.Length();
-  assert(argc >= 1);
+  assert(args.Length() == 1);
   assert(args[0]->IsExternal());
 
   leveldb::DB* db = (leveldb::DB*)External::Unwrap(args[0]);
-  JHandle* self;
-
-  if (argc > 1) {
-    assert(args[1]->IsTrue());
-    self = new JHandle(db, db->GetSnapshot());
-  } else {
-    self = new JHandle(db);
-  }
-
+  JHandle* self = new JHandle(db);
   self->Wrap(args.This());
 
   return args.This();
@@ -260,33 +244,14 @@ Handle<Value> JHandle::Write(const Arguments& args) {
   return args.This();
 }
 
-static bool IsNotNearDeath(Persistent<Object> o) {
-  return !o.IsNearDeath();
+static bool IsNearDeath(Persistent<Value> o) {
+  return o.IsNearDeath();
 }
 
 static void UnrefIterator(Persistent<Value> object, void* parameter) {
-  std::vector< Persistent<Object> > *ilist =
-    (std::vector< Persistent<Object> > *) parameter;
-
-  std::vector< Persistent<Object> >::iterator it =
-    partition(ilist->begin(), ilist->end(), IsNotNearDeath);
-
-  ilist->erase(it, ilist->end());
-}
-
-static inline Handle<Value> NewDependentInstance(
-  const Persistent<FunctionTemplate>& constructor,
-  int argc, Handle<Value>* args,
-  std::vector< Persistent<Object> >& objects)
-{
-  Handle<Object> obj = constructor->GetFunction()->NewInstance(argc, args);
-
-  // Keep a weak reference
-  Persistent<Object> weak = Persistent<Object>::New(obj);
-  weak.MakeWeak(&objects, &UnrefIterator);
-  objects.push_back(weak);
-
-  return obj;
+  std::vector< Persistent<Object> >* list =
+    (std::vector< Persistent<Object> >*)parameter;
+  remove_if(list->begin(), list->end(), IsNearDeath);
 }
 
 Handle<Value> JHandle::Iterator(const Arguments& args) {
@@ -302,11 +267,24 @@ Handle<Value> JHandle::Iterator(const Arguments& args) {
 
   leveldb::Iterator* it = self->db_->NewIterator(options);
 
-  Handle<Value> iteratorArgs[] = { args.This(), External::New(it) };
-  Handle<Value> iterator =
-    NewDependentInstance(JIterator::constructor, 2, iteratorArgs, self->iterators_);
+  Handle<Value> argv[] = { args.This(), External::New(it) };
+  Handle<Object> instance = JIterator::constructor->GetFunction()->NewInstance(2, argv);
 
-  return scope.Close(iterator);
+  // Keep a weak reference
+  Persistent<Object> weak = Persistent<Object>::New(instance);
+  weak.MakeWeak(&self->iterators_, &UnrefIterator);
+  self->iterators_.push_back(weak);
+
+  return scope.Close(instance);
+}
+
+void JHandle::UnrefSnapshot(Persistent<Value> object, void* parameter) {
+  assert(object->IsExternal());
+  JHandle* handle = (JHandle*)parameter;
+  leveldb::Snapshot* snapshot = (leveldb::Snapshot*)External::Unwrap(object);
+  assert(handle);
+  handle->db_->ReleaseSnapshot(snapshot);
+  remove(handle->snapshots_.begin(), handle->snapshots_.end(), snapshot);
 }
 
 Handle<Value> JHandle::Snapshot(const Arguments& args) {
@@ -315,11 +293,13 @@ Handle<Value> JHandle::Snapshot(const Arguments& args) {
 
   if (self->db_ == NULL) return ThrowError("Handle closed");
 
-  Handle<Value> handleArgs[] = { External::New(self->db_), True() };
-  Handle<Value> handle =
-    NewDependentInstance(constructor, 2, handleArgs, self->snapshots_);
+  const leveldb::Snapshot* snapshot = self->db_->GetSnapshot();
+  Handle<Value> instance = External::New((void*)snapshot);
+  Persistent<Value> weak = Persistent<Value>::New(instance);
+  weak.MakeWeak(self, &UnrefSnapshot);
+  self->snapshots_.push_back(snapshot);
 
-  return scope.Close(handle);
+  return scope.Close(instance);
 }
 
 Handle<Value> JHandle::Property(const Arguments& args) {
@@ -341,66 +321,48 @@ Handle<Value> JHandle::Property(const Arguments& args) {
   }
 }
 
-static inline void AddRange(
-  std::vector<leveldb::Range>& ranges,
-  Handle<Value> startValue,
-  Handle<Value> limitValue,
-  std::vector<char*>& buffers)
-{
-  leveldb::Slice start = ToSlice(startValue, &buffers);
-  leveldb::Slice limit = ToSlice(limitValue, &buffers);
-
-  if (start.empty() || limit.empty()) return;
-
-  ranges.push_back(leveldb::Range(start, limit));
-}
-
 Handle<Value> JHandle::ApproximateSizes(const Arguments& args) {
   HandleScope scope;
   JHandle* self = ObjectWrap::Unwrap<JHandle>(args.This());
 
   if (self->db_ == NULL) return ThrowError("Handle closed");
 
-  if (args.Length() < 1)
+  if (args.Length() < 1 || !args[0]->IsArray())
     return ThrowTypeError("Invalid arguments");
 
   std::vector<leveldb::Range> ranges;
   std::vector<char*> buffers;
 
-  if (args[0]->IsArray()) {
+  Local<Array> array(Array::Cast(*args[0]));
+  int len = array->Length();
 
-    Local<Array> array(Array::Cast(*args[0]));
-    int len = array->Length();
+  for (int i = 0; i < len; ++i) {
+    if (array->Has(i)) {
+      Local<Value> elem = array->Get(i);
 
-    for (int i = 0; i < len; ++i) {
-      if (array->Has(i)) {
-        Local<Value> elem = array->Get(i);
-        if (elem->IsArray()) {
-          Local<Array> bounds(Array::Cast(*elem));
-          if (bounds->Length() >= 2) {
-            AddRange(ranges, bounds->Get(0), bounds->Get(1), buffers);
-          }
+      if (elem->IsArray()) {
+        Local<Array> bounds(Array::Cast(*elem));
+
+        if (bounds->Length() >= 2) {
+          leveldb::Slice start = ToSlice(bounds->Get(0), &buffers);
+          leveldb::Slice limit = ToSlice(bounds->Get(1), &buffers);
+
+          if (!start.empty() && !limit.empty())
+            ranges.push_back(leveldb::Range(start, limit));
+
         }
       }
     }
-
-  } else if (args.Length() >= 2 &&
-    (args[0]->IsString() || Buffer::HasInstance(args[0])) &&
-    (args[1]->IsString() || Buffer::HasInstance(args[1]))) {
-
-    AddRange(ranges, args[0], args[1], buffers);
-
-  } else {
-    return ThrowTypeError("Invalid arguments");
   }
 
   uint64_t sizes = 0;
-
   self->db_->GetApproximateSizes(&ranges[0], ranges.size(), &sizes);
 
   std::vector<char*>::iterator it;
   for (it = buffers.begin(); it < buffers.end(); ++it) {
-    delete *it;
+    char* buf = *it;
+    assert(buf);
+    //delete buf;
   }
 
   return scope.Close(Integer::New((int32_t)sizes));
