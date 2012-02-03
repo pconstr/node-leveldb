@@ -10,7 +10,7 @@ Since LevelDB provides good primitives like MVCC and binary support (It was desi
 
 ## TODO
 
- 1. Trun Iterator code to be async
+ * get the build working for 0.7
 
 ## Status
 
