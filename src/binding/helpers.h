@@ -37,19 +37,19 @@ static inline bool IsStringOrBuffer(Handle<Value> val) {
 static inline leveldb::Slice ToSlice(Handle<Value> value, std::vector<char*>* buffers = NULL) {
   if (value->IsString()) {
     Local<String> str = value->ToString();
-    if (str.IsEmpty()) return leveldb::Slice();
     int len = str->Utf8Length();
-    char* buf = (char*)malloc(len + 1);
-    assert(buf != NULL);
+    if (str.IsEmpty() || len <= 0) return leveldb::Slice();
+    char* buf = new char[len + 1];
     str->WriteUtf8(buf);
-    if (buffers != NULL) buffers->push_back(buf);
+    if (buffers) buffers->push_back(buf);
     return leveldb::Slice(buf, len);
   } else if (Buffer::HasInstance(value)) {
     Local<Object> obj = value->ToObject();
     int len = Buffer::Length(obj);
-    char* buf = (char*)malloc(len);
+    if (len <= 0) return leveldb::Slice();
+    char* buf = new char[len];
     memcpy(buf, Buffer::Data(obj), len);
-    if (buffers != NULL) buffers->push_back(buf);
+    if (buffers) buffers->push_back(buf);
     return leveldb::Slice(buf, len);
   } else {
     return leveldb::Slice();
