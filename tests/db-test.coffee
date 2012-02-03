@@ -36,15 +36,14 @@ describe 'db', ->
     it 'should close database', (done) ->
       db.close done
 
-    it 'should repair database', ->
-      result = leveldb.repair filename
-      assert.equal 'OK', result
-      assert path.existsSync filename
+    it 'should repair database', (done) ->
+      leveldb.repair filename, (err) ->
+        assert.ifError err
+        assert path.existsSync filename
+        done()
 
-    it 'should destroy database', ->
-      result = leveldb.destroy filename
-      assert.equal 'OK', result
-      db = null
+    it 'should destroy database', (done) ->
+      leveldb.destroy filename, done
 
   describe 'admin', ->
 
