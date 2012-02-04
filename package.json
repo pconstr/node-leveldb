@@ -6,7 +6,7 @@
   ],
   "description": "Bindings for using LevelDB through node.",
   "homepage": "https: //github.com/my8bird/node-leveldb",
-  "version": "0.5.0",
+  "version": "0.5.1",
   "main": "lib",
   "scripts": {
     "preinstall":  "git submodule init && git submodule update",
