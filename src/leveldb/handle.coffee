@@ -85,7 +85,7 @@ exports.Handle = class Handle
     @self.write batch, options
 
   iterator: (options) ->
-    @self.iterator options
+    new Iterator @self.iterator options
 
   snapshot: (options) ->
     new Snapshot @, @self.snapshot options

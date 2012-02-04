@@ -19,19 +19,11 @@ JIterator::JIterator(Handle<Object>& db, leveldb::Iterator* it) : it_(it) {
 }
 
 JIterator::~JIterator() {
-  Close();
-  db_.Dispose();
-}
-
-void JIterator::Close() {
   if (it_) {
     delete it_;
     it_ = NULL;
   }
-};
-
-bool JIterator::Valid() {
-  return !db_.IsEmpty() && it_ && it_->Valid();
+  db_.Dispose();
 }
 
 void JIterator::Initialize(Handle<Object> target) {
@@ -56,12 +48,12 @@ void JIterator::Initialize(Handle<Object> target) {
 Handle<Value> JIterator::New(const Arguments& args) {
   HandleScope scope;
 
-  assert(args.Length() >= 2);
+  assert(args.Length() == 2);
   assert(args[0]->IsObject() && JHandle::HasInstance(args[0]));
   assert(args[1]->IsExternal());
 
   Handle<Object> db = args[0]->ToObject();
-  leveldb::Iterator* it = (leveldb::Iterator*) Local<External>::Cast(args[1])->Value();
+  leveldb::Iterator* it = (leveldb::Iterator*) External::Unwrap(args[1]);
 
   assert(it);
 
@@ -74,7 +66,7 @@ Handle<Value> JIterator::New(const Arguments& args) {
 Handle<Value> JIterator::Valid(const Arguments& args) {
   HandleScope scope;
   JIterator* self = ObjectWrap::Unwrap<JIterator>(args.This());
-  return self->Valid() ? True() : False();
+  return self->Valid() && self->it_->Valid() ? True() : False();
 }
 
 Handle<Value> JIterator::Seek(const Arguments& args) {
@@ -154,6 +146,7 @@ Handle<Value> JIterator::Next(const Arguments& args) {
   Local<Function> callback = GetCallback(args);
 
   if (callback.IsEmpty()) {
+    // FIXME: database is sometimes closed prematurely
     self->it_->Next();
   } else {
     Params *data = new Params(self, callback);

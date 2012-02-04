@@ -37,19 +37,20 @@ JHandle::~JHandle() {
   Close();
 }
 
+struct Release {
+  leveldb::DB* db_;
+  Release(leveldb::DB* db) : db_(db) {}
+  void operator()(const leveldb::Snapshot* it) {
+    db_->ReleaseSnapshot(it);
+  }
+};
+
 void JHandle::Close() {
   if (db_ != NULL) {
-    std::vector< Persistent<Object> >::iterator it;
-    for (it = iterators_.begin(); it != iterators_.end(); ++it) {
-      JIterator *iterator = ObjectWrap::Unwrap<JIterator>(*it);
-      iterator->Close();
-    }
-    iterators_.clear();
-    std::vector< const leveldb::Snapshot* >::iterator jt;
-    for (jt = snapshots_.begin(); jt != snapshots_.end(); ++jt) {
-      db_->ReleaseSnapshot(*jt);
-    }
+    Release releaser(db_);
+    for_each(snapshots_.begin(), snapshots_.end(), releaser);
     snapshots_.clear();
+    iterators_.clear();
     delete db_;
     db_ = NULL;
   }
@@ -244,14 +245,14 @@ Handle<Value> JHandle::Write(const Arguments& args) {
   return args.This();
 }
 
-static bool IsNearDeath(Persistent<Value> o) {
-  return o.IsNearDeath();
-}
-
-static void UnrefIterator(Persistent<Value> object, void* parameter) {
-  std::vector< Persistent<Object> >* list =
-    (std::vector< Persistent<Object> >*)parameter;
-  remove_if(list->begin(), list->end(), IsNearDeath);
+void JHandle::UnrefIterator(Persistent<Value> object, void* parameter) {
+  assert(object->IsObject());
+  JHandle* handle = (JHandle*)parameter;
+  JIterator* it = (JIterator*)External::Unwrap(object);
+  assert(handle);
+  assert(it);
+  remove(handle->iterators_.begin(), handle->iterators_.end(), it->it_);
+  object.Dispose();
 }
 
 Handle<Value> JHandle::Iterator(const Arguments& args) {
@@ -266,14 +267,14 @@ Handle<Value> JHandle::Iterator(const Arguments& args) {
   if (args.Length() > 0) UnpackReadOptions(args[0], options, asBuffer);
 
   leveldb::Iterator* it = self->db_->NewIterator(options);
+  self->iterators_.push_back(it);
 
   Handle<Value> argv[] = { args.This(), External::New(it) };
   Handle<Object> instance = JIterator::constructor->GetFunction()->NewInstance(2, argv);
 
   // Keep a weak reference
   Persistent<Object> weak = Persistent<Object>::New(instance);
-  weak.MakeWeak(&self->iterators_, &UnrefIterator);
-  self->iterators_.push_back(weak);
+  weak.MakeWeak(self, &UnrefIterator);
 
   return scope.Close(instance);
 }
@@ -295,10 +296,11 @@ Handle<Value> JHandle::Snapshot(const Arguments& args) {
   if (self->db_ == NULL) return ThrowError("Handle closed");
 
   const leveldb::Snapshot* snapshot = self->db_->GetSnapshot();
+  self->snapshots_.push_back(snapshot);
+
   Handle<Value> instance = External::New((void*)snapshot);
   Persistent<Value> weak = Persistent<Value>::New(instance);
   weak.MakeWeak(self, &UnrefSnapshot);
-  self->snapshots_.push_back(snapshot);
 
   return scope.Close(instance);
 }
