@@ -25,10 +25,10 @@
     "url": "https: //github.com/my8bird/node-leveldb/issues"
   },
   "dependencies": {
+    "coffee-script": "~1.2.0"
   },
   "devDependencies": {
     "twisted-deferred": "0.2.x",
-    "coffee-script": "~1.2.0",
     "mocha": "~0.10.0"
   },
   "contributors": [
