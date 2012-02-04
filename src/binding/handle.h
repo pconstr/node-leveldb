@@ -44,7 +44,7 @@ class JHandle : public ObjectWrap {
 
  private:
   leveldb::DB* db_;
-  std::vector< Persistent<Object> > iterators_;
+  std::vector< leveldb::Iterator* > iterators_;
   std::vector< const leveldb::Snapshot* > snapshots_;
 
   JHandle(leveldb::DB* db);
@@ -53,6 +53,7 @@ class JHandle : public ObjectWrap {
   void Close();
   bool Valid();
 
+  static void UnrefIterator(Persistent<Value> object, void* parameter);
   static void UnrefSnapshot(Persistent<Value> object, void* parameter);
 
   struct Params {

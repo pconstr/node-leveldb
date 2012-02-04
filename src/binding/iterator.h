@@ -13,11 +13,11 @@ using namespace node;
 
 namespace node_leveldb {
 
+class JHandle;
+
 class JIterator : ObjectWrap {
  public:
   ~JIterator();
-
-  void Close();
 
   static Persistent<FunctionTemplate> constructor;
 
@@ -36,6 +36,8 @@ class JIterator : ObjectWrap {
   static Handle<Value> status(const Arguments& args);
 
  private:
+  friend class JHandle;
+
   leveldb::Iterator* it_;
   Persistent<Object> db_;
 
@@ -46,7 +48,9 @@ class JIterator : ObjectWrap {
   JIterator(const JIterator&);
   void operator=(const JIterator&);
 
-  bool Valid();
+  inline bool Valid() {
+    return !db_.IsEmpty() && it_;
+  }
 
   struct Params {
     Params(JIterator* self, Handle<Function>& cb) : self(self) {
