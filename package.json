@@ -9,7 +9,6 @@
   "version": "0.5.1",
   "main": "lib",
   "scripts": {
-    "preinstall":  "git submodule init && git submodule update",
     "install":     "node-waf configure build",
     "postinstall": "./node_modules/coffee-script/bin/coffee -b -c -o lib/ src",
     "test": "mkdir -p tmp && find tests/ -name '*test.*' -print0 | xargs -0 mocha -R spec ; rm -r tmp"
@@ -33,8 +32,9 @@
     "mocha": "~0.10.0"
   },
   "contributors": [
-    "Michael Phan-Ba <michael@mikepb.com>",
+    "Tim Caswell <tim@creationix.com>",
     "Nathan Landis <my8bird@gmail.com>",
+    "Michael Phan-Ba <michael@mikepb.com>",
     "Randall Leeds <randall.leeds@gmail.com> (http: //claimid.com/randallleeds)",
     "Damon Oehlman <damon.oehlman@sidelab.com> (http: //www.sidelab.com/)"
   ]
