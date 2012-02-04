@@ -9,7 +9,9 @@
   "version": "0.5.0",
   "main": "lib",
   "scripts": {
-    "preinstall": "node-waf configure build && coffee -b -c -o lib src",
+    "preinstall": "node-waf configure",
+    "install": "node-waf build",
+    "postinstall": "./node_modules/coffee-script/bin/coffee -b -c -o lib src",
     "test": "mkdir -p tmp && find tests -name '*-test.*' -print0 | xargs -0 mocha -R spec ; rm -r tmp"
   },
   "repository": {
