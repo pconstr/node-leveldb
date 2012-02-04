@@ -58,4 +58,4 @@ exports.Iterator = class Iterator
       [key, val]
 
   error: ->
-    if err = @self.status() is 'OK' then null else err
+    if (err = @self.status()) is 'OK' then null else err

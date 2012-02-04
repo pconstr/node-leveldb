@@ -45,10 +45,15 @@ struct Release {
   }
 };
 
+static void CloseIterator(JIterator* it) {
+  it->Close();
+}
+
 void JHandle::Close() {
   if (db_ != NULL) {
     Release releaser(db_);
     for_each(snapshots_.begin(), snapshots_.end(), releaser);
+    for_each(iterators_.begin(), iterators_.end(), CloseIterator);
     snapshots_.clear();
     iterators_.clear();
     delete db_;
@@ -247,11 +252,18 @@ Handle<Value> JHandle::Write(const Arguments& args) {
 
 void JHandle::UnrefIterator(Persistent<Value> object, void* parameter) {
   assert(object->IsObject());
+
+  JIterator* it = ObjectWrap::Unwrap<JIterator>(object->ToObject());
   JHandle* handle = (JHandle*)parameter;
-  JIterator* it = (JIterator*)External::Unwrap(object);
-  assert(handle);
+
   assert(it);
-  remove(handle->iterators_.begin(), handle->iterators_.end(), it->it_);
+  assert(handle);
+
+  delete it->it_;
+  it->it_ = NULL;
+  handle->Unref();
+
+  remove(handle->iterators_.begin(), handle->iterators_.end(), it);
   object.Dispose();
 }
 
@@ -267,14 +279,16 @@ Handle<Value> JHandle::Iterator(const Arguments& args) {
   if (args.Length() > 0) UnpackReadOptions(args[0], options, asBuffer);
 
   leveldb::Iterator* it = self->db_->NewIterator(options);
-  self->iterators_.push_back(it);
 
-  Handle<Value> argv[] = { args.This(), External::New(it) };
-  Handle<Object> instance = JIterator::constructor->GetFunction()->NewInstance(2, argv);
+  Handle<Value> argv[] = { External::New(it) };
+  Handle<Object> instance = JIterator::constructor->GetFunction()->NewInstance(1, argv);
 
   // Keep a weak reference
   Persistent<Object> weak = Persistent<Object>::New(instance);
   weak.MakeWeak(self, &UnrefIterator);
+  JIterator* iterator = ObjectWrap::Unwrap<JIterator>(instance);
+  self->iterators_.push_back(iterator);
+  self->Ref();
 
   return scope.Close(instance);
 }
