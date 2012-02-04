@@ -285,6 +285,7 @@ void JHandle::UnrefSnapshot(Persistent<Value> object, void* parameter) {
   assert(handle);
   handle->db_->ReleaseSnapshot(snapshot);
   remove(handle->snapshots_.begin(), handle->snapshots_.end(), snapshot);
+  object.Dispose();
 }
 
 Handle<Value> JHandle::Snapshot(const Arguments& args) {
