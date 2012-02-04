@@ -95,8 +95,10 @@ def configure(conf):
   parse_build_config(conf.env)
 
 def clean(ctx):
-  if exists("build"): rmtree("build")
+  if exists('build'): rmtree('build')
   if exists(build_config): remove(build_config)
+  if exists('./deps/snappy/Makefile'):
+    Utils.exec_command('make distclean', cwd = './deps/snappy')
 
 def build_post(bld):
   module_path = bld.path.find_resource('leveldb.node').abspath(bld.env)
