@@ -19,6 +19,17 @@ class JIterator : ObjectWrap {
  public:
   ~JIterator();
 
+  inline void Close() {
+    if (it_) {
+      delete it_;
+      it_ = NULL;
+    }
+  }
+
+  inline bool Valid() {
+    return it_ != NULL;
+  }
+
   static Persistent<FunctionTemplate> constructor;
 
   static void Initialize(Handle<Object> target);
@@ -39,30 +50,22 @@ class JIterator : ObjectWrap {
   friend class JHandle;
 
   leveldb::Iterator* it_;
-  Persistent<Object> db_;
 
   // No instance creation outside of DB
-  JIterator(Handle<Object>& db, leveldb::Iterator* it);
+  JIterator(leveldb::Iterator* it);
 
   // No copying allowed
   JIterator(const JIterator&);
   void operator=(const JIterator&);
 
-  inline bool Valid() {
-    return !db_.IsEmpty() && it_;
-  }
-
   struct Params {
     Params(JIterator* self, Handle<Function>& cb) : self(self) {
-      if (self) self->Ref();
+      self->Ref();
       callback = Persistent<Function>::New(cb);
     }
 
     virtual ~Params() {
-      if (self) {
-        self->Unref();
-        self = NULL;
-      }
+      self->Unref();
       callback.Dispose();
     }
 

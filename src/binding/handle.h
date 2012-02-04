@@ -18,6 +18,8 @@ using namespace v8;
 
 namespace node_leveldb {
 
+class JIterator;
+
 class JHandle : public ObjectWrap {
  public:
   static Persistent<FunctionTemplate> constructor;
@@ -44,7 +46,7 @@ class JHandle : public ObjectWrap {
 
  private:
   leveldb::DB* db_;
-  std::vector< leveldb::Iterator* > iterators_;
+  std::vector< JIterator* > iterators_;
   std::vector< const leveldb::Snapshot* > snapshots_;
 
   JHandle(leveldb::DB* db);

@@ -14,16 +14,11 @@ namespace node_leveldb {
 
 Persistent<FunctionTemplate> JIterator::constructor;
 
-JIterator::JIterator(Handle<Object>& db, leveldb::Iterator* it) : it_(it) {
-  db_ = Persistent<Object>::New(db);
+JIterator::JIterator(leveldb::Iterator* it) : it_(it) {
 }
 
 JIterator::~JIterator() {
-  if (it_) {
-    delete it_;
-    it_ = NULL;
-  }
-  db_.Dispose();
+  Close();
 }
 
 void JIterator::Initialize(Handle<Object> target) {
@@ -48,16 +43,14 @@ void JIterator::Initialize(Handle<Object> target) {
 Handle<Value> JIterator::New(const Arguments& args) {
   HandleScope scope;
 
-  assert(args.Length() == 2);
-  assert(args[0]->IsObject() && JHandle::HasInstance(args[0]));
-  assert(args[1]->IsExternal());
+  assert(args.Length() == 1);
+  assert(args[0]->IsExternal());
 
-  Handle<Object> db = args[0]->ToObject();
-  leveldb::Iterator* it = (leveldb::Iterator*) External::Unwrap(args[1]);
+  leveldb::Iterator* it = (leveldb::Iterator*)External::Unwrap(args[0]);
 
   assert(it);
 
-  JIterator* iterator = new JIterator(db, it);
+  JIterator* iterator = new JIterator(it);
   iterator->Wrap(args.This());
 
   return args.This();
@@ -146,8 +139,10 @@ Handle<Value> JIterator::Next(const Arguments& args) {
   Local<Function> callback = GetCallback(args);
 
   if (callback.IsEmpty()) {
+    std::cout << self->it_ << std::endl;
     // FIXME: database is sometimes closed prematurely
     self->it_->Next();
+    std::cout << "NEXT" << std::endl;
   } else {
     Params *data = new Params(self, callback);
     BEGIN_ASYNC(data, Prev, After);
@@ -192,6 +187,8 @@ static inline bool AsBuffer(const Arguments& args) {
 Handle<Value> JIterator::status(const Arguments& args) {
   HandleScope scope;
   JIterator *self = ObjectWrap::Unwrap<JIterator>(args.This());
+
+  std::cout << "STATUS" << std::endl;
 
   if (!self->Valid())
     return ThrowTypeError("Handle closed");
