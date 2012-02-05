@@ -5,7 +5,6 @@ exports.Iterator = class Iterator
   noop = ->
 
   constructor: (@self) ->
-    @first()
 
   valid: ->
     @self.valid()
@@ -32,24 +31,36 @@ exports.Iterator = class Iterator
     throw err if err = @error()
 
   next: (callback) ->
-    current = @current()
-    @self.next if callback then => callback @error(), current else noop
+    if @self.valid()
+      kv = @current() if callback
+      @self.next if callback then => callback @error(), kv[0], kv[1] else noop
+    else if callback
+      callback @error()
 
   nextSync: ->
-    current = @current()
-    @self.next()
-    throw err if err = @error()
-    current
+    if @self.valid()
+      current = @current()
+      @self.next()
+      throw err if err = @error()
+      current
+    else
+      throw @error()
 
   prev: (callback) ->
-    current = @current()
-    @self.prev if callback then => callback @error(), current else noop
+    if @self.valid()
+      kv = @current() if callback
+      @self.prev if callback then => callback @error(), kv[0], kv[1] else noop
+    else if callback
+      callback @error()
 
   prevSync: ->
-    current = @current()
-    @self.prev()
-    throw err if err = @error()
-    current
+    if @self.valid()
+      current = @current()
+      @self.prev()
+      throw err if err = @error()
+      current
+    else
+      throw @error()
 
   current: (options) ->
     if @self.valid()

@@ -84,8 +84,20 @@ exports.Handle = class Handle
   writeSync: (batch, options) ->
     @self.write batch, options
 
-  iterator: (options) ->
-    new Iterator @self.iterator options
+  iterator: (options, callback) ->
+    if typeof options is 'function'
+      callback = options
+      options = null
+
+    throw 'Missing callback' unless callback
+
+    it = new Iterator @self.iterator options
+    it.first (err) -> callback err, it
+
+  iteratorSync: (options) ->
+    it = new Iterator @self.iterator options
+    it.firstSync()
+    it
 
   snapshot: (options) ->
     new Snapshot @, @self.snapshot options
@@ -93,13 +105,11 @@ exports.Handle = class Handle
   property: (name) ->
     @self.property(name)
 
-  ###
   approximateSizes: ->
     slices =
       if Array.isArray arguments[0] then arguments[0]
       else Array.prototype.slice.call arguments[0]
     @self.approximateSizes slices
-  ###
 
   # TODO: compactRange
 

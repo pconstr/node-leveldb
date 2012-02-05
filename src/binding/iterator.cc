@@ -1,7 +1,5 @@
 #include <assert.h>
 
-#include <iostream>
-
 #include <leveldb/iterator.h>
 #include <node.h>
 #include <v8.h>
@@ -14,7 +12,8 @@ namespace node_leveldb {
 
 Persistent<FunctionTemplate> JIterator::constructor;
 
-JIterator::JIterator(leveldb::Iterator* it) : it_(it) {
+JIterator::JIterator(Handle<Value>& db, leveldb::Iterator* it) : it_(it) {
+  db_ = Persistent<Value>::New(db);
 }
 
 JIterator::~JIterator() {
@@ -43,14 +42,16 @@ void JIterator::Initialize(Handle<Object> target) {
 Handle<Value> JIterator::New(const Arguments& args) {
   HandleScope scope;
 
-  assert(args.Length() == 1);
-  assert(args[0]->IsExternal());
+  assert(args.Length() == 2);
+  assert(JHandle::HasInstance(args[0]));
+  assert(args[1]->IsExternal());
 
-  leveldb::Iterator* it = (leveldb::Iterator*)External::Unwrap(args[0]);
+  leveldb::Iterator* it = (leveldb::Iterator*)External::Unwrap(args[1]);
 
   assert(it);
 
-  JIterator* iterator = new JIterator(it);
+  Handle<Value> db = args[0];
+  JIterator* iterator = new JIterator(db, it);
   iterator->Wrap(args.This());
 
   return args.This();
@@ -66,8 +67,7 @@ Handle<Value> JIterator::Seek(const Arguments& args) {
   HandleScope scope;
   JIterator* self = ObjectWrap::Unwrap<JIterator>(args.This());
 
-  if (!self->Valid())
-    return ThrowTypeError("Handle closed");
+  if (!self->Valid()) return ThrowError("Handle closed");
 
   if (args.Length() < 1 || !(args[0]->IsString() || Buffer::HasInstance(args[0])))
     return ThrowTypeError("Invalid arguments");
@@ -79,6 +79,7 @@ Handle<Value> JIterator::Seek(const Arguments& args) {
 
   if (callback.IsEmpty()) {
     self->it_->Seek(key);
+    delete key.data();
   } else {
     SeekParams *data = new SeekParams(self, key, callback);
     BEGIN_ASYNC(data, Seek, After);
@@ -92,8 +93,7 @@ Handle<Value> JIterator::First(const Arguments& args) {
 
   JIterator* self = ObjectWrap::Unwrap<JIterator>(args.This());
 
-  if (!self->Valid())
-    return ThrowTypeError("Handle closed");
+  if (!self->Valid()) return ThrowError("Handle closed");
 
   // Optional callback
   Local<Function> callback = GetCallback(args);
@@ -112,8 +112,7 @@ Handle<Value> JIterator::Last(const Arguments& args) {
   HandleScope scope;
   JIterator* self = ObjectWrap::Unwrap<JIterator>(args.This());
 
-  if (!self->Valid())
-    return ThrowTypeError("Handle closed");
+  if (!self->Valid()) return ThrowError("Handle closed");
 
   // Optional callback
   Local<Function> callback = GetCallback(args);
@@ -132,20 +131,17 @@ Handle<Value> JIterator::Next(const Arguments& args) {
   HandleScope scope;
   JIterator* self = ObjectWrap::Unwrap<JIterator>(args.This());
 
-  if (!self->Valid())
-    return ThrowTypeError("Handle closed");
+  if (!self->Valid()) return ThrowError("Handle closed");
+  if (!self->it_->Valid()) return ThrowError("Illegal state");
 
   // Optional callback
   Local<Function> callback = GetCallback(args);
 
   if (callback.IsEmpty()) {
-    std::cout << self->it_ << std::endl;
-    // FIXME: database is sometimes closed prematurely
     self->it_->Next();
-    std::cout << "NEXT" << std::endl;
   } else {
     Params *data = new Params(self, callback);
-    BEGIN_ASYNC(data, Prev, After);
+    BEGIN_ASYNC(data, Next, After);
   }
 
   return Undefined();
@@ -155,8 +151,8 @@ Handle<Value> JIterator::Prev(const Arguments& args) {
   HandleScope scope;
   JIterator *self = ObjectWrap::Unwrap<JIterator>(args.This());
 
-  if (!self->Valid())
-    return ThrowTypeError("Handle closed");
+  if (!self->Valid()) return ThrowError("Handle closed");
+  if (!self->it_->Valid()) return ThrowError("Illegal state");
 
   // Optional callback
   Local<Function> callback = GetCallback(args);
@@ -188,10 +184,7 @@ Handle<Value> JIterator::status(const Arguments& args) {
   HandleScope scope;
   JIterator *self = ObjectWrap::Unwrap<JIterator>(args.This());
 
-  std::cout << "STATUS" << std::endl;
-
-  if (!self->Valid())
-    return ThrowTypeError("Handle closed");
+  if (!self->Valid()) return ThrowError("Handle closed");
 
   leveldb::Status status = self->it_->status();
 
@@ -207,8 +200,7 @@ Handle<Value> JIterator::key(const Arguments& args) {
   HandleScope scope;
   JIterator *self = ObjectWrap::Unwrap<JIterator>(args.This());
 
-  if (!self->Valid())
-    return ThrowTypeError("Handle closed");
+  if (!self->Valid()) return ThrowError("Handle closed");
 
   bool asBuffer = AsBuffer(args);
 
@@ -225,8 +217,7 @@ Handle<Value> JIterator::value(const Arguments& args) {
   HandleScope scope;
   JIterator *self = ObjectWrap::Unwrap<JIterator>(args.This());
 
-  if (!self->Valid())
-    return ThrowTypeError("Handle closed");
+  if (!self->Valid()) return ThrowError("Handle closed");
 
   bool asBuffer = AsBuffer(args);
 

@@ -39,7 +39,6 @@ JHandle::~JHandle() {
 
 void JHandle::Close() {
   if (db_ != NULL) {
-
     std::vector< const leveldb::Snapshot* >::iterator it;
     for (it = snapshots_.begin(); it < snapshots_.end(); ++it) {
       db_->ReleaseSnapshot(*it);
@@ -251,16 +250,15 @@ void JHandle::UnrefIterator(Persistent<Value> object, void* parameter) {
   assert(object->IsObject());
 
   JIterator* it = ObjectWrap::Unwrap<JIterator>(object->ToObject());
-  JHandle* handle = (JHandle*)parameter;
+  JHandle* self = (JHandle*)parameter;
 
   assert(it);
-  assert(handle);
+  assert(self);
 
-  remove(handle->iterators_.begin(), handle->iterators_.end(), it);
+  remove(self->iterators_.begin(), self->iterators_.end(), it);
 
   it->Close();
   object.Dispose();
-  handle->Unref();
 }
 
 Handle<Value> JHandle::Iterator(const Arguments& args) {
@@ -276,15 +274,15 @@ Handle<Value> JHandle::Iterator(const Arguments& args) {
 
   leveldb::Iterator* it = self->db_->NewIterator(options);
 
-  Handle<Value> argv[] = { External::New(it) };
-  Handle<Object> instance = JIterator::constructor->GetFunction()->NewInstance(1, argv);
+  Handle<Value> argv[] = { self->handle_, External::New(it) };
+  Handle<Object> instance = JIterator::constructor->GetFunction()->NewInstance(2, argv);
 
   // Keep a weak reference
   Persistent<Object> weak = Persistent<Object>::New(instance);
   weak.MakeWeak(self, &UnrefIterator);
+
   JIterator* iterator = ObjectWrap::Unwrap<JIterator>(instance);
   self->iterators_.push_back(iterator);
-  self->Ref();
 
   return scope.Close(instance);
 }
