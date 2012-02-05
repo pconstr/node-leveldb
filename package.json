@@ -9,7 +9,6 @@
   "version": "0.5.1",
   "main": "lib",
   "scripts": {
-    "preinstall":  "git submodule init && git submodule update",
     "install":     "node-waf configure build",
     "postinstall": "./node_modules/coffee-script/bin/coffee -b -c -o lib/ src",
     "test": "mkdir -p tmp && find tests/ -name '*test.*' -print0 | xargs -0 mocha -R spec ; rm -r tmp"
