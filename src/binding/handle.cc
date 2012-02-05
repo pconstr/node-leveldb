@@ -37,25 +37,22 @@ JHandle::~JHandle() {
   Close();
 }
 
-struct Release {
-  leveldb::DB* db_;
-  Release(leveldb::DB* db) : db_(db) {}
-  void operator()(const leveldb::Snapshot* it) {
-    db_->ReleaseSnapshot(it);
-  }
-};
-
-static void CloseIterator(JIterator* it) {
-  it->Close();
-}
-
 void JHandle::Close() {
   if (db_ != NULL) {
-    Release releaser(db_);
-    for_each(snapshots_.begin(), snapshots_.end(), releaser);
-    for_each(iterators_.begin(), iterators_.end(), CloseIterator);
+
+    std::vector< const leveldb::Snapshot* >::iterator it;
+    for (it = snapshots_.begin(); it < snapshots_.end(); ++it) {
+      db_->ReleaseSnapshot(*it);
+    }
+
+    std::vector<JIterator*>::iterator jt;
+    for (jt = iterators_.begin(); jt < iterators_.end(); ++jt) {
+      (*jt)->Close();
+    }
+
     snapshots_.clear();
     iterators_.clear();
+
     delete db_;
     db_ = NULL;
   }
@@ -259,12 +256,11 @@ void JHandle::UnrefIterator(Persistent<Value> object, void* parameter) {
   assert(it);
   assert(handle);
 
-  delete it->it_;
-  it->it_ = NULL;
-  handle->Unref();
-
   remove(handle->iterators_.begin(), handle->iterators_.end(), it);
+
+  it->Close();
   object.Dispose();
+  handle->Unref();
 }
 
 Handle<Value> JHandle::Iterator(const Arguments& args) {
@@ -295,11 +291,16 @@ Handle<Value> JHandle::Iterator(const Arguments& args) {
 
 void JHandle::UnrefSnapshot(Persistent<Value> object, void* parameter) {
   assert(object->IsExternal());
+
   JHandle* handle = (JHandle*)parameter;
   leveldb::Snapshot* snapshot = (leveldb::Snapshot*)External::Unwrap(object);
+
   assert(handle);
+  assert(snapshot);
+
   handle->db_->ReleaseSnapshot(snapshot);
   remove(handle->snapshots_.begin(), handle->snapshots_.end(), snapshot);
+
   object.Dispose();
 }
 
@@ -376,11 +377,8 @@ Handle<Value> JHandle::ApproximateSizes(const Arguments& args) {
   self->db_->GetApproximateSizes(&ranges[0], ranges.size(), &sizes);
 
   std::vector<char*>::iterator it;
-  for (it = buffers.begin(); it < buffers.end(); ++it) {
-    char* buf = *it;
-    assert(buf);
-    //delete buf;
-  }
+  // FIXME: memory leak, but breaks if free'd
+  //for (it = buffers.begin(); it < buffers.end(); ++it) delete *it;
 
   return scope.Close(Integer::New((int32_t)sizes));
 }
