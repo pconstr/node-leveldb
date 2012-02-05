@@ -22,25 +22,25 @@ async_rtn JIterator::Seek(uv_work_t* req) {
 }
 
 async_rtn JIterator::First(uv_work_t* req) {
-  SeekParams *data = (SeekParams*) req->data;
+  Params *data = (Params*) req->data;
   data->self->it_->SeekToFirst();
   RETURN_ASYNC;
 }
 
 async_rtn JIterator::Last(uv_work_t* req) {
-  SeekParams *data = (SeekParams*) req->data;
+  Params *data = (Params*) req->data;
   data->self->it_->SeekToLast();
   RETURN_ASYNC;
 }
 
 async_rtn JIterator::Next(uv_work_t* req) {
-  SeekParams *data = (SeekParams*) req->data;
+  Params *data = (Params*) req->data;
   data->self->it_->Next();
   RETURN_ASYNC;
 }
 
 async_rtn JIterator::Prev(uv_work_t* req) {
-  SeekParams *data = (SeekParams*) req->data;
+  Params *data = (Params*) req->data;
   data->self->it_->Prev();
   RETURN_ASYNC;
 }
