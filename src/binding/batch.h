@@ -1,5 +1,5 @@
-#ifndef NODE_LEVELDB_WRITE_BATCH_H_
-#define NODE_LEVELDB_WRITE_BATCH_H_
+#ifndef NODE_LEVELDB_BATCH_H_
+#define NODE_LEVELDB_BATCH_H_
 
 #include <vector>
 
@@ -17,7 +17,9 @@ class JBatch : ObjectWrap {
   JBatch() {}
   virtual ~JBatch() { Clear(); }
 
-  static bool HasInstance(Handle<Value> val);
+  static inline bool HasInstance(Handle<Value> value) {
+    return value->IsObject() && constructor->HasInstance(value->ToObject());
+  }
 
   static Persistent<FunctionTemplate> constructor;
   static void Initialize(Handle<Object> target);
@@ -39,4 +41,4 @@ class JBatch : ObjectWrap {
 
 } // node_leveldb
 
-#endif // NODE_LEVELDB_WRITE_BATCH_H_
+#endif // NODE_LEVELDB_BATCH_H_

@@ -19,10 +19,6 @@ void JBatch::Clear() {
   wb_.Clear();
 }
 
-bool JBatch::HasInstance(Handle<Value> value) {
-  return value->IsObject() && constructor->HasInstance(value->ToObject());
-}
-
 void JBatch::Initialize(Handle<Object> target) {
   HandleScope scope;
 
