@@ -44,12 +44,8 @@ describe 'iterator', ->
 
     testNext 100
 
-  it 'should not get value', (done) ->
-    iterator.next (err, key, val) ->
-      assert.ifError err
-      assert.ifError key
-      assert.ifError val
-      done()
+  it 'should not be valid', ->
+    assert.ifError iterator.valid()
 
   it 'should seek to key 201', (done) ->
     iterator.seek '201', done
@@ -106,8 +102,8 @@ describe 'iterator (sync)', ->
       assert.equal "#{i}", key
       assert.equal value, val
 
-  it 'should not get value', ->
-    assert.ifError iterator.nextSync()
+  it 'should not be valid', ->
+    assert.ifError iterator.valid()
 
   it 'should seek to key 201', ->
     iterator.seekSync '201'
