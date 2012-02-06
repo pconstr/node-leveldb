@@ -57,10 +57,8 @@ snappy_src = ["deps/snappy/" + path for path in [
 node_leveldb_src = ["src/binding/" + path for path in [
   "binding.cc",
   "handle.cc",
-  "handle_async.cc",
   "batch.cc",
-  "iterator.cc",
-  "iterator_async.cc"
+  "iterator.cc"
 ]]
 
 build_config = join(leveldb_dir, 'build_config.mk')
