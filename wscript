@@ -85,10 +85,11 @@ def configure(conf):
   conf.check_tool("compiler_cc")
   conf.check_tool("node_addon")
 
-  Utils.exec_command('./configure', cwd = './deps/snappy')
+  if not exists('./deps/snappy/Makefile'):
+    Utils.exec_command('./configure', cwd = './deps/snappy')
 
   if not exists(build_config):
-      system('cd %s && sh build_detect_platform' % leveldb_dir)
+    system('cd %s && sh build_detect_platform' % leveldb_dir)
 
   parse_build_config(conf.env)
 

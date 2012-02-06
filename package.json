@@ -9,10 +9,12 @@
   "version": "0.5.0",
   "main": "lib",
   "scripts": {
-    "preinstall": "node-waf configure",
-    "install": "node-waf build",
-    "postinstall": "./node_modules/coffee-script/bin/coffee -b -c -o lib src",
-    "test": "mkdir -p tmp && find tests -name '*-test.*' -print0 | xargs -0 mocha -R spec ; rm -r tmp"
+    "prepublish": "cake build",
+    "preinstall": "cake build",
+    "install": "cake build",
+    "pretest": "cake build && mkdir -p tmp",
+    "test": "find tests -name '*-test.*' -print0 | xargs -0 mocha -R spec",
+    "posttest": "rm -rf tmp"
   },
   "repository": {
     "type": "git",
