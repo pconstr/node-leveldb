@@ -6,8 +6,8 @@ path    = require 'path'
 
 
 describe 'iterator', ->
-  db = null
   filename = "#{__dirname}/../tmp/iterator-test-file"
+  db = null
   iterator = null
   value = 'Hello World'
 
@@ -75,14 +75,13 @@ describe 'iterator', ->
     assert.ifError iterator.valid()
 
   it 'should close database', (done) ->
-    db.close done
-
-  it 'should not get values', ->
-    assert.throws -> iterator.first()
+    db = null
+    iterator = null
+    process.nextTick done
 
 describe 'iterator (sync)', ->
-  db = null
   filename = "#{__dirname}/../tmp/iterator-async-test-file"
+  db = null
   iterator = null
   value = 'Hello World'
 
@@ -125,8 +124,5 @@ describe 'iterator (sync)', ->
     assert.ifError iterator.valid()
 
   it 'should close database', ->
-    db.closeSync()
     db = null
-
-  it 'should not get values', ->
-    assert.throws -> iterator.firstSync()
+    iterator = null

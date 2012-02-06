@@ -34,24 +34,7 @@ JHandle::JHandle(leveldb::DB* db)
   : ObjectWrap(), db_(db) {}
 
 JHandle::~JHandle() {
-  Close();
-}
-
-void JHandle::Close() {
   if (db_ != NULL) {
-    std::vector< const leveldb::Snapshot* >::iterator it;
-    for (it = snapshots_.begin(); it < snapshots_.end(); ++it) {
-      db_->ReleaseSnapshot(*it);
-    }
-
-    std::vector<JIterator*>::iterator jt;
-    for (jt = iterators_.begin(); jt < iterators_.end(); ++jt) {
-      (*jt)->Close();
-    }
-
-    snapshots_.clear();
-    iterators_.clear();
-
     delete db_;
     db_ = NULL;
   }
@@ -66,16 +49,14 @@ bool JHandle::Valid() {
 
 
 void JHandle::Initialize(Handle<Object> target) {
-  HandleScope scope; // used by v8 for garbage collection
+  HandleScope scope;
 
-  // Our constructor
   Local<FunctionTemplate> t = FunctionTemplate::New(New);
   constructor = Persistent<FunctionTemplate>::New(t);
   constructor->InstanceTemplate()->SetInternalFieldCount(1);
   constructor->SetClassName(String::NewSymbol("Handle"));
 
   // Instance methods
-  NODE_SET_PROTOTYPE_METHOD(constructor, "close", Close);
   NODE_SET_PROTOTYPE_METHOD(constructor, "valid", Valid);
   NODE_SET_PROTOTYPE_METHOD(constructor, "get", Get);
   NODE_SET_PROTOTYPE_METHOD(constructor, "write", Write);
@@ -141,27 +122,6 @@ Handle<Value> JHandle::Open(const Arguments& args) {
     BEGIN_ASYNC(params, Open, OpenAfter);
     return Undefined();
   }
-}
-
-Handle<Value> JHandle::Close(const Arguments& args) {
-  HandleScope scope;
-
-  // Get this and arguments
-  JHandle* self = ObjectWrap::Unwrap<JHandle>(args.This());
-
-  if (self->db_ == NULL) return ThrowError("Handle closed");
-
-  // Optional callback
-  Local<Function> callback = GetCallback(args);
-
-  if (callback.IsEmpty()) {
-    self->Close();
-  } else {
-    Params* params = new Params(self, callback);
-    BEGIN_ASYNC(params, Close, After);
-  }
-
-  return Undefined();
 }
 
 Handle<Value> JHandle::Valid(const Arguments& args) {
@@ -255,9 +215,8 @@ void JHandle::UnrefIterator(Persistent<Value> object, void* parameter) {
   assert(it);
   assert(self);
 
-  remove(self->iterators_.begin(), self->iterators_.end(), it);
-
   it->Close();
+  self->Unref();
   object.Dispose();
 }
 
@@ -274,15 +233,14 @@ Handle<Value> JHandle::Iterator(const Arguments& args) {
 
   leveldb::Iterator* it = self->db_->NewIterator(options);
 
-  Handle<Value> argv[] = { self->handle_, External::New(it) };
-  Handle<Object> instance = JIterator::constructor->GetFunction()->NewInstance(2, argv);
+  Handle<Value> argv[] = { External::New(it) };
+  Handle<Object> instance = JIterator::constructor->GetFunction()->NewInstance(1, argv);
 
   // Keep a weak reference
   Persistent<Object> weak = Persistent<Object>::New(instance);
   weak.MakeWeak(self, &UnrefIterator);
 
-  JIterator* iterator = ObjectWrap::Unwrap<JIterator>(instance);
-  self->iterators_.push_back(iterator);
+  self->Ref();
 
   return scope.Close(instance);
 }
@@ -290,14 +248,14 @@ Handle<Value> JHandle::Iterator(const Arguments& args) {
 void JHandle::UnrefSnapshot(Persistent<Value> object, void* parameter) {
   assert(object->IsExternal());
 
-  JHandle* handle = (JHandle*)parameter;
+  JHandle* self = (JHandle*)parameter;
   leveldb::Snapshot* snapshot = (leveldb::Snapshot*)External::Unwrap(object);
 
   assert(handle);
   assert(snapshot);
 
-  handle->db_->ReleaseSnapshot(snapshot);
-  remove(handle->snapshots_.begin(), handle->snapshots_.end(), snapshot);
+  self->db_->ReleaseSnapshot(snapshot);
+  self->Unref();
 
   object.Dispose();
 }
@@ -309,11 +267,12 @@ Handle<Value> JHandle::Snapshot(const Arguments& args) {
   if (self->db_ == NULL) return ThrowError("Handle closed");
 
   const leveldb::Snapshot* snapshot = self->db_->GetSnapshot();
-  self->snapshots_.push_back(snapshot);
 
   Handle<Value> instance = External::New((void*)snapshot);
   Persistent<Value> weak = Persistent<Value>::New(instance);
   weak.MakeWeak(self, &UnrefSnapshot);
+
+  self->Ref();
 
   return scope.Close(instance);
 }

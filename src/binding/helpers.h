@@ -37,8 +37,8 @@ static inline bool IsStringOrBuffer(Handle<Value> val) {
 static inline leveldb::Slice ToSlice(Handle<Value> value, std::vector<char*>* buffers = NULL) {
   if (value->IsString()) {
     Local<String> str = value->ToString();
+    if (str.IsEmpty()) return leveldb::Slice();
     int len = str->Utf8Length();
-    if (str.IsEmpty() || len <= 0) return leveldb::Slice();
     char* buf = new char[len + 1];
     str->WriteUtf8(buf);
     if (buffers) buffers->push_back(buf);

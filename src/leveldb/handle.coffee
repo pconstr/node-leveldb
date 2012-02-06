@@ -40,12 +40,6 @@ exports.Handle = class Handle
   valid: ->
     @self.valid()
 
-  close: (callback) ->
-    @self.close callback or noop
-
-  closeSync: ->
-    @self.close()
-
   get: (key, options, callback) ->
     if typeof options is 'function'
       callback = options
