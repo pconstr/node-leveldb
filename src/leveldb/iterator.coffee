@@ -30,10 +30,18 @@ exports.Iterator = class Iterator
     @self.last()
     throw err if err = @error()
 
-  next: (callback) ->
+  next: (options, callback) ->
+    if typeof options is 'function'
+      callback = options
+      options = null
     if @self.valid()
-      kv = @current() if callback
-      @self.next if callback then => callback @error(), kv[0], kv[1] else noop
+      if callback
+        key = @self.key options
+        val = @self.value options
+        @self.next =>
+          callback @error(), key, val
+      else
+        @self.next noop
     else if callback
       callback @error()
 
@@ -47,9 +55,17 @@ exports.Iterator = class Iterator
       throw @error()
 
   prev: (callback) ->
+    if typeof options is 'function'
+      callback = options
+      options = null
     if @self.valid()
-      kv = @current() if callback
-      @self.prev if callback then => callback @error(), kv[0], kv[1] else noop
+      if callback
+        key = @self.key options
+        val = @self.value options
+        @self.prev =>
+          callback @error(), key, val
+      else
+        @self.prev noop
     else if callback
       callback @error()
 
