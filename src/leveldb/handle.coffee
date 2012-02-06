@@ -41,7 +41,7 @@ exports.Handle = class Handle
     @self.valid()
 
   close: (callback) ->
-    @self.close(callback)
+    @self.close callback or noop
 
   closeSync: ->
     @self.close()
