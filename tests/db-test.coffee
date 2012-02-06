@@ -66,7 +66,7 @@ describe 'db', ->
       db.approximateSizes '0', '1'
 
     it 'should put values', (done) ->
-      db.put '' + i, 'Hello World!' for i in [0..999]
+      db.putSync '' + i, 'Hello World!' for i in [0..999]
       db.put '100', 'Goodbye World!', done
 
     it 'should close database', (done) ->
