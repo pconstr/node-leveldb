@@ -16,10 +16,10 @@ describe 'iterator', ->
       db = handle
       done()
 
-  it 'should insert batch data', ->
+  it 'should insert batch data', (done) ->
     batch = new leveldb.Batch
     batch.put "#{i}", value for i in [100..200]
-    db.writeSync batch
+    db.write batch, done
 
   it 'should open database', (done) ->
     leveldb.open filename, (err, handle) ->
