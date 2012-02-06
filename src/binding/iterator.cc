@@ -12,8 +12,7 @@ namespace node_leveldb {
 
 Persistent<FunctionTemplate> JIterator::constructor;
 
-JIterator::JIterator(Handle<Value>& db, leveldb::Iterator* it) : it_(it) {
-  db_ = Persistent<Value>::New(db);
+JIterator::JIterator(leveldb::Iterator* it) : it_(it) {
 }
 
 JIterator::~JIterator() {
@@ -42,16 +41,14 @@ void JIterator::Initialize(Handle<Object> target) {
 Handle<Value> JIterator::New(const Arguments& args) {
   HandleScope scope;
 
-  assert(args.Length() == 2);
-  assert(JHandle::HasInstance(args[0]));
-  assert(args[1]->IsExternal());
+  assert(args.Length() == 1);
+  assert(args[0]->IsExternal());
 
-  leveldb::Iterator* it = (leveldb::Iterator*)External::Unwrap(args[1]);
+  leveldb::Iterator* it = (leveldb::Iterator*)External::Unwrap(args[0]);
 
   assert(it);
 
-  Handle<Value> db = args[0];
-  JIterator* iterator = new JIterator(db, it);
+  JIterator* iterator = new JIterator(it);
   iterator->Wrap(args.This());
 
   return args.This();

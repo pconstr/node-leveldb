@@ -4,7 +4,6 @@
 #include <assert.h>
 
 #include <string>
-#include <vector>
 
 #include <leveldb/db.h>
 #include <node.h>
@@ -22,17 +21,12 @@ class JIterator;
 
 class JHandle : public ObjectWrap {
  public:
-  static inline bool HasInstance(Handle<Value> value) {
-    return value->IsObject() && constructor->HasInstance(value->ToObject());
-  }
-
   static Persistent<FunctionTemplate> constructor;
   static void Initialize(Handle<Object> target);
 
   static Handle<Value> New(const Arguments& args);
 
   static Handle<Value> Open(const Arguments& args);
-  static Handle<Value> Close(const Arguments& args);
   static Handle<Value> Valid(const Arguments& args);
 
   static Handle<Value> Get(const Arguments& args);
@@ -50,13 +44,10 @@ class JHandle : public ObjectWrap {
 
  private:
   leveldb::DB* db_;
-  std::vector< JIterator* > iterators_;
-  std::vector< const leveldb::Snapshot* > snapshots_;
 
   JHandle(leveldb::DB* db);
   virtual ~JHandle();
 
-  void Close();
   bool Valid();
 
   static void UnrefIterator(Persistent<Value> object, void* parameter);
@@ -130,7 +121,6 @@ class JHandle : public ObjectWrap {
 
   static async_rtn After(uv_work_t* req);
 
-  static async_rtn Close(uv_work_t* req);
   static async_rtn Write(uv_work_t* req);
 
   static async_rtn Destroy(uv_work_t* req);

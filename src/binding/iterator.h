@@ -23,7 +23,6 @@ class JIterator : ObjectWrap {
     if (it_) {
       delete it_;
       it_ = NULL;
-      db_.Dispose();
     }
   }
 
@@ -51,10 +50,9 @@ class JIterator : ObjectWrap {
   friend class JHandle;
 
   leveldb::Iterator* it_;
-  Persistent<Value> db_;
 
   // No instance creation outside of DB
-  JIterator(Handle<Value>& db, leveldb::Iterator* it);
+  JIterator(leveldb::Iterator* it);
 
   // No copying allowed
   JIterator(const JIterator&);

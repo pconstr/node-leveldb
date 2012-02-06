@@ -36,7 +36,8 @@ describe 'db', ->
         done()
 
     it 'should close database', (done) ->
-      db.close done
+      db = null
+      process.nextTick done
 
     it 'should repair database', (done) ->
       leveldb.repair filename, (err) ->
@@ -70,8 +71,8 @@ describe 'db', ->
       db.put '100', 'Goodbye World!', done
 
     it 'should close database', (done) ->
-      db.close done
       db = null
+      process.nextTick done
 
     it 'should open database', (done) ->
       leveldb.open filename, (err, handle) ->
@@ -91,9 +92,8 @@ describe 'db', ->
       db.approximateSizes [[ '0', '50' ], [ '50', '1000' ]]
 
     it 'should close database', (done) ->
-      db.close ->
-        db = null
-        done()
+      db = null
+      process.nextTick done
 
   describe 'with ascii values', ->
     itShouldBehaveLikeAKeyValueStore "Hello", "World"

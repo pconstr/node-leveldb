@@ -40,10 +40,9 @@ describe 'snapshot', ->
       done()
 
   it 'should close database', (done) ->
-    db.close done
-
-  it 'should not be valid', ->
-    assert.ifError snapshot.valid()
+    db = null
+    snapshot = null
+    process.nextTick done
 
   it 'should destroy database', (done) ->
     leveldb.destroy filename, done
