@@ -43,12 +43,18 @@ class JHandle : public ObjectWrap {
   static Handle<Value> Repair(const Arguments& args);
 
  private:
-  leveldb::DB* db_;
+  JHandle(leveldb::DB* db) : ObjectWrap(), db_(db) {}
 
-  JHandle(leveldb::DB* db);
-  virtual ~JHandle();
+  ~JHandle() {
+    if (db_ != NULL) {
+      delete db_;
+      db_ = NULL;
+    }
+  };
 
-  bool Valid();
+  inline bool Valid() {
+    return db_ != NULL;
+  };
 
   static void UnrefIterator(Persistent<Value> object, void* parameter);
   static void UnrefSnapshot(Persistent<Value> object, void* parameter);
@@ -125,6 +131,8 @@ class JHandle : public ObjectWrap {
 
   static async_rtn Destroy(uv_work_t* req);
   static async_rtn Repair(uv_work_t* req);
+
+  leveldb::DB* db_;
 };
 
 } // namespace node_leveldb

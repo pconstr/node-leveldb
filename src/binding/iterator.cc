@@ -12,13 +12,6 @@ namespace node_leveldb {
 
 Persistent<FunctionTemplate> JIterator::constructor;
 
-JIterator::JIterator(leveldb::Iterator* it) : it_(it) {
-}
-
-JIterator::~JIterator() {
-  Close();
-}
-
 void JIterator::Initialize(Handle<Object> target) {
   HandleScope scope;
 
@@ -189,7 +182,7 @@ Handle<Value> JIterator::status(const Arguments& args) {
 
   if (status.ok()) return kOK;
 
-  Handle<String> message = String::New(status.ToString().c_str());
+  Local<String> message = String::New(status.ToString().c_str());
   return scope.Close(Exception::Error(message));
 }
 
@@ -225,6 +218,48 @@ Handle<Value> JIterator::value(const Arguments& args) {
   } else {
     return scope.Close(ToString(val));
   }
+}
+
+
+//
+// ASYNC FUNCTIONS
+//
+
+async_rtn JIterator::After(uv_work_t* req) {
+  Params *data = (Params*) req->data;
+  data->callback->Call(data->self->handle_, 0, NULL);
+  delete data;
+  RETURN_ASYNC_AFTER;
+}
+
+async_rtn JIterator::Seek(uv_work_t* req) {
+  SeekParams *data = (SeekParams*) req->data;
+  data->self->it_->Seek(data->key);
+  RETURN_ASYNC;
+}
+
+async_rtn JIterator::First(uv_work_t* req) {
+  Params *data = (Params*) req->data;
+  data->self->it_->SeekToFirst();
+  RETURN_ASYNC;
+}
+
+async_rtn JIterator::Last(uv_work_t* req) {
+  Params *data = (Params*) req->data;
+  data->self->it_->SeekToLast();
+  RETURN_ASYNC;
+}
+
+async_rtn JIterator::Next(uv_work_t* req) {
+  Params *data = (Params*) req->data;
+  data->self->it_->Next();
+  RETURN_ASYNC;
+}
+
+async_rtn JIterator::Prev(uv_work_t* req) {
+  Params *data = (Params*) req->data;
+  data->self->it_->Prev();
+  RETURN_ASYNC;
 }
 
 } // node_leveldb

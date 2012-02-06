@@ -91,7 +91,7 @@ describe 'iterator (sync)', ->
   it 'should insert batch data', ->
     batch = new leveldb.Batch
     batch.put "#{i}", value for i in [100..200]
-    db.writeSync batch
+    db.write batch
 
   it 'should get an iterator', ->
     assert iterator = db.iteratorSync()

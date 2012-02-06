@@ -14,9 +14,6 @@ namespace node_leveldb {
 
 class JBatch : ObjectWrap {
  public:
-  JBatch() {}
-  virtual ~JBatch() { Clear(); }
-
   static inline bool HasInstance(Handle<Value> value) {
     return value->IsObject() && constructor->HasInstance(value->ToObject());
   }
@@ -33,7 +30,15 @@ class JBatch : ObjectWrap {
  private:
   friend class JHandle;
 
-  void Clear();
+  inline JBatch() : ObjectWrap() {}
+  virtual ~JBatch() { Clear(); }
+
+  inline void Clear() {
+    std::vector<char*>::iterator it;
+    for (it = buffers_.begin(); it < buffers_.end(); ++it) free(*it);
+    buffers_.clear();
+    wb_.Clear();
+  }
 
   leveldb::WriteBatch wb_;
   std::vector<char*> buffers_;

@@ -17,17 +17,8 @@ class JHandle;
 
 class JIterator : ObjectWrap {
  public:
-  ~JIterator();
-
-  inline void Close() {
-    if (it_) {
-      delete it_;
-      it_ = NULL;
-    }
-  }
-
-  inline bool Valid() {
-    return it_ != NULL;
+  virtual ~JIterator() {
+    Close();
   }
 
   static Persistent<FunctionTemplate> constructor;
@@ -49,14 +40,23 @@ class JIterator : ObjectWrap {
  private:
   friend class JHandle;
 
-  leveldb::Iterator* it_;
-
-  // No instance creation outside of DB
-  JIterator(leveldb::Iterator* it);
+  // No instance creation outside of Handle
+  inline JIterator(leveldb::Iterator* it) : ObjectWrap(), it_(it) {}
 
   // No copying allowed
   JIterator(const JIterator&);
   void operator=(const JIterator&);
+
+  inline void Close() {
+    if (it_) {
+      delete it_;
+      it_ = NULL;
+    }
+  }
+
+  inline bool Valid() {
+    return it_ != NULL;
+  }
 
   struct Params {
     Params(JIterator* self, Handle<Function>& cb) : self(self) {
@@ -91,6 +91,7 @@ class JIterator : ObjectWrap {
   static async_rtn Next(uv_work_t* req);
   static async_rtn Prev(uv_work_t* req);
 
+  leveldb::Iterator* it_;
 };
 
 } // node_leveldb
