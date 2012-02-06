@@ -11,8 +11,10 @@ describe 'iterator', ->
   iterator = null
   value = 'Hello World'
 
-  it 'should open database', ->
-    db = leveldb.openSync filename, create_if_missing: true
+  it 'should open database', (done) ->
+    leveldb.open filename, create_if_missing: true, (err, handle) ->
+      db = handle
+      done()
 
   it 'should insert batch data', ->
     batch = new leveldb.Batch
@@ -53,12 +55,12 @@ describe 'iterator', ->
   it 'should not be valid', ->
     assert.ifError iterator.valid()
 
-  it 'should seek to key 200', (done) ->
-    iterator.seek '200', done
+  it 'should seek to last key', (done) ->
+    iterator.last done
 
   it 'should get values in reverse', (done) ->
     testNext = (i) ->
-      iterator.next (err, key, val) ->
+      iterator.prev (err, key, val) ->
         assert.ifError err
         assert.equal "#{i}", key
         assert.equal value, val
@@ -74,7 +76,6 @@ describe 'iterator', ->
 
   it 'should close database', (done) ->
     db.close done
-    db = null
 
   it 'should not get values', ->
     assert.throws -> iterator.first()
@@ -111,8 +112,8 @@ describe 'iterator (sync)', ->
   it 'should not be valid', ->
     assert.ifError iterator.valid()
 
-  it 'should seek to key 200', ->
-    iterator.seekSync '200'
+  it 'should seek last key', ->
+    iterator.lastSync()
 
   it 'should get values in reverse', ->
     for i in [200..100]
