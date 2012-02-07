@@ -24,13 +24,21 @@ static inline Handle<Value> ThrowError(const char* err) {
   return ThrowException(Exception::Error(String::New(err)));
 }
 
+static inline leveldb::Slice ToSlice(Handle<Value> value) {
+  if (Buffer::HasInstance(value)) {
+    Local<Object> obj = value->ToObject();
+    return leveldb::Slice(Buffer::Data(obj), Buffer::Length(obj));
+  } else {
+    return leveldb::Slice();
+  }
+}
+
 static inline leveldb::Slice ToSlice(
   Handle<Value> value, std::vector< Persistent<Value> >& buffers)
 {
   if (Buffer::HasInstance(value)) {
     buffers.push_back(Persistent<Value>::New(value));
-    Local<Object> obj = value->ToObject();
-    return leveldb::Slice(Buffer::Data(obj), Buffer::Length(obj));
+    return ToSlice(value);
   } else {
     return leveldb::Slice();
   }
@@ -39,8 +47,7 @@ static inline leveldb::Slice ToSlice(
 static inline leveldb::Slice ToSlice(Handle<Value> value, Persistent<Value>& buf) {
   if (Buffer::HasInstance(value)) {
     buf = Persistent<Value>::New(value);
-    Local<Object> obj = value->ToObject();
-    return leveldb::Slice(Buffer::Data(obj), Buffer::Length(obj));
+    return ToSlice(value);
   } else {
     return leveldb::Slice();
   }

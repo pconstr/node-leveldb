@@ -7,6 +7,7 @@
 
 #include <leveldb/db.h>
 #include <node.h>
+#include <node_buffer.h>
 #include <v8.h>
 
 #include "batch.h"
@@ -286,39 +287,53 @@ Handle<Value> JHandle::ApproximateSizes(const Arguments& args) {
     return ThrowTypeError("Invalid arguments");
 
   std::vector<leveldb::Range> ranges;
-  std::vector< Persistent<Value> > buffers;
+  std::vector< Persistent<Value> > handles;
 
   Local<Array> array(Array::Cast(*args[0]));
   int len = array->Length();
 
-  for (int i = 0; i < len; ++i) {
-    if (array->Has(i)) {
-      Local<Value> elem = array->Get(i);
+  if (len % 2 != 0)
+    return ThrowTypeError("Invalid arguments");
 
-      if (elem->IsArray()) {
-        Local<Array> bounds(Array::Cast(*elem));
+  // Optional callback
+  Local<Function> callback = GetCallback(args);
 
-        if (bounds->Length() >= 2) {
-          leveldb::Slice start = ToSlice(bounds->Get(0), buffers);
-          leveldb::Slice limit = ToSlice(bounds->Get(1), buffers);
+  for (int i = 0; i < len; i += 2) {
+    if (array->Has(i) && array->Has(i + 1)) {
+      Local<Value> lStart = array->Get(i);
+      Local<Value> lLimit = array->Get(++i);
 
-          if (!start.empty() && !limit.empty())
-            ranges.push_back(leveldb::Range(start, limit));
+      leveldb::Slice start = ToSlice(lStart);
+      leveldb::Slice limit = ToSlice(lLimit);
 
-        }
+      if (!callback.IsEmpty()) {
+        handles.push_back(Persistent<Value>::New(lStart));
+        handles.push_back(Persistent<Value>::New(lLimit));
       }
+
+      ranges.push_back(leveldb::Range(start, limit));
     }
   }
 
-  uint64_t sizes = 0;
-  self->db_->GetApproximateSizes(&ranges[0], ranges.size(), &sizes);
+  uint64_t* sizes = new uint64_t[ ranges.size() ];
+  self->db_->GetApproximateSizes(&ranges[0], ranges.size(), sizes);
+  uint64_t size = 0;
+  for (int i = ranges.size() - 1; i >= 0; --i) size += sizes[i];
+  delete[] sizes;
 
-  // FIXME: memory leak, but breaks if disposed
-  //std::vector< Persistent<Value> >::iterator it;
-  //for (it = buffers.begin(); it < buffers.end(); ++it) it->Dispose();
-  buffers.clear();
+  Local<Value> result = Integer::New((int32_t)size);
 
-  return scope.Close(Integer::New((int32_t)sizes));
+  if (!callback.IsEmpty()) {
+    std::vector< Persistent<Value> >::iterator it;
+    for (it = handles.begin(); it < handles.end(); ++it) it->Dispose();
+
+    Handle<Value> argv[] = { Null(), result };
+    callback->Call(args.This(), 2, argv);
+
+    return args.This();
+  } else {
+    return scope.Close(result);
+  }
 }
 
 Handle<Value> JHandle::CompactRange(const Arguments& args) {

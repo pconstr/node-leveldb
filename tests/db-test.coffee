@@ -61,14 +61,16 @@ describe 'db', ->
       assert.equal undefined, db.property ''
 
     it 'should get no approximate size', ->
-      assert.equal 0, db.approximateSizes []
+      assert.equal 0, db.approximateSizesSync []
 
     it 'should get one approximate size', ->
-      db.approximateSizes '0', '1'
+      assert.equal 0, db.approximateSizesSync '0', '1'
 
     it 'should put values', (done) ->
-      db.putSync '' + i, 'Hello World!' for i in [0..999]
-      db.put '100', 'Goodbye World!', done
+      batch = db.batch()
+      batch.put "#{i}", 'Hello World!' for i in [0..10000]
+      batch.put '100', 'Goodbye World!'
+      batch.write sync: true, done
 
     it 'should close database', (done) ->
       db = null
@@ -85,11 +87,21 @@ describe 'db', ->
         assert.equal 'Goodbye World!', value
         done()
 
-    it 'should get approximate sizes', ->
-      db.approximateSizes '0', '1000'
+    it 'should get approximate sizes (sync)', ->
+      assert 0 < db.approximateSizesSync '100', '200'
+      assert 0 < db.approximateSizesSync [[ '100', '150' ], [ '150', '200' ]]
 
-    it 'should get approximate sizes', ->
-      db.approximateSizes [[ '0', '50' ], [ '50', '1000' ]]
+    it 'should get approximate sizes (async)', (done) ->
+      db.approximateSizes '100', '200', (err, size) ->
+        assert.ifError err
+        assert 0 < size
+        done()
+
+    it 'should get approximate sizes (async)', (done) ->
+      db.approximateSizes [[ '100', '150' ], [ '150', '200' ]], (err, size) ->
+        assert.ifError err
+        assert 0 < size
+        done()
 
     it 'should close database', (done) ->
       db = null
