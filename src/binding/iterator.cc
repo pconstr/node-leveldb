@@ -2,6 +2,7 @@
 
 #include <leveldb/iterator.h>
 #include <node.h>
+#include <pthread.h>
 #include <v8.h>
 
 #include "handle.h"
@@ -50,7 +51,10 @@ Handle<Value> JIterator::New(const Arguments& args) {
 Handle<Value> JIterator::Valid(const Arguments& args) {
   HandleScope scope;
   JIterator* self = ObjectWrap::Unwrap<JIterator>(args.This());
-  return self->Valid() && self->it_->Valid() ? True() : False();
+  pthread_mutex_lock(&self->lock_);
+  Handle<Value> result = self->Valid() && self->it_->Valid() ? True() : False();
+  pthread_mutex_unlock(&self->lock_);
+  return result;
 }
 
 Handle<Value> JIterator::Seek(const Arguments& args) {
@@ -62,17 +66,18 @@ Handle<Value> JIterator::Seek(const Arguments& args) {
   if (args.Length() < 1 || !Buffer::HasInstance(args[0]))
     return ThrowTypeError("Invalid arguments");
 
-  Persistent<Value> handle;
-  leveldb::Slice key = ToSlice(args[0], handle);
+  leveldb::Slice key = ToSlice(args[0]);
 
   // Optional callback
   Local<Function> callback = GetCallback(args);
 
   if (callback.IsEmpty()) {
+    pthread_mutex_lock(&self->lock_);
     self->it_->Seek(key);
-    handle.Dispose();
+    pthread_mutex_unlock(&self->lock_);
   } else {
-    SeekParams *data = new SeekParams(self, key, handle, callback);
+    SeekParams *data = new SeekParams(
+      self, key, Persistent<Value>::New(args[0]), callback);
     BEGIN_ASYNC(data, Seek, After);
   }
 
@@ -90,7 +95,9 @@ Handle<Value> JIterator::First(const Arguments& args) {
   Local<Function> callback = GetCallback(args);
 
   if (callback.IsEmpty()) {
+    pthread_mutex_lock(&self->lock_);
     self->it_->SeekToFirst();
+    pthread_mutex_unlock(&self->lock_);
   } else {
     Params *data = new Params(self, callback);
     BEGIN_ASYNC(data, First, After);
@@ -109,7 +116,9 @@ Handle<Value> JIterator::Last(const Arguments& args) {
   Local<Function> callback = GetCallback(args);
 
   if (callback.IsEmpty()) {
+    pthread_mutex_lock(&self->lock_);
     self->it_->SeekToLast();
+    pthread_mutex_unlock(&self->lock_);
   } else {
     Params *data = new Params(self, callback);
     BEGIN_ASYNC(data, Last, After);
@@ -129,7 +138,9 @@ Handle<Value> JIterator::Next(const Arguments& args) {
   Local<Function> callback = GetCallback(args);
 
   if (callback.IsEmpty()) {
+    pthread_mutex_lock(&self->lock_);
     self->it_->Next();
+    pthread_mutex_unlock(&self->lock_);
   } else {
     Params *data = new Params(self, callback);
     BEGIN_ASYNC(data, Next, After);
@@ -149,7 +160,9 @@ Handle<Value> JIterator::Prev(const Arguments& args) {
   Local<Function> callback = GetCallback(args);
 
   if (callback.IsEmpty()) {
+    pthread_mutex_lock(&self->lock_);
     self->it_->Prev();
+    pthread_mutex_unlock(&self->lock_);
   } else {
     Params *data = new Params(self, callback);
     BEGIN_ASYNC(data, Prev, After);
@@ -177,7 +190,9 @@ Handle<Value> JIterator::status(const Arguments& args) {
 
   if (!self->Valid()) return ThrowError("Handle closed");
 
+  pthread_mutex_lock(&self->lock_);
   leveldb::Status status = self->it_->status();
+  pthread_mutex_unlock(&self->lock_);
 
   static const Persistent<String> kOK = NODE_PSYMBOL("OK");
 
@@ -195,7 +210,9 @@ Handle<Value> JIterator::key(const Arguments& args) {
 
   bool asBuffer = AsBuffer(args);
 
+  pthread_mutex_lock(&self->lock_);
   leveldb::Slice val = self->it_->key();
+  pthread_mutex_unlock(&self->lock_);
 
   if (asBuffer) {
     return scope.Close(ToBuffer(val));
@@ -212,7 +229,9 @@ Handle<Value> JIterator::value(const Arguments& args) {
 
   bool asBuffer = AsBuffer(args);
 
+  pthread_mutex_lock(&self->lock_);
   leveldb::Slice val = self->it_->value();
+  pthread_mutex_unlock(&self->lock_);
 
   if (asBuffer) {
     return scope.Close(ToBuffer(val));
@@ -228,38 +247,50 @@ Handle<Value> JIterator::value(const Arguments& args) {
 
 async_rtn JIterator::After(uv_work_t* req) {
   Params *data = (Params*) req->data;
+  pthread_mutex_lock(&data->self->lock_);
   data->callback->Call(data->self->handle_, 0, NULL);
+  pthread_mutex_unlock(&data->self->lock_);
   delete data;
   RETURN_ASYNC_AFTER;
 }
 
 async_rtn JIterator::Seek(uv_work_t* req) {
   SeekParams *data = (SeekParams*) req->data;
+  pthread_mutex_lock(&data->self->lock_);
   data->self->it_->Seek(data->key);
+  pthread_mutex_unlock(&data->self->lock_);
   RETURN_ASYNC;
 }
 
 async_rtn JIterator::First(uv_work_t* req) {
   Params *data = (Params*) req->data;
+  pthread_mutex_lock(&data->self->lock_);
   data->self->it_->SeekToFirst();
+  pthread_mutex_unlock(&data->self->lock_);
   RETURN_ASYNC;
 }
 
 async_rtn JIterator::Last(uv_work_t* req) {
   Params *data = (Params*) req->data;
+  pthread_mutex_lock(&data->self->lock_);
   data->self->it_->SeekToLast();
+  pthread_mutex_unlock(&data->self->lock_);
   RETURN_ASYNC;
 }
 
 async_rtn JIterator::Next(uv_work_t* req) {
   Params *data = (Params*) req->data;
+  pthread_mutex_lock(&data->self->lock_);
   data->self->it_->Next();
+  pthread_mutex_unlock(&data->self->lock_);
   RETURN_ASYNC;
 }
 
 async_rtn JIterator::Prev(uv_work_t* req) {
   Params *data = (Params*) req->data;
+  pthread_mutex_lock(&data->self->lock_);
   data->self->it_->Prev();
+  pthread_mutex_unlock(&data->self->lock_);
   RETURN_ASYNC;
 }
 
