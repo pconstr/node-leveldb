@@ -105,14 +105,25 @@ class Handle
   property: (name) ->
     @self.property(name)
 
-  approximateSizes: (bounds) ->
-    bounds = [arguments] unless Array.isArray bounds
-    slices = for [ key, val ] in bounds when key and val
-      [
-        if Buffer.isBuffer key then key else new Buffer key
-        if Buffer.isBuffer val then val else new Buffer val
-      ]
-    @self.approximateSizes slices
+  unpackSlices = (args) ->
+    bounds = if Array.isArray args[0] then args[0] else [args]
+    slices = []
+    for [ key, val ] in bounds when key and val
+      slices.push if Buffer.isBuffer key then key else new Buffer key
+      slices.push if Buffer.isBuffer val then val else new Buffer val
+    slices
+
+  approximateSizes: ->
+    args = Array.prototype.slice.call arguments
+    callback =
+      if typeof args[args.length - 1] is 'function'
+        args.pop()
+      else
+        noop
+    @self.approximateSizes unpackSlices(args), callback
+
+  approximateSizesSync: ->
+    @self.approximateSizes unpackSlices arguments
 
   # TODO: compactRange
 
