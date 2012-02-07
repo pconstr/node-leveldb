@@ -34,7 +34,7 @@ exports.repair = (path, options, callback) ->
 exports.repairSync = (path, options) ->
   binding.repair path, options
 
-exports.Handle = class Handle
+class Handle
 
   constructor: (@self) ->
 
@@ -47,49 +47,52 @@ exports.Handle = class Handle
       callback = options
       options = null
     @self.get key, options, callback or noop
+    @
 
   getSync: (key, options) ->
     key = new Buffer key unless Buffer.isBuffer key
     @self.get key, options
 
   put: (key, val, options, callback) ->
-    batch = new Batch
-    batch.put key, val
-    @write batch, options, callback
+    @batch().put(key, val).write options, callback
+    @
 
   putSync: (key, val, options) ->
-    batch = new Batch
-    batch.put key, val
-    @writeSync batch, options
+    @batch().put(key, val).writeSync options
+    @
 
   del: (key, options, callback) ->
-    batch = new Batch
-    batch.del key
-    @write batch, options, callback
+    @batch().del(key).write options, callback
+    @
 
   delSync: (key, options) ->
-    batch = new Batch
-    batch.del key
-    @write batch, options
+    @batch().del(key).writeSync options
+    @
 
   write: (batch, options, callback) ->
     if typeof options is 'function'
       callback = options
       options = null
     @self.write batch.self, options, callback or noop
+    @
 
   writeSync: (batch, options) ->
     @self.write batch.self, options
+    @
+
+  batch: ->
+    new Batch @self
 
   iterator: (options, callback) ->
     if typeof options is 'function'
       callback = options
       options = null
 
-    throw 'Missing callback' unless callback
+    if callback
+      it = new Iterator @self.iterator options
+      it.first (err) -> callback err, it
 
-    it = new Iterator @self.iterator options
-    it.first (err) -> callback err, it
+    @
 
   iteratorSync: (options) ->
     it = new Iterator @self.iterator options
@@ -123,6 +126,7 @@ class Snapshot
       options = {}
     options.snapshot = @snapshot
     @self.get key, options, callback or noop
+    @
 
   getSync: (key, options = {}) ->
     options.snapshot = @snapshot

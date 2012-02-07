@@ -12,6 +12,7 @@ exports.Iterator = class Iterator
   seek: (key, callback) ->
     key = new Buffer key unless Buffer.isBuffer key
     @self.seek key, if callback then => callback @error() else noop
+    @
 
   seekSync: (key) ->
     key = new Buffer key unless Buffer.isBuffer key
@@ -20,6 +21,7 @@ exports.Iterator = class Iterator
 
   first: (callback) ->
     @self.first if callback then => callback @error() else noop
+    @
 
   firstSync: ->
     @self.first()
@@ -27,6 +29,7 @@ exports.Iterator = class Iterator
 
   last: (callback) ->
     @self.last if callback then => callback @error() else noop
+    @
 
   lastSync: ->
     @self.last()
@@ -46,6 +49,7 @@ exports.Iterator = class Iterator
         @self.next noop
     else if callback
       callback @error()
+    @
 
   nextSync: ->
     if @self.valid()
@@ -70,6 +74,7 @@ exports.Iterator = class Iterator
         @self.prev noop
     else if callback
       callback @error()
+    @
 
   prevSync: ->
     if @self.valid()
