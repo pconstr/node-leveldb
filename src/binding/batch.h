@@ -34,14 +34,14 @@ class JBatch : ObjectWrap {
   virtual ~JBatch() { Clear(); }
 
   inline void Clear() {
-    std::vector<char*>::iterator it;
-    for (it = buffers_.begin(); it < buffers_.end(); ++it) free(*it);
+    std::vector< Persistent<Value> >::iterator it;
+    for (it = buffers_.begin(); it < buffers_.end(); ++it) it->Dispose();
     buffers_.clear();
     wb_.Clear();
   }
 
   leveldb::WriteBatch wb_;
-  std::vector<char*> buffers_;
+  std::vector< Persistent<Value> > buffers_;
 };
 
 } // node_leveldb

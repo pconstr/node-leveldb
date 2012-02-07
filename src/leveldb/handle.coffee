@@ -1,4 +1,5 @@
-{Batch} = binding = require '../../build/leveldb.node'
+binding = require '../../build/leveldb.node'
+{Batch} = require './batch'
 {Iterator} = require './iterator'
 
 noop = ->
@@ -41,22 +42,24 @@ exports.Handle = class Handle
     @self.valid()
 
   get: (key, options, callback) ->
+    key = new Buffer key unless Buffer.isBuffer key
     if typeof options is 'function'
       callback = options
       options = null
     @self.get key, options, callback or noop
 
   getSync: (key, options) ->
+    key = new Buffer key unless Buffer.isBuffer key
     @self.get key, options
 
-  put: (key, value, options, callback) ->
+  put: (key, val, options, callback) ->
     batch = new Batch
-    batch.put key, value
+    batch.put key, val
     @write batch, options, callback
 
-  putSync: (key, value, options) ->
+  putSync: (key, val, options) ->
     batch = new Batch
-    batch.put key, value
+    batch.put key, val
     @writeSync batch, options
 
   del: (key, options, callback) ->
@@ -73,10 +76,10 @@ exports.Handle = class Handle
     if typeof options is 'function'
       callback = options
       options = null
-    @self.write batch, options, callback or noop
+    @self.write batch.self, options, callback or noop
 
   writeSync: (batch, options) ->
-    @self.write batch, options
+    @self.write batch.self, options
 
   iterator: (options, callback) ->
     if typeof options is 'function'
@@ -99,10 +102,13 @@ exports.Handle = class Handle
   property: (name) ->
     @self.property(name)
 
-  approximateSizes: ->
-    slices =
-      if Array.isArray arguments[0] then arguments[0]
-      else Array.prototype.slice.call arguments[0]
+  approximateSizes: (bounds) ->
+    bounds = [arguments] unless Array.isArray bounds
+    slices = for [ key, val ] in bounds when key and val
+      [
+        if Buffer.isBuffer key then key else new Buffer key
+        if Buffer.isBuffer val then val else new Buffer val
+      ]
     @self.approximateSizes slices
 
   # TODO: compactRange

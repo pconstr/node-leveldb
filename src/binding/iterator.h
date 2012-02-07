@@ -74,14 +74,18 @@ class JIterator : ObjectWrap {
   };
 
   struct SeekParams : Params {
-    SeekParams(JIterator* self, leveldb::Slice& key, Handle<Function>& cb)
-      : Params(self, cb), key(key) {}
+    SeekParams(JIterator* self,
+               leveldb::Slice& key,
+               Persistent<Value> keyHandle,
+               Handle<Function>& cb)
+      : Params(self, cb), key(key), keyHandle(keyHandle) {}
 
     virtual ~SeekParams() {
-      if (!key.empty()) delete key.data();
+      if (!keyHandle.IsEmpty()) keyHandle.Dispose();
     }
 
     leveldb::Slice key;
+    Persistent<Value> keyHandle;
   };
 
   static async_rtn After(uv_work_t* req);

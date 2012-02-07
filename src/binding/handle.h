@@ -90,14 +90,24 @@ class JHandle : public ObjectWrap {
   };
 
   struct ReadParams : Params {
-    ReadParams(JHandle *self, leveldb::Slice& slice, leveldb::ReadOptions &options, bool asBuffer, Handle<Function> cb)
-      : Params(self, cb), slice(slice), options(options), asBuffer(asBuffer) {}
+    ReadParams(JHandle *self,
+               leveldb::Slice& key,
+               Persistent<Value> keyHandle,
+               leveldb::ReadOptions &options,
+               bool asBuffer,
+               Handle<Function> cb)
+      : Params(self, cb),
+        key(key),
+        keyHandle(keyHandle),
+        options(options),
+        asBuffer(asBuffer) {}
 
     virtual ~ReadParams() {
-      if (!slice.empty()) delete slice.data();
+      if (!keyHandle.IsEmpty()) keyHandle.Dispose();
     }
 
-    leveldb::Slice slice;
+    leveldb::Slice key;
+    Persistent<Value> keyHandle;
     leveldb::ReadOptions options;
     bool asBuffer;
     std::string result;
