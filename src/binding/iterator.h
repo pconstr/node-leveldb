@@ -3,6 +3,7 @@
 
 #include <leveldb/iterator.h>
 #include <node.h>
+#include <pthread.h>
 #include <v8.h>
 
 #include "handle.h"
@@ -19,6 +20,7 @@ class JIterator : ObjectWrap {
  public:
   virtual ~JIterator() {
     Close();
+    assert(pthread_mutex_destroy(&lock_) == 0);
   }
 
   static Persistent<FunctionTemplate> constructor;
@@ -41,7 +43,9 @@ class JIterator : ObjectWrap {
   friend class JHandle;
 
   // No instance creation outside of Handle
-  inline JIterator(leveldb::Iterator* it) : ObjectWrap(), it_(it) {}
+  inline JIterator(leveldb::Iterator* it) : ObjectWrap(), it_(it) {
+    assert(pthread_mutex_init(&lock_, NULL) == 0);
+  }
 
   // No copying allowed
   JIterator(const JIterator&);
@@ -96,6 +100,7 @@ class JIterator : ObjectWrap {
   static async_rtn Prev(uv_work_t* req);
 
   leveldb::Iterator* it_;
+  pthread_mutex_t lock_;
 };
 
 } // node_leveldb
