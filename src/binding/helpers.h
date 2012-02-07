@@ -1,16 +1,10 @@
 #ifndef NODE_LEVELDB_HELPERS_H_
 #define NODE_LEVELDB_HELPERS_H_
 
-#include <assert.h>
-#include <stdlib.h>
-#include <string.h>
-
-#include <string>
 #include <vector>
 
 #include <v8.h>
 #include <node.h>
-#include <node_version.h>
 #include <node_buffer.h>
 
 #include "leveldb/db.h"
@@ -30,27 +24,23 @@ static inline Handle<Value> ThrowError(const char* err) {
   return ThrowException(Exception::Error(String::New(err)));
 }
 
-static inline bool IsStringOrBuffer(Handle<Value> val) {
-  return val->IsString() || Buffer::HasInstance(val);
+static inline leveldb::Slice ToSlice(
+  Handle<Value> value, std::vector< Persistent<Value> >& buffers)
+{
+  if (Buffer::HasInstance(value)) {
+    buffers.push_back(Persistent<Value>::New(value));
+    Local<Object> obj = value->ToObject();
+    return leveldb::Slice(Buffer::Data(obj), Buffer::Length(obj));
+  } else {
+    return leveldb::Slice();
+  }
 }
 
-static inline leveldb::Slice ToSlice(Handle<Value> value, std::vector<char*>* buffers = NULL) {
-  if (value->IsString()) {
-    Local<String> str = value->ToString();
-    if (str.IsEmpty()) return leveldb::Slice();
-    int len = str->Utf8Length();
-    char* buf = new char[len + 1];
-    str->WriteUtf8(buf);
-    if (buffers) buffers->push_back(buf);
-    return leveldb::Slice(buf, len);
-  } else if (Buffer::HasInstance(value)) {
+static inline leveldb::Slice ToSlice(Handle<Value> value, Persistent<Value>& buf) {
+  if (Buffer::HasInstance(value)) {
+    buf = Persistent<Value>::New(value);
     Local<Object> obj = value->ToObject();
-    int len = Buffer::Length(obj);
-    if (len <= 0) return leveldb::Slice();
-    char* buf = new char[len];
-    memcpy(buf, Buffer::Data(obj), len);
-    if (buffers) buffers->push_back(buf);
-    return leveldb::Slice(buf, len);
+    return leveldb::Slice(Buffer::Data(obj), Buffer::Length(obj));
   } else {
     return leveldb::Slice();
   }

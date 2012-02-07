@@ -39,16 +39,16 @@ Handle<Value> JBatch::New(const Arguments& args) {
 Handle<Value> JBatch::Put(const Arguments& args) {
   HandleScope scope;
 
-  if (args.Length() < 2 ||
-      !IsStringOrBuffer(args[0]) || !IsStringOrBuffer(args[1]))
+  if (args.Length() != 2 ||
+      !Buffer::HasInstance(args[0]) || !Buffer::HasInstance(args[1]))
     return ThrowTypeError("Invalid arguments");
 
   JBatch* self = ObjectWrap::Unwrap<JBatch>(args.This());
 
-  leveldb::Slice key = ToSlice(args[0], &self->buffers_);
-  leveldb::Slice value = ToSlice(args[1], &self->buffers_);
+  leveldb::Slice key = ToSlice(args[0], self->buffers_);
+  leveldb::Slice val = ToSlice(args[1], self->buffers_);
 
-  self->wb_.Put(key, value);
+  self->wb_.Put(key, val);
 
   return args.This();
 }
@@ -56,11 +56,11 @@ Handle<Value> JBatch::Put(const Arguments& args) {
 Handle<Value> JBatch::Del(const Arguments& args) {
   HandleScope scope;
 
-  if (args.Length() < 1 || !IsStringOrBuffer(args[0]))
+  if (args.Length() != 1 || !Buffer::HasInstance(args[0]))
     return ThrowTypeError("Invalid arguments");
 
   JBatch* self = ObjectWrap::Unwrap<JBatch>(args.This());
-  leveldb::Slice key = ToSlice(args[0], &self->buffers_);
+  leveldb::Slice key = ToSlice(args[0], self->buffers_);
 
   self->wb_.Delete(key);
 

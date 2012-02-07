@@ -59,19 +59,20 @@ Handle<Value> JIterator::Seek(const Arguments& args) {
 
   if (!self->Valid()) return ThrowError("Handle closed");
 
-  if (args.Length() < 1 || !(args[0]->IsString() || Buffer::HasInstance(args[0])))
+  if (args.Length() < 1 || !Buffer::HasInstance(args[0]))
     return ThrowTypeError("Invalid arguments");
 
-  leveldb::Slice key = ToSlice(args[0]);
+  Persistent<Value> handle;
+  leveldb::Slice key = ToSlice(args[0], handle);
 
   // Optional callback
   Local<Function> callback = GetCallback(args);
 
   if (callback.IsEmpty()) {
     self->it_->Seek(key);
-    delete key.data();
+    handle.Dispose();
   } else {
-    SeekParams *data = new SeekParams(self, key, callback);
+    SeekParams *data = new SeekParams(self, key, handle, callback);
     BEGIN_ASYNC(data, Seek, After);
   }
 

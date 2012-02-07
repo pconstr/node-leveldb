@@ -120,13 +120,14 @@ Handle<Value> JHandle::Get(const Arguments& args) {
 
   if (self->db_ == NULL) return ThrowError("Handle closed");
 
-  if (argc < 1 || !IsStringOrBuffer(args[0]))
+  if (argc < 1 || !Buffer::HasInstance(args[0]))
     return ThrowTypeError("Invalid arguments");
 
   bool asBuffer = false;
 
   // Key
-  leveldb::Slice slice = ToSlice(args[0]);
+  Persistent<Value> keyHandle;
+  leveldb::Slice key = ToSlice(args[0], keyHandle);
 
   // Optional read options
   leveldb::ReadOptions options;
@@ -137,19 +138,16 @@ Handle<Value> JHandle::Get(const Arguments& args) {
 
   if (callback.IsEmpty()) {
     std::string result;
-    if (self->db_ == NULL) {
-      leveldb::Status status = self->db_->Get(options, slice, &result);
-      delete slice.data();
-      if (!status.ok()) return Error(status);
-      if (asBuffer) {
-        return scope.Close(ToBuffer(result));
-      } else {
-        return scope.Close(ToString(result));
-      }
+    if (!keyHandle.IsEmpty()) keyHandle.Dispose();
+    leveldb::Status status = self->db_->Get(options, key, &result);
+    if (!status.ok()) return Error(status);
+    if (asBuffer) {
+      return scope.Close(ToBuffer(result));
+    } else {
+      return scope.Close(ToString(result));
     }
-    delete slice.data();
   } else {
-    ReadParams* params = new ReadParams(self, slice, options, asBuffer, callback);
+    ReadParams* params = new ReadParams(self, key, keyHandle, options, asBuffer, callback);
     BEGIN_ASYNC(params, Get, GetAfter);
   }
 
@@ -288,7 +286,7 @@ Handle<Value> JHandle::ApproximateSizes(const Arguments& args) {
     return ThrowTypeError("Invalid arguments");
 
   std::vector<leveldb::Range> ranges;
-  std::vector<char*> buffers;
+  std::vector< Persistent<Value> > buffers;
 
   Local<Array> array(Array::Cast(*args[0]));
   int len = array->Length();
@@ -301,8 +299,8 @@ Handle<Value> JHandle::ApproximateSizes(const Arguments& args) {
         Local<Array> bounds(Array::Cast(*elem));
 
         if (bounds->Length() >= 2) {
-          leveldb::Slice start = ToSlice(bounds->Get(0), &buffers);
-          leveldb::Slice limit = ToSlice(bounds->Get(1), &buffers);
+          leveldb::Slice start = ToSlice(bounds->Get(0), buffers);
+          leveldb::Slice limit = ToSlice(bounds->Get(1), buffers);
 
           if (!start.empty() && !limit.empty())
             ranges.push_back(leveldb::Range(start, limit));
@@ -315,9 +313,10 @@ Handle<Value> JHandle::ApproximateSizes(const Arguments& args) {
   uint64_t sizes = 0;
   self->db_->GetApproximateSizes(&ranges[0], ranges.size(), &sizes);
 
-  std::vector<char*>::iterator it;
-  // FIXME: memory leak, but breaks if free'd
-  //for (it = buffers.begin(); it < buffers.end(); ++it) delete *it;
+  // FIXME: memory leak, but breaks if disposed
+  //std::vector< Persistent<Value> >::iterator it;
+  //for (it = buffers.begin(); it < buffers.end(); ++it) it->Dispose();
+  buffers.clear();
 
   return scope.Close(Integer::New((int32_t)sizes));
 }
@@ -454,7 +453,7 @@ async_rtn JHandle::OpenAfter(uv_work_t* req) {
 
 async_rtn JHandle::Get(uv_work_t* req) {
   ReadParams* params = (ReadParams*) req->data;
-  params->status = params->self->db_->Get(params->options, params->slice, &params->result);
+  params->status = params->self->db_->Get(params->options, params->key, &params->result);
   RETURN_ASYNC;
 }
 

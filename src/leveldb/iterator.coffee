@@ -10,9 +10,11 @@ exports.Iterator = class Iterator
     @self.valid()
 
   seek: (key, callback) ->
+    key = new Buffer key unless Buffer.isBuffer key
     @self.seek key, if callback then => callback @error() else noop
 
   seekSync: (key) ->
+    key = new Buffer key unless Buffer.isBuffer key
     @self.seek key
     throw err if err = @error()
 
