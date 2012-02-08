@@ -287,10 +287,12 @@ class Handle
 
       Create a new iterator.
 
+      @param {Object} [options] Optional options. See `Handle.get()`.
+
   ###
 
-  iterator: ->
-    new Iterator @self.iterator()
+  iterator: (options) ->
+    new Iterator @self.iterator options
 
 
   ###
