@@ -403,11 +403,7 @@ void JHandle::Params::Callback() {
     that = Object::New();
   }
 
-  if (status.IsNotFound()) {
-    // not found, return (null, undef)
-    Handle<Value> argv[] = { Null() };
-    callback->Call(that, 1, argv);
-  } else if (!status.ok()) {
+  if (!status.ok() && !status.IsNotFound()) {
     // error, callback with first argument as error object
     Local<String> message = String::New(status.ToString().c_str());
     Local<Value> argv[] = { Exception::Error(message) };
@@ -474,7 +470,7 @@ async_rtn JHandle::GetAfter(uv_work_t* req) {
   HandleScope scope;
 
   ReadParams* params = (ReadParams*) req->data;
-  if (params->status.ok() && !params->status.IsNotFound()) {
+  if (params->status.ok()) {
     if (params->asBuffer) {
       params->Callback(ToBuffer(params->result));
     } else {
