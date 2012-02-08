@@ -2,7 +2,8 @@ binding = require '../../build/leveldb.node'
 
 exports.Iterator = class Iterator
 
-  noop = ->
+  noop = (err) ->
+    throw err if err
 
   constructor: (@self) ->
 
@@ -11,85 +12,64 @@ exports.Iterator = class Iterator
 
   seek: (key, callback) ->
     key = new Buffer key unless Buffer.isBuffer key
-    @self.seek key, if callback then => callback @error() else noop
-    @
+    @self.seek key, if callback then (err) => callback err else noop
 
   seekSync: (key) ->
     key = new Buffer key unless Buffer.isBuffer key
     @self.seek key
-    throw err if err = @error()
 
   first: (callback) ->
-    @self.first if callback then => callback @error() else noop
-    @
+    @self.first if callback then (err) => callback err else noop
 
   firstSync: ->
     @self.first()
-    throw err if err = @error()
+    @
 
   last: (callback) ->
-    @self.last if callback then => callback @error() else noop
-    @
+    @self.last if callback then (err) => callback err else noop
 
   lastSync: ->
     @self.last()
-    throw err if err = @error()
+    @
 
   next: (options, callback) ->
     if typeof options is 'function'
       callback = options
       options = null
-    if @self.valid()
-      if callback
-        key = @self.key options
-        val = @self.value options
-        @self.next =>
-          callback @error(), key, val
-      else
-        @self.next noop
-    else if callback
-      callback @error()
-    @
+
+    if callback
+      [ key, val ] = @self.current options
+      @self.next (err) => callback err, key, val
+    else
+      @self.next noop
 
   nextSync: ->
-    if @self.valid()
-      current = @current()
-      @self.next()
-      throw err if err = @error()
-      current
-    else
-      throw @error()
+    current = @current()
+    @self.next()
+    current
 
   prev: (callback) ->
     if typeof options is 'function'
       callback = options
       options = null
-    if @self.valid()
-      if callback
-        key = @self.key options
-        val = @self.value options
-        @self.prev =>
-          callback @error(), key, val
-      else
-        @self.prev noop
-    else if callback
-      callback @error()
-    @
 
-  prevSync: ->
-    if @self.valid()
-      current = @current()
-      @self.prev()
-      throw err if err = @error()
-      current
-    else
-      throw @error()
-
-  current: (options) ->
-    if @self.valid()
+    if callback
       key = @self.key options
       val = @self.value options
-      [key, val]
+      @self.prev (err) => callback err, key, val
+    else
+      @self.prev noop
 
-  error: ->
-    if (err = @self.status()) is 'OK' then null else err
+  prevSync: ->
+    current = @current()
+    @self.prev()
+    current
+
+  key: (options) ->
+    @self.key options
+
+  value: (options) ->
+    @self.value options
+
+  current: (options) ->
+    @self.current()
