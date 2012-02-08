@@ -1,4 +1,5 @@
 #include <assert.h>
+#include <limits.h>
 #include <stdlib.h>
 
 #include <algorithm>
@@ -297,7 +298,7 @@ Handle<Value> JHandle::ApproximateSizes(const Arguments& args) {
   for (int i = 0; i < len; i += 2) {
     if (array->Has(i) && array->Has(i + 1)) {
       Local<Value> lStart = array->Get(i);
-      Local<Value> lLimit = array->Get(++i);
+      Local<Value> lLimit = array->Get(i + 1);
 
       leveldb::Slice start = ToSlice(lStart);
       leveldb::Slice limit = ToSlice(lLimit);
@@ -311,13 +312,21 @@ Handle<Value> JHandle::ApproximateSizes(const Arguments& args) {
     }
   }
 
-  uint64_t* sizes = new uint64_t[ ranges.size() ];
-  self->db_->GetApproximateSizes(&ranges[0], ranges.size(), sizes);
-  uint64_t size = 0;
-  for (int i = ranges.size() - 1; i >= 0; --i) size += sizes[i];
-  delete[] sizes;
+  int nRanges = ranges.size();
+  uint64_t* sizes = new uint64_t[ nRanges ];
+  self->db_->GetApproximateSizes(&ranges[0], nRanges, sizes);
 
-  Local<Value> result = Integer::New((int32_t)size);
+  Local<Array> result = Array::New(nRanges);
+  for (int i = 0; i < nRanges; ++i) {
+    uint64_t size = sizes[i];
+    if (size < INT_MAX) {
+      result->Set(i, Integer::New(static_cast<uint32_t>(sizes[i])));
+    } else {
+      result->Set(i, Number::New(static_cast<double>(sizes[i])));
+    }
+  }
+
+  delete[] sizes;
 
   if (!callback.IsEmpty()) {
     std::vector< Persistent<Value> >::iterator it;
