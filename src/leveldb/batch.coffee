@@ -44,6 +44,8 @@ binding = require '../../build/leveldb.node'
 
 exports.Batch = class Batch
 
+  noop = (err) -> throw err if err
+
 
   ###
 
@@ -68,10 +70,15 @@ exports.Batch = class Batch
   ###
 
   put: (key, val) ->
+
+    # to buffer if string
     key = new Buffer key unless Buffer.isBuffer key
     val = new Buffer val unless Buffer.isBuffer val
+
+    # call native binding
     @self.put key, val
-    @
+
+    @ # return this for chaining
 
 
   ###
@@ -82,10 +89,15 @@ exports.Batch = class Batch
 
   ###
 
-  del: (key, val) ->
+  del: (key) ->
+
+    # to buffer if string
     key = new Buffer key unless Buffer.isBuffer key
+
+    # call native binding
     @self.del key
-    @
+
+    @ # return this for chaining
 
 
   ###
@@ -95,19 +107,28 @@ exports.Batch = class Batch
   ###
 
   write: (options, callback) ->
+
+    # require handle
     throw new Error 'No handle' unless @handle
 
+    # optional options
     if typeof options is 'function'
       callback = options
       options = null
 
+    # optional callback
+    callback or= noop
+
+    # call native method
     @handle.write @self, options, (err) =>
+
+      # clear batch
       @self.clear() unless err
-      if callback
-        callback err
-      else if err
-        throw err
-    @
+
+      # call callback
+      callback err
+
+    # no chaining while buffer is in use async
 
 
   ###
@@ -117,10 +138,17 @@ exports.Batch = class Batch
   ###
 
   writeSync: (options) ->
+
+    # require handle
     throw new Error 'No handle' unless @handle
+
+    # call native method
     @handle.write @self, options
+
+    # clear batch
     @self.clear()
-    @
+
+    @ # return this for chaining
 
 
   ###
