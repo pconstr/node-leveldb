@@ -162,17 +162,27 @@ class Handle
   ###
 
   get: (key, options, callback) ->
+
+    # to buffer if string
     key = new Buffer key unless Buffer.isBuffer key
+
+    # optional options
     if typeof options is 'function'
       callback = options
       options = null
+
+    # required callback
     throw new Error 'Missing callback' unless callback
-    @self.get key, options, (err, value) =>
+
+    # call native binding
+    @self.get key, options, (err, value) ->
       if callback
+        # to string unless returning as buffer
         value = value.toString 'utf8' if value and not options?.as_buffer
         callback(err, value)
       else
         throw err if err
+
     @
 
 
@@ -183,8 +193,14 @@ class Handle
   ###
 
   getSync: (key, options) ->
+
+    # to buffer if string
     key = new Buffer key unless Buffer.isBuffer key
+
+    # call native binding
     value = @self.get key, options
+
+    # to string unless returning as buffer
     if value and not options?.as_buffer
       value.toString 'utf8'
     else
@@ -263,9 +279,13 @@ class Handle
   ###
 
   write: (batch, options, callback) ->
+
+    # optional options
     if typeof options is 'function'
       callback = options
       options = null
+
+    # call native binding
     @self.write batch.self, options, callback or noop
     @
 
@@ -301,7 +321,12 @@ class Handle
   ###
 
   iterator: (options) ->
-    new Iterator @self.iterator options
+
+    # call native binding
+    it = @self.iterator options
+
+    # create wrapper object
+    new Iterator it
 
 
   ###
@@ -311,7 +336,12 @@ class Handle
   ###
 
   snapshot: ->
-    new Snapshot @, @self.snapshot()
+
+    # call native binding
+    snap = @self.snapshot()
+
+    # create wrapper object
+    new Snapshot @, snap
 
 
   ###
@@ -324,28 +354,9 @@ class Handle
   ###
 
   property: (name) ->
+
+    # call native binding
     @self.property(name)
-
-  # helper function for approximateSizes()
-  # normalizes arguments to a flattened array of
-  #   [ key1, val1, ..., keyN, valN]
-  unpackSlices = (args) ->
-    bounds =
-      if Array.isArray args[0]
-        if Array.isArray args[1]
-          Array.prototype.slice.call args
-        else
-          args[0]
-      else
-        [args]
-
-    slices = []
-
-    for [ key, val ] in bounds when key and val
-      slices.push if Buffer.isBuffer key then key else new Buffer key
-      slices.push if Buffer.isBuffer val then val else new Buffer val
-
-    slices
 
 
   ###
@@ -373,8 +384,56 @@ class Handle
         noop
     @self.approximateSizes unpackSlices(args), callback
 
+
+
+  ###
+
+      Approximate the on-disk storage bytes for key ranges synchronously.
+      See `Handle.approximateSizes()`.
+
+  ###
+
   approximateSizesSync: ->
     @self.approximateSizes unpackSlices arguments
+
+
+  # helper function for approximateSizes()
+  # normalizes arguments to a flattened array of
+  #   [ key1, val1, ..., keyN, valN]
+  unpackSlices = (args) ->
+
+    # bounds is an array of [ key, val ]
+    bounds =
+
+      # first arg is array
+      if Array.isArray args[0]
+
+        # second arg is array
+        if Array.isArray args[1]
+
+          # approximateSizes([k1,v1], ..., [kN,vN])
+          Array.prototype.slice.call args
+        else
+
+          # approximateSizes([ [k1,v1], ..., [kN,vN] ])
+          args[0]
+
+      else
+
+        # approximateSizes(k, v)
+        [args]
+
+    # flattened [k1, v1, ..., kN, vN]
+    slices = []
+
+    # flatten bounds
+    for [ key, val ] in bounds when key and val
+      # to buffer if string
+      slices.push if Buffer.isBuffer key then key else new Buffer key
+      slices.push if Buffer.isBuffer val then val else new Buffer val
+
+    slices
+
 
   # TODO: compactRange
 
@@ -410,12 +469,17 @@ class Snapshot
   ###
 
   get: (key, options = {}, callback) ->
+
+    # optional options
     if typeof options is 'function'
       callback = options
       options = {}
+
+    # set snapshot option
     options.snapshot = @snapshot
-    @self.get key, options, callback or noop
-    @
+
+    # call handle get
+    @self.get key, options, callback
 
 
   ###
@@ -426,5 +490,9 @@ class Snapshot
   ###
 
   getSync: (key, options = {}) ->
+
+    # set snapshot option
     options.snapshot = @snapshot
+
+    # call handle get
     @self.get key, options
