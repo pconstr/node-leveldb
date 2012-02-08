@@ -2,7 +2,7 @@ binding = require '../../build/leveldb.node'
 {Batch} = require './batch'
 {Iterator} = require './iterator'
 
-noop = ->
+noop = (err) -> throw err if err
 
 ###
 
