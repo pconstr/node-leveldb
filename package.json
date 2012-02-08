@@ -31,7 +31,7 @@
   },
   "devDependencies": {
     "coffee-script": "~1.2.0",
-    "mocha": "~0.10.0"
+    "mocha": "~0.11.0"
   },
   "contributors": [
     "Tim Caswell <tim@creationix.com>",
