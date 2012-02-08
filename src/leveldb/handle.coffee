@@ -167,7 +167,12 @@ class Handle
       callback = options
       options = null
     throw new Error 'Missing callback' unless callback
-    @self.get key, options, callback or noop
+    @self.get key, options, (err, value) =>
+      if callback
+        value = value.toString 'utf8' if value and not options?.as_buffer
+        callback(err, value)
+      else
+        throw err if err
     @
 
 
@@ -179,7 +184,11 @@ class Handle
 
   getSync: (key, options) ->
     key = new Buffer key unless Buffer.isBuffer key
-    @self.get key, options
+    value = @self.get key, options
+    if value and not options?.as_buffer
+      value.toString 'utf8'
+    else
+      value
 
 
   ###

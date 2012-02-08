@@ -93,13 +93,11 @@ class JHandle : public ObjectWrap {
                leveldb::Slice& key,
                Persistent<Value> keyHandle,
                leveldb::ReadOptions &options,
-               bool asBuffer,
                Handle<Function> cb)
       : Params(self, cb),
         key(key),
         keyHandle(keyHandle),
-        options(options),
-        asBuffer(asBuffer) {}
+        options(options) {}
 
     virtual ~ReadParams() {
       if (!keyHandle.IsEmpty()) keyHandle.Dispose();
@@ -108,7 +106,6 @@ class JHandle : public ObjectWrap {
     leveldb::Slice key;
     Persistent<Value> keyHandle;
     leveldb::ReadOptions options;
-    bool asBuffer;
     std::string result;
   };
 

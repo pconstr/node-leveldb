@@ -176,56 +176,29 @@ Handle<Value> JIterator::Prev(const Arguments& args) {
   return Undefined();
 }
 
-static inline bool AsBuffer(const Arguments& args) {
-  if (args.Length() > 1 && args[0]->IsObject()) {
-    Local<Object> obj = args[0]->ToObject();
-
-    static const Persistent<String> kAsBuffer = NODE_PSYMBOL("as_buffer");
-
-    if (obj->Has(kAsBuffer))
-      return obj->Get(kAsBuffer)->ToBoolean()->BooleanValue();
-  }
-
-  return false;
-}
-
 Handle<Value> JIterator::key(const Arguments& args) {
   HandleScope scope;
   JIterator *self = ObjectWrap::Unwrap<JIterator>(args.This());
 
-  bool asBuffer = AsBuffer(args);
-
   leveldb::Slice val;
   if (self->key(val)) return Undefined();
 
-  if (asBuffer) {
-    return scope.Close(ToBuffer(val));
-  } else {
-    return scope.Close(ToString(val));
-  }
+  return scope.Close(ToBuffer(val));
 }
 
 Handle<Value> JIterator::value(const Arguments& args) {
   HandleScope scope;
   JIterator *self = ObjectWrap::Unwrap<JIterator>(args.This());
 
-  bool asBuffer = AsBuffer(args);
-
   leveldb::Slice val;
   if (self->value(val)) return Undefined();
 
-  if (asBuffer) {
-    return scope.Close(ToBuffer(val));
-  } else {
-    return scope.Close(ToString(val));
-  }
+  return scope.Close(ToBuffer(val));
 }
 
 Handle<Value> JIterator::current(const Arguments& args) {
   HandleScope scope;
   JIterator *self = ObjectWrap::Unwrap<JIterator>(args.This());
-
-  bool asBuffer = AsBuffer(args);
 
   leveldb::Slice key;
   leveldb::Slice val;
@@ -234,13 +207,8 @@ Handle<Value> JIterator::current(const Arguments& args) {
 
   Local<Array> pair = Array::New(2);
 
-  if (asBuffer) {
-    pair->Set(0, ToBuffer(key));
-    pair->Set(1, ToBuffer(val));
-  } else {
-    pair->Set(0, ToString(key));
-    pair->Set(1, ToString(val));
-  }
+  pair->Set(0, ToBuffer(key));
+  pair->Set(1, ToBuffer(val));
 
   return scope.Close(pair);
 }

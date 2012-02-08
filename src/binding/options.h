@@ -65,7 +65,7 @@ static void UnpackOptions(Handle<Value> val, leveldb::Options& options) {
   */
 }
 
-static void UnpackReadOptions(Handle<Value> val, leveldb::ReadOptions& options, bool& asBuffer) {
+static void UnpackReadOptions(Handle<Value> val, leveldb::ReadOptions& options) {
   HandleScope scope;
   if (!val->IsObject()) return;
   Local<Object> obj = val->ToObject();
@@ -73,7 +73,6 @@ static void UnpackReadOptions(Handle<Value> val, leveldb::ReadOptions& options, 
   static const Persistent<String> kSnapshot = NODE_PSYMBOL("snapshot");
   static const Persistent<String> kVerifyChecksums = NODE_PSYMBOL("verify_checksums");
   static const Persistent<String> kFillCache = NODE_PSYMBOL("fill_cache");
-  static const Persistent<String> kAsBuffer = NODE_PSYMBOL("as_buffer");
 
   if (obj->Has(kSnapshot)) {
     Handle<Value> ext = obj->Get(kSnapshot);
@@ -87,9 +86,6 @@ static void UnpackReadOptions(Handle<Value> val, leveldb::ReadOptions& options, 
 
   if (obj->Has(kFillCache))
     options.fill_cache = obj->Get(kFillCache)->BooleanValue();
-
-  if (obj->Has(kAsBuffer))
-    asBuffer = obj->Get(kAsBuffer)->ToBoolean()->BooleanValue();
 
 }
 
