@@ -19,7 +19,10 @@ class JHandle;
 class JIterator : ObjectWrap {
  public:
   virtual ~JIterator() {
-    Close();
+    if (it_) {
+      delete it_;
+      it_ = NULL;
+    }
     assert(pthread_mutex_destroy(&lock_) == 0);
   }
 
@@ -37,7 +40,7 @@ class JIterator : ObjectWrap {
 
   static Handle<Value> key(const Arguments& args);
   static Handle<Value> value(const Arguments& args);
-  static Handle<Value> status(const Arguments& args);
+  static Handle<Value> current(const Arguments& args);
 
  private:
   friend class JHandle;
@@ -51,15 +54,109 @@ class JIterator : ObjectWrap {
   JIterator(const JIterator&);
   void operator=(const JIterator&);
 
-  inline void Close() {
-    if (it_) {
-      delete it_;
-      it_ = NULL;
-    }
+  inline void Lock() {
+    pthread_mutex_lock(&lock_);
+  }
+
+  inline void Unlock() {
+    pthread_mutex_unlock(&lock_);
   }
 
   inline bool Valid() {
-    return it_ != NULL;
+    Lock();
+    bool ok = it_ != NULL && it_->Valid();
+    Unlock();
+    return ok;
+  }
+
+  inline bool Seek(leveldb::Slice& key, leveldb::Status& status) {
+    Lock();
+    bool ok = it_ != NULL;
+    if (ok) {
+      it_->Seek(key);
+      status = it_->status();
+    }
+    Unlock();
+    return !ok;
+  }
+
+  inline bool First(leveldb::Status& status) {
+    Lock();
+    bool ok = it_ != NULL;
+    if (ok) {
+      it_->SeekToFirst();
+      status = it_->status();
+    }
+    Unlock();
+    return !ok;
+  }
+
+  inline bool Last(leveldb::Status& status) {
+    Lock();
+    bool ok = it_ != NULL;
+    if (ok) {
+      it_->SeekToLast();
+      status = it_->status();
+    }
+    Unlock();
+    return !ok;
+  }
+
+  inline bool Next(leveldb::Status& status) {
+    Lock();
+    bool ok = it_ != NULL && it_->Valid();
+    if (ok) {
+      it_->Next();
+      status = it_->status();
+    }
+    Unlock();
+    return !ok;
+  }
+
+  inline bool Prev(leveldb::Status& status) {
+    Lock();
+    bool ok = it_ != NULL && it_->Valid();
+    if (ok) {
+      it_->Prev();
+      status = it_->status();
+    }
+    Unlock();
+    return !ok;
+  }
+
+  inline bool key(leveldb::Slice& key) {
+    Lock();
+    bool ok = it_ != NULL && it_->Valid();
+    if (ok) key = it_->key();
+    Unlock();
+    return !ok;
+  }
+
+  inline bool value(leveldb::Slice& val) {
+    Lock();
+    bool ok = it_ != NULL && it_->Valid();
+    if (ok) val = it_->value();
+    Unlock();
+    return !ok;
+  }
+
+  inline bool current(leveldb::Slice& key, leveldb::Slice& val) {
+    Lock();
+    bool ok = it_ != NULL && it_->Valid();
+    if (ok) {
+      key = it_->key();
+      val = it_->value();
+    }
+    Unlock();
+    return !ok;
+  }
+
+  inline bool status(leveldb::Status& status) {
+    Lock();
+    bool ok = it_ != NULL;
+    if (ok) status = it_->status();
+    Unlock();
+    return !ok;
   }
 
   struct Params {
@@ -75,6 +172,8 @@ class JIterator : ObjectWrap {
 
     JIterator* self;
     Persistent<Function> callback;
+    leveldb::Status status;
+    bool error;
   };
 
   struct SeekParams : Params {

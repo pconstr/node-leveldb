@@ -83,21 +83,8 @@ class Handle
   batch: ->
     new Batch @self
 
-  iterator: (options, callback) ->
-    if typeof options is 'function'
-      callback = options
-      options = null
-
-    if callback
-      it = new Iterator @self.iterator options
-      it.first (err) -> callback err, it
-
-    @
-
-  iteratorSync: (options) ->
-    it = new Iterator @self.iterator options
-    it.firstSync()
-    it
+  iterator: (options) ->
+    new Iterator @self.iterator options
 
   snapshot: (options) ->
     new Snapshot @, @self.snapshot options

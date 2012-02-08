@@ -29,7 +29,12 @@ void JIterator::Initialize(Handle<Object> target) {
   NODE_SET_PROTOTYPE_METHOD(constructor, "prev", Prev);
   NODE_SET_PROTOTYPE_METHOD(constructor, "key", key);
   NODE_SET_PROTOTYPE_METHOD(constructor, "value", value);
-  NODE_SET_PROTOTYPE_METHOD(constructor, "status", status);
+  NODE_SET_PROTOTYPE_METHOD(constructor, "current", current);
+}
+
+static inline Handle<Value> ToJS(leveldb::Status& status) {
+  if (!status.ok()) return String::New(status.ToString().c_str());
+  return Undefined();
 }
 
 Handle<Value> JIterator::New(const Arguments& args) {
@@ -51,17 +56,12 @@ Handle<Value> JIterator::New(const Arguments& args) {
 Handle<Value> JIterator::Valid(const Arguments& args) {
   HandleScope scope;
   JIterator* self = ObjectWrap::Unwrap<JIterator>(args.This());
-  pthread_mutex_lock(&self->lock_);
-  Handle<Value> result = self->Valid() && self->it_->Valid() ? True() : False();
-  pthread_mutex_unlock(&self->lock_);
-  return result;
+  return self->Valid() ? True() : False();
 }
 
 Handle<Value> JIterator::Seek(const Arguments& args) {
   HandleScope scope;
   JIterator* self = ObjectWrap::Unwrap<JIterator>(args.This());
-
-  if (!self->Valid()) return ThrowError("Handle closed");
 
   if (args.Length() < 1 || !Buffer::HasInstance(args[0]))
     return ThrowTypeError("Invalid arguments");
@@ -72,9 +72,12 @@ Handle<Value> JIterator::Seek(const Arguments& args) {
   Local<Function> callback = GetCallback(args);
 
   if (callback.IsEmpty()) {
-    pthread_mutex_lock(&self->lock_);
-    self->it_->Seek(key);
-    pthread_mutex_unlock(&self->lock_);
+    leveldb::Status status;
+    if (self->Seek(key, status)) {
+      return ThrowError("Illegal state");
+    } else {
+      return ToJS(status);
+    }
   } else {
     SeekParams *data = new SeekParams(
       self, key, Persistent<Value>::New(args[0]), callback);
@@ -89,15 +92,16 @@ Handle<Value> JIterator::First(const Arguments& args) {
 
   JIterator* self = ObjectWrap::Unwrap<JIterator>(args.This());
 
-  if (!self->Valid()) return ThrowError("Handle closed");
-
   // Optional callback
   Local<Function> callback = GetCallback(args);
 
   if (callback.IsEmpty()) {
-    pthread_mutex_lock(&self->lock_);
-    self->it_->SeekToFirst();
-    pthread_mutex_unlock(&self->lock_);
+    leveldb::Status status;
+    if (self->First(status)) {
+      return ThrowError("Illegal state");
+    } else {
+      return ToJS(status);
+    }
   } else {
     Params *data = new Params(self, callback);
     BEGIN_ASYNC(data, First, After);
@@ -110,15 +114,16 @@ Handle<Value> JIterator::Last(const Arguments& args) {
   HandleScope scope;
   JIterator* self = ObjectWrap::Unwrap<JIterator>(args.This());
 
-  if (!self->Valid()) return ThrowError("Handle closed");
-
   // Optional callback
   Local<Function> callback = GetCallback(args);
 
   if (callback.IsEmpty()) {
-    pthread_mutex_lock(&self->lock_);
-    self->it_->SeekToLast();
-    pthread_mutex_unlock(&self->lock_);
+    leveldb::Status status;
+    if (self->Last(status)) {
+      return ThrowError("Illegal state");
+    } else {
+      return ToJS(status);
+    }
   } else {
     Params *data = new Params(self, callback);
     BEGIN_ASYNC(data, Last, After);
@@ -131,16 +136,16 @@ Handle<Value> JIterator::Next(const Arguments& args) {
   HandleScope scope;
   JIterator* self = ObjectWrap::Unwrap<JIterator>(args.This());
 
-  if (!self->Valid()) return ThrowError("Handle closed");
-  if (!self->it_->Valid()) return ThrowError("Illegal state");
-
   // Optional callback
   Local<Function> callback = GetCallback(args);
 
   if (callback.IsEmpty()) {
-    pthread_mutex_lock(&self->lock_);
-    self->it_->Next();
-    pthread_mutex_unlock(&self->lock_);
+    leveldb::Status status;
+    if (self->Next(status)) {
+      return ThrowError("Illegal state");
+    } else {
+      return ToJS(status);
+    }
   } else {
     Params *data = new Params(self, callback);
     BEGIN_ASYNC(data, Next, After);
@@ -153,16 +158,16 @@ Handle<Value> JIterator::Prev(const Arguments& args) {
   HandleScope scope;
   JIterator *self = ObjectWrap::Unwrap<JIterator>(args.This());
 
-  if (!self->Valid()) return ThrowError("Handle closed");
-  if (!self->it_->Valid()) return ThrowError("Illegal state");
-
   // Optional callback
   Local<Function> callback = GetCallback(args);
 
   if (callback.IsEmpty()) {
-    pthread_mutex_lock(&self->lock_);
-    self->it_->Prev();
-    pthread_mutex_unlock(&self->lock_);
+    leveldb::Status status;
+    if (self->Prev(status)) {
+      return ThrowError("Illegal state");
+    } else {
+      return ToJS(status);
+    }
   } else {
     Params *data = new Params(self, callback);
     BEGIN_ASYNC(data, Prev, After);
@@ -184,35 +189,14 @@ static inline bool AsBuffer(const Arguments& args) {
   return false;
 }
 
-Handle<Value> JIterator::status(const Arguments& args) {
-  HandleScope scope;
-  JIterator *self = ObjectWrap::Unwrap<JIterator>(args.This());
-
-  if (!self->Valid()) return ThrowError("Handle closed");
-
-  pthread_mutex_lock(&self->lock_);
-  leveldb::Status status = self->it_->status();
-  pthread_mutex_unlock(&self->lock_);
-
-  static const Persistent<String> kOK = NODE_PSYMBOL("OK");
-
-  if (status.ok()) return kOK;
-
-  Local<String> message = String::New(status.ToString().c_str());
-  return scope.Close(Exception::Error(message));
-}
-
 Handle<Value> JIterator::key(const Arguments& args) {
   HandleScope scope;
   JIterator *self = ObjectWrap::Unwrap<JIterator>(args.This());
 
-  if (!self->Valid()) return ThrowError("Handle closed");
-
   bool asBuffer = AsBuffer(args);
 
-  pthread_mutex_lock(&self->lock_);
-  leveldb::Slice val = self->it_->key();
-  pthread_mutex_unlock(&self->lock_);
+  leveldb::Slice val;
+  if (self->key(val)) return Undefined();
 
   if (asBuffer) {
     return scope.Close(ToBuffer(val));
@@ -225,19 +209,40 @@ Handle<Value> JIterator::value(const Arguments& args) {
   HandleScope scope;
   JIterator *self = ObjectWrap::Unwrap<JIterator>(args.This());
 
-  if (!self->Valid()) return ThrowError("Handle closed");
-
   bool asBuffer = AsBuffer(args);
 
-  pthread_mutex_lock(&self->lock_);
-  leveldb::Slice val = self->it_->value();
-  pthread_mutex_unlock(&self->lock_);
+  leveldb::Slice val;
+  if (self->value(val)) return Undefined();
 
   if (asBuffer) {
     return scope.Close(ToBuffer(val));
   } else {
     return scope.Close(ToString(val));
   }
+}
+
+Handle<Value> JIterator::current(const Arguments& args) {
+  HandleScope scope;
+  JIterator *self = ObjectWrap::Unwrap<JIterator>(args.This());
+
+  bool asBuffer = AsBuffer(args);
+
+  leveldb::Slice key;
+  leveldb::Slice val;
+
+  if (self->current(key, val)) return Undefined();
+
+  Local<Array> pair = Array::New(2);
+
+  if (asBuffer) {
+    pair->Set(0, ToBuffer(key));
+    pair->Set(1, ToBuffer(val));
+  } else {
+    pair->Set(0, ToString(key));
+    pair->Set(1, ToString(val));
+  }
+
+  return scope.Close(pair);
 }
 
 
@@ -247,50 +252,53 @@ Handle<Value> JIterator::value(const Arguments& args) {
 
 async_rtn JIterator::After(uv_work_t* req) {
   Params *data = (Params*) req->data;
-  pthread_mutex_lock(&data->self->lock_);
-  data->callback->Call(data->self->handle_, 0, NULL);
-  pthread_mutex_unlock(&data->self->lock_);
+
+  TryCatch try_catch;
+
+  if (data->error) {
+    Handle<Value> argv[] = { Exception::Error(String::New("Illegal state")) };
+    data->callback->Call(data->self->handle_, 1, argv);
+  } else if (!data->status.ok()) {
+    Local<String> msg = String::New(data->status.ToString().c_str());
+    Handle<Value> argv[] = { Exception::Error(msg) };
+    data->callback->Call(data->self->handle_, 1, argv);
+  } else {
+    data->callback->Call(data->self->handle_, 0, NULL);
+  }
+
+  if (try_catch.HasCaught()) FatalException(try_catch);
+
   delete data;
   RETURN_ASYNC_AFTER;
 }
 
 async_rtn JIterator::Seek(uv_work_t* req) {
   SeekParams *data = (SeekParams*) req->data;
-  pthread_mutex_lock(&data->self->lock_);
-  data->self->it_->Seek(data->key);
-  pthread_mutex_unlock(&data->self->lock_);
+  data->error = data->self->Seek(data->key, data->status);
   RETURN_ASYNC;
 }
 
 async_rtn JIterator::First(uv_work_t* req) {
   Params *data = (Params*) req->data;
-  pthread_mutex_lock(&data->self->lock_);
-  data->self->it_->SeekToFirst();
-  pthread_mutex_unlock(&data->self->lock_);
+  data->error = data->self->First(data->status);
   RETURN_ASYNC;
 }
 
 async_rtn JIterator::Last(uv_work_t* req) {
   Params *data = (Params*) req->data;
-  pthread_mutex_lock(&data->self->lock_);
-  data->self->it_->SeekToLast();
-  pthread_mutex_unlock(&data->self->lock_);
+  data->error = data->self->Last(data->status);
   RETURN_ASYNC;
 }
 
 async_rtn JIterator::Next(uv_work_t* req) {
   Params *data = (Params*) req->data;
-  pthread_mutex_lock(&data->self->lock_);
-  data->self->it_->Next();
-  pthread_mutex_unlock(&data->self->lock_);
+  data->error = data->self->Next(data->status);
   RETURN_ASYNC;
 }
 
 async_rtn JIterator::Prev(uv_work_t* req) {
   Params *data = (Params*) req->data;
-  pthread_mutex_lock(&data->self->lock_);
-  data->self->it_->Prev();
-  pthread_mutex_unlock(&data->self->lock_);
+  data->error = data->self->Prev(data->status);
   RETURN_ASYNC;
 }
 

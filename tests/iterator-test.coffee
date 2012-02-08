@@ -19,7 +19,7 @@ describe 'iterator', ->
   it 'should insert batch data', (done) ->
     batch = new leveldb.Batch
     batch.put "#{i}", value for i in [100..200]
-    db.write batch, done
+    db.write batch, sync: true, done
 
   it 'should open database', (done) ->
     leveldb.open filename, (err, handle) ->
@@ -27,11 +27,11 @@ describe 'iterator', ->
       db = handle
       done()
 
-  it 'should get an iterator', (done) ->
-    db.iterator (err, it) ->
-      assert.ifError err
-      assert iterator = it
-      done()
+  it 'should get an iterator', ->
+    iterator = db.iterator()
+
+  it 'should seek to first', (done) ->
+    iterator.first done
 
   it 'should get values', (done) ->
     testNext = (i) ->
@@ -91,10 +91,13 @@ describe 'iterator (sync)', ->
   it 'should insert batch data', ->
     batch = new leveldb.Batch
     batch.put "#{i}", value for i in [100..200]
-    db.write batch
+    db.writeSync batch, sync: true
 
   it 'should get an iterator', ->
-    assert iterator = db.iteratorSync()
+    assert iterator = db.iterator()
+
+  it 'should seek to first', ->
+    iterator.firstSync()
 
   it 'should get values', ->
     for i in [100..200]
