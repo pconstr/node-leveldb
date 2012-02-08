@@ -96,8 +96,8 @@ exports.Batch = class Batch
 
       @param {Object} [options] Optional options. See also the
         `leveldb/options.h` header file.
-        @param {Boolean} [options.sync] Set to truthy value to flush write
-          to disk before returning.
+        @param {Boolean} [options.sync=false] Set to truthy value to flush
+          write to disk before returning.
       @param {Function} [callback] Optional callback.
 
   ###
