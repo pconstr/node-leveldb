@@ -9,11 +9,11 @@
   "version": "0.5.5",
   "main": "lib",
   "scripts": {
-    "prepublish": "cake build",
-    "preinstall": "cake build",
-    "install": "cake build",
-    "pretest": "cake build && mkdir -p tmp",
-    "test": "find tests -name '*-test.*' -print0 | xargs -0 mocha -R spec",
+    "prepublish": "./node_modules/coffee-script/bin/cake build",
+    "preinstall": "node-waf configure build",
+    "install": "./node_modules/coffee-script/bin/cake build",
+    "pretest": "./node_modules/coffee-script/bin/cake build && mkdir -p tmp",
+    "test": "find tests -name '*-test.*' -print0 | xargs -0 ./node_modules/mocha/bin/mocha -R spec",
     "posttest": "rm -rf tmp"
   },
   "repository": {
@@ -31,7 +31,7 @@
     "coffee-script": "~1.2.0"
   },
   "devDependencies": {
-    "twisted-deferred": "0.2.x",
+    "coffee-script": "~1.2.0",
     "mocha": "~0.10.0"
   },
   "contributors": [
