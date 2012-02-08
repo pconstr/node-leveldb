@@ -41,7 +41,6 @@ void JHandle::Initialize(Handle<Object> target) {
   constructor->SetClassName(String::NewSymbol("Handle"));
 
   // Instance methods
-  NODE_SET_PROTOTYPE_METHOD(constructor, "valid", Valid);
   NODE_SET_PROTOTYPE_METHOD(constructor, "get", Get);
   NODE_SET_PROTOTYPE_METHOD(constructor, "write", Write);
   NODE_SET_PROTOTYPE_METHOD(constructor, "iterator", Iterator);
@@ -106,12 +105,6 @@ Handle<Value> JHandle::Open(const Arguments& args) {
     BEGIN_ASYNC(params, Open, OpenAfter);
     return Undefined();
   }
-}
-
-Handle<Value> JHandle::Valid(const Arguments& args) {
-  HandleScope scope;
-  JHandle* self = ObjectWrap::Unwrap<JHandle>(args.This());
-  return self->db_ != NULL ? True() : False();
 }
 
 Handle<Value> JHandle::Get(const Arguments& args) {

@@ -21,9 +21,6 @@ describe 'snapshot', ->
   it 'should create a snapshot', ->
     snapshot = db.snapshot()
 
-  it 'should be valid', ->
-    assert snapshot.valid()
-
   it 'should put key/value pair', ->
     db.putSync key, val, sync: true
 

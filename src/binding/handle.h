@@ -27,7 +27,6 @@ class JHandle : public ObjectWrap {
   static Handle<Value> New(const Arguments& args);
 
   static Handle<Value> Open(const Arguments& args);
-  static Handle<Value> Valid(const Arguments& args);
 
   static Handle<Value> Get(const Arguments& args);
   static Handle<Value> Write(const Arguments& args);
