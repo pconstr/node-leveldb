@@ -46,13 +46,20 @@ noop = (err) -> throw err if err
 ###
 
 exports.open = (path, options, callback) ->
+
+  # optional options
   if typeof options is 'function'
     callback = options
     options = null
+
+  # required callback
   throw new Error 'Missing callback' unless callback
+
+  # call native binding
   binding.open path, options, (err, self) ->
-    return callback err if err
-    callback null, new Handle self
+
+    # create wrapper object
+    callback err, self and new Handle self
 
 
 ###
@@ -62,7 +69,12 @@ exports.open = (path, options, callback) ->
 ###
 
 exports.openSync = (path, options) ->
-  new Handle binding.open path, options
+
+  # call native binding
+  self = binding.open path, options
+
+  # create wraper object
+  new Handle self
 
 
 ###
@@ -77,9 +89,13 @@ exports.openSync = (path, options) ->
 ###
 
 exports.destroy = (path, options, callback) ->
+
+  # optional options
   if typeof options is 'function'
     callback = options
     options = null
+
+  # call native binding
   binding.destroy path, options, callback or noop
 
 
@@ -90,6 +106,8 @@ exports.destroy = (path, options, callback) ->
 ###
 
 exports.destroySync = (path, options) ->
+
+  # call native binding
   binding.destroy path, options
 
 
@@ -105,9 +123,13 @@ exports.destroySync = (path, options) ->
 ###
 
 exports.repair = (path, options, callback) ->
+
+  # optional options
   if typeof options is 'function'
     callback = options
     options = null
+
+  # call native binding
   binding.repair path, options, callback or noop
 
 
@@ -118,6 +140,8 @@ exports.repair = (path, options, callback) ->
 ###
 
 exports.repairSync = (path, options) ->
+
+  # call native binding
   binding.repair path, options
 
 
