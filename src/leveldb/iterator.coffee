@@ -12,25 +12,23 @@ exports.Iterator = class Iterator
 
   seek: (key, callback) ->
     key = new Buffer key unless Buffer.isBuffer key
-    @self.seek key, if callback then (err) => callback err else noop
+    @self.seek key, callback or noop
 
   seekSync: (key) ->
     key = new Buffer key unless Buffer.isBuffer key
     @self.seek key
 
   first: (callback) ->
-    @self.first if callback then (err) => callback err else noop
+    @self.first callback or noop
 
   firstSync: ->
     @self.first()
-    @
 
   last: (callback) ->
-    @self.last if callback then (err) => callback err else noop
+    @self.last callback or noop
 
   lastSync: ->
     @self.last()
-    @
 
   next: (options, callback) ->
     if typeof options is 'function'
@@ -54,8 +52,7 @@ exports.Iterator = class Iterator
       options = null
 
     if callback
-      key = @self.key options
-      val = @self.value options
+      [ key, val ] = @self.current options
       @self.prev (err) => callback err, key, val
     else
       @self.prev noop
