@@ -35,10 +35,11 @@ describe 'iterator', ->
 
   it 'should get values', (done) ->
     testNext = (i) ->
-      iterator.next (err, key, val) ->
+      [key, val] = iterator.current()
+      assert.equal "#{i}", key
+      assert.equal value, val
+      iterator.next (err) ->
         assert.ifError err
-        assert.equal "#{i}", key
-        assert.equal value, val
         if ++i <= 200
           testNext i
         else
@@ -60,10 +61,11 @@ describe 'iterator', ->
 
   it 'should get values in reverse', (done) ->
     testNext = (i) ->
-      iterator.prev (err, key, val) ->
+      [key, val] = iterator.current()
+      assert.equal "#{i}", key
+      assert.equal value, val
+      iterator.prev (err) ->
         assert.ifError err
-        assert.equal "#{i}", key
-        assert.equal value, val
         if --i >= 100
           testNext i
         else
@@ -101,9 +103,10 @@ describe 'iterator (sync)', ->
 
   it 'should get values', ->
     for i in [100..200]
-      [key, val] = iterator.nextSync()
+      [key, val] = iterator.current()
       assert.equal "#{i}", key
       assert.equal value, val
+      iterator.nextSync()
 
   it 'should not be valid', ->
     assert.ifError iterator.valid()
@@ -119,9 +122,10 @@ describe 'iterator (sync)', ->
 
   it 'should get values in reverse', ->
     for i in [200..100]
-      [key, val] = iterator.prevSync()
+      [key, val] = iterator.current()
       assert.equal "#{i}", key
       assert.equal value, val
+      iterator.prevSync()
 
   it 'should not be valid', ->
     assert.ifError iterator.valid()
