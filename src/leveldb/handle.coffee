@@ -207,7 +207,7 @@ class Handle
       else
         throw err if err
 
-    @
+    @ # return this for chaining
 
 
   ###
@@ -245,7 +245,7 @@ class Handle
 
   put: (key, val, options, callback) ->
     @batch().put(key, val).write options, callback
-    @
+    @ # return this for chaining
 
 
   ###
@@ -256,7 +256,7 @@ class Handle
 
   putSync: (key, val, options) ->
     @batch().put(key, val).writeSync options
-    @
+    @ # return this for chaining
 
 
   ###
@@ -272,7 +272,7 @@ class Handle
 
   del: (key, options, callback) ->
     @batch().del(key).write options, callback
-    @
+    @ # return this for chaining
 
 
   ###
@@ -283,7 +283,7 @@ class Handle
 
   delSync: (key, options) ->
     @batch().del(key).writeSync options
-    @
+    @ # return this for chaining
 
 
   ###
@@ -311,7 +311,8 @@ class Handle
 
     # call native binding
     @self.write batch.self, options, callback or noop
-    @
+
+    @ # return this for chaining
 
 
   ###
@@ -322,7 +323,7 @@ class Handle
 
   writeSync: (batch, options) ->
     @self.write batch.self, options
-    @
+    @ # return this for chaining
 
 
   ###
@@ -400,13 +401,24 @@ class Handle
   ###
 
   approximateSizes: ->
+
+    # variable args
     args = Array.prototype.slice.call arguments
+
+    # required callback
     callback =
       if typeof args[args.length - 1] is 'function'
         args.pop()
       else
-        noop
-    @self.approximateSizes unpackSlices(args), callback
+        throw new Error 'Missing callback' unless callback
+
+    # flatten args
+    args = unpackSlices args
+
+    # call native binding
+    @self.approximateSizes args, callback
+
+    @ # return this for chaining
 
 
 
@@ -418,7 +430,12 @@ class Handle
   ###
 
   approximateSizesSync: ->
-    @self.approximateSizes unpackSlices arguments
+
+    # flatten args
+    args = unpackSlices arguments
+
+    # call native binding
+    @self.approximateSizes args
 
 
   # helper function for approximateSizes()
@@ -504,6 +521,8 @@ class Snapshot
 
     # call handle get
     @self.get key, options, callback
+
+    @ # return this for chaining
 
 
   ###
