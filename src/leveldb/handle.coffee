@@ -36,10 +36,7 @@ exports.repairSync = (path, options) ->
 
 class Handle
 
-  constructor: (@self) ->
 
-  valid: ->
-    @self.valid()
 
   get: (key, options, callback) ->
     key = new Buffer key unless Buffer.isBuffer key
@@ -129,6 +126,3 @@ class Snapshot
   getSync: (key, options = {}) ->
     options.snapshot = @snapshot
     @self.get key, options
-
-  valid: ->
-    @self.valid()
