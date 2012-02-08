@@ -86,19 +86,31 @@ describe 'db', ->
         done()
 
     it 'should get approximate sizes (sync)', ->
-      assert 0 < db.approximateSizesSync '100', '200'
-      assert 0 < db.approximateSizesSync [[ '100', '150' ], [ '150', '200' ]]
+      sizes1 = db.approximateSizesSync '100', '200'
+      sizes2 = db.approximateSizesSync [[ '100', '150' ], [ '150', '200' ]]
+      assert Array.isArray sizes1
+      assert Array.isArray sizes2
+      assert.equal 1, sizes1.length
+      assert.equal 2, sizes2.length
+      assert.equal 'number', typeof sizes1[0]
+      assert.equal 'number', typeof sizes2[0]
+      assert.equal 'number', typeof sizes2[1]
 
     it 'should get approximate sizes (async)', (done) ->
-      db.approximateSizes '100', '200', (err, size) ->
+      db.approximateSizes '100', '200', (err, sizes) ->
         assert.ifError err
-        assert 0 < size
+        assert Array.isArray sizes
+        assert.equal 1, sizes.length
+        assert.equal 'number', typeof sizes[0]
         done()
 
     it 'should get approximate sizes (async)', (done) ->
-      db.approximateSizes [[ '100', '150' ], [ '150', '200' ]], (err, size) ->
+      db.approximateSizes [[ '100', '150' ], [ '150', '200' ]], (err, sizes) ->
         assert.ifError err
-        assert 0 < size
+        assert Array.isArray sizes
+        assert.equal 2, sizes.length
+        assert.equal 'number', typeof sizes[0]
+        assert.equal 'number', typeof sizes[1]
         done()
 
     it 'should close database', (done) ->
