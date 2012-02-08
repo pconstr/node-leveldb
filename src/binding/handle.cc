@@ -481,7 +481,9 @@ async_rtn JHandle::After(uv_work_t* req) {
 
 async_rtn JHandle::Write(uv_work_t* req) {
   WriteParams *params = (WriteParams*) req->data;
+  params->batch->Lock();
   params->status = params->self->db_->Write(params->options, &params->batch->wb_);
+  params->batch->Unlock();
   RETURN_ASYNC;
 }
 

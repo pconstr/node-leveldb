@@ -48,7 +48,7 @@ Handle<Value> JBatch::Put(const Arguments& args) {
   leveldb::Slice key = ToSlice(args[0], self->buffers_);
   leveldb::Slice val = ToSlice(args[1], self->buffers_);
 
-  self->wb_.Put(key, val);
+  self->Put(key, val);
 
   return args.This();
 }
@@ -60,9 +60,10 @@ Handle<Value> JBatch::Del(const Arguments& args) {
     return ThrowTypeError("Invalid arguments");
 
   JBatch* self = ObjectWrap::Unwrap<JBatch>(args.This());
+
   leveldb::Slice key = ToSlice(args[0], self->buffers_);
 
-  self->wb_.Delete(key);
+  self->Del(key);
 
   return args.This();
 }
