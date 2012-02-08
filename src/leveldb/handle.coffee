@@ -8,7 +8,7 @@ exports.open = (path, options, callback) ->
   if typeof options is 'function'
     callback = options
     options = null
-  callback ?= noop
+  throw new Error 'Missing callback' unless callback
   binding.open path, options, (err, self) ->
     return callback err if err
     callback null, new Handle self
@@ -43,6 +43,7 @@ class Handle
     if typeof options is 'function'
       callback = options
       options = null
+    throw new Error 'Missing callback' unless callback
     @self.get key, options, callback or noop
     @
 
@@ -80,11 +81,12 @@ class Handle
   batch: ->
     new Batch @self
 
-  iterator: (options) ->
-    new Iterator @self.iterator options
 
-  snapshot: (options) ->
-    new Snapshot @, @self.snapshot options
+  iterator: ->
+    new Iterator @self.iterator()
+
+  snapshot: ->
+    new Snapshot @, @self.snapshot()
 
   property: (name) ->
     @self.property(name)
