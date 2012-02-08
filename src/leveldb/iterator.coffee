@@ -9,49 +9,51 @@ exports.Iterator = class Iterator
   valid: ->
     @self.valid()
 
-  seek: (key, callback) ->
+  seek: (key, callback = noop) ->
     key = new Buffer key unless Buffer.isBuffer key
-    @self.seek key, callback or noop
+    @self.seek key, callback
 
   seekSync: (key) ->
     key = new Buffer key unless Buffer.isBuffer key
     @self.seek key
 
-  first: (callback) ->
-    @self.first callback or noop
+  first: (callback = noop) ->
+    @self.first callback
 
   firstSync: ->
     @self.first()
 
-  last: (callback) ->
-    @self.last callback or noop
+  last: (callback = noop) ->
+    @self.last callback
 
   lastSync: ->
     @self.last()
 
-  next: (options, callback) ->
-    if typeof options is 'function'
-      callback = options
-      options = null
-    @self.next callback or noop
+  next: (callback = noop) ->
+    @self.next callback
 
   nextSync: ->
     @self.next()
 
-  prev: (callback) ->
-    if typeof options is 'function'
-      callback = options
-      options = null
-    @self.prev callback or noop
+  prev: (callback = noop) ->
+    @self.prev callback
 
   prevSync: ->
     @self.prev()
 
   key: (options) ->
-    @self.key options
+    key = @self.key options
+    key = key.toString 'utf8' unless options.as_buffer
+    key
 
   value: (options) ->
-    @self.value options
+    val = @self.value options
+    val = val.toString 'utf8' unless options.as_buffer
+    val
 
-  current: (options) ->
-    @self.current()
+  current: (options = {}) ->
+    [ key, val ] = @self.current()
+    val = val.toString 'utf8' unless options.as_buffer
+    key = key.toString 'utf8' unless options.as_buffer
+    [ key, val ]
+
