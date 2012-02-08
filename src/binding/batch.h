@@ -43,27 +43,31 @@ class JBatch : ObjectWrap {
   }
 
   inline void Lock() {
-    pthread_mutex_lock(&lock_);
+    assert(pthread_mutex_lock(&lock_) == 0);
+  }
+
+  inline void TryLock() {
+    assert(pthread_mutex_trylock(&lock_) == 0);
   }
 
   inline void Unlock() {
-    pthread_mutex_unlock(&lock_);
+    assert(pthread_mutex_unlock(&lock_) == 0);
   }
 
   inline void Put(leveldb::Slice& key, leveldb::Slice& val) {
-    Lock();
+    TryLock();
     wb_.Put(key, val);
     Unlock();
   }
 
   inline void Del(leveldb::Slice& key) {
-    Lock();
+    TryLock();
     wb_.Delete(key);
     Unlock();
   }
 
   inline void Clear() {
-    Lock();
+    TryLock();
     std::vector< Persistent<Value> >::iterator it;
     for (it = buffers_.begin(); it < buffers_.end(); ++it) it->Dispose();
     buffers_.clear();
