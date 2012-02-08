@@ -34,33 +34,19 @@ exports.Iterator = class Iterator
     if typeof options is 'function'
       callback = options
       options = null
-
-    if callback
-      [ key, val ] = @self.current options
-      @self.next (err) => callback err, key, val
-    else
-      @self.next noop
+    @self.next callback or noop
 
   nextSync: ->
-    current = @current()
     @self.next()
-    current
 
   prev: (callback) ->
     if typeof options is 'function'
       callback = options
       options = null
-
-    if callback
-      [ key, val ] = @self.current options
-      @self.prev (err) => callback err, key, val
-    else
-      @self.prev noop
+    @self.prev callback or noop
 
   prevSync: ->
-    current = @current()
     @self.prev()
-    current
 
   key: (options) ->
     @self.key options
