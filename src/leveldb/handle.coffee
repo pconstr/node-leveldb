@@ -90,11 +90,21 @@ class Handle
     @self.property(name)
 
   unpackSlices = (args) ->
-    bounds = if Array.isArray args[0] then args[0] else [args]
+    bounds =
+      if Array.isArray args[0]
+        if Array.isArray args[1]
+          Array.prototype.slice.call args
+        else
+          args[0]
+      else
+        [args]
+
     slices = []
+
     for [ key, val ] in bounds when key and val
       slices.push if Buffer.isBuffer key then key else new Buffer key
       slices.push if Buffer.isBuffer val then val else new Buffer val
+
     slices
 
   approximateSizes: ->
