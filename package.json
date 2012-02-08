@@ -9,11 +9,11 @@
   "version": "0.5.0",
   "main": "lib",
   "scripts": {
-    "prepublish": "cake build",
-    "preinstall": "cake build",
-    "install": "cake build",
-    "pretest": "cake build && mkdir -p tmp",
-    "test": "find tests -name '*-test.*' -print0 | xargs -0 mocha -R spec",
+    "prepublish": "./node_modules/coffee-script/bin/cake build",
+    "preinstall": "node-waf configure build",
+    "install": "./node_modules/coffee-script/bin/cake build",
+    "pretest": "./node_modules/coffee-script/bin/cake build && mkdir -p tmp",
+    "test": "find tests -name '*-test.*' -print0 | xargs -0 ./node_modules/mocha/bin/mocha -R spec",
     "posttest": "rm -rf tmp"
   },
   "repository": {
@@ -31,8 +31,7 @@
   },
   "devDependencies": {
     "coffee-script": "~1.2.0",
-    "mocha": "~0.10.0",
-    "nodeunit": ">=0.5.5"
+    "mocha": "~0.10.0"
   },
   "contributors": [
     "Michael Phan-Ba <michael@mikepb.com>",
