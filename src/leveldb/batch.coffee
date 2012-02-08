@@ -92,10 +92,7 @@ exports.Batch = class Batch
 
   ###
 
-      Commit the batch operations to disk.
-
-      @param {Object} [options] Optional options. See `Handle.write()`.
-      @param {Function} [callback] Optional callback.
+      Commit the batch operations to disk. See `Handle.write()`.
 
   ###
 
