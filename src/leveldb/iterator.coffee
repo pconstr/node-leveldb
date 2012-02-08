@@ -2,8 +2,7 @@ binding = require '../../build/leveldb.node'
 
 exports.Iterator = class Iterator
 
-  noop = (err) ->
-    throw err if err
+  noop = (err) -> throw err if err
 
   constructor: (@self) ->
 

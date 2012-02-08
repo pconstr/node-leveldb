@@ -44,8 +44,6 @@ binding = require '../../build/leveldb.node'
 
 exports.Batch = class Batch
 
-  noop = ->
-
 
   ###
 
@@ -104,8 +102,11 @@ exports.Batch = class Batch
       options = null
 
     @handle.write @self, options, (err) =>
-      @self.clear()
-      callback? err
+      @self.clear() unless err
+      if callback
+        callback err
+      else if err
+        throw err
     @
 
 
