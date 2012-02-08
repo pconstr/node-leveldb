@@ -190,13 +190,9 @@ Handle<Value> JHandle::Write(const Arguments& args) {
 void JHandle::UnrefIterator(Persistent<Value> object, void* parameter) {
   assert(object->IsObject());
 
-  JIterator* it = ObjectWrap::Unwrap<JIterator>(object->ToObject());
   JHandle* self = (JHandle*)parameter;
-
-  assert(it);
   assert(self);
 
-  it->Close();
   self->Unref();
   object.Dispose();
 }
