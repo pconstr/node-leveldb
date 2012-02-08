@@ -118,15 +118,13 @@ Handle<Value> JHandle::Get(const Arguments& args) {
   if (argc < 1 || !Buffer::HasInstance(args[0]))
     return ThrowTypeError("Invalid arguments");
 
-  bool asBuffer = false;
-
   // Key
   Persistent<Value> keyHandle;
   leveldb::Slice key = ToSlice(args[0], keyHandle);
 
   // Optional read options
   leveldb::ReadOptions options;
-  if (argc > 1) UnpackReadOptions(args[1], options, asBuffer);
+  if (argc > 1) UnpackReadOptions(args[1], options);
 
   // Optional callback
   Local<Function> callback = GetCallback(args);
@@ -136,13 +134,9 @@ Handle<Value> JHandle::Get(const Arguments& args) {
     if (!keyHandle.IsEmpty()) keyHandle.Dispose();
     leveldb::Status status = self->db_->Get(options, key, &result);
     if (!status.ok()) return Error(status);
-    if (asBuffer) {
-      return scope.Close(ToBuffer(result));
-    } else {
-      return scope.Close(ToString(result));
-    }
+    return scope.Close(ToBuffer(result));
   } else {
-    ReadParams* params = new ReadParams(self, key, keyHandle, options, asBuffer, callback);
+    ReadParams* params = new ReadParams(self, key, keyHandle, options, callback);
     BEGIN_ASYNC(params, Get, GetAfter);
   }
 
@@ -197,10 +191,8 @@ Handle<Value> JHandle::Iterator(const Arguments& args) {
 
   if (self->db_ == NULL) return ThrowError("Handle closed");
 
-  bool asBuffer = false;
-
   leveldb::ReadOptions options;
-  if (args.Length() > 0) UnpackReadOptions(args[0], options, asBuffer);
+  if (args.Length() > 0) UnpackReadOptions(args[0], options);
 
   leveldb::Iterator* it = self->db_->NewIterator(options);
 
@@ -471,11 +463,7 @@ async_rtn JHandle::GetAfter(uv_work_t* req) {
 
   ReadParams* params = (ReadParams*) req->data;
   if (params->status.ok()) {
-    if (params->asBuffer) {
-      params->Callback(ToBuffer(params->result));
-    } else {
-      params->Callback(ToString(params->result));
-    }
+    params->Callback(ToBuffer(params->result));
   } else {
     params->Callback();
   }
