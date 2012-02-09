@@ -1,9 +1,12 @@
 #ifndef NODE_LEVELDB_ITERATOR_H_
 #define NODE_LEVELDB_ITERATOR_H_
 
+#include <assert.h>
+#include <errno.h>
+#include <pthread.h>
+
 #include <leveldb/iterator.h>
 #include <node.h>
-#include <pthread.h>
 #include <v8.h>
 
 #include "handle.h"
@@ -54,16 +57,14 @@ class JIterator : ObjectWrap {
   JIterator(const JIterator&);
   void operator=(const JIterator&);
 
-  inline void Lock() {
-    pthread_mutex_lock(&lock_);
-  }
-
-  inline void TryLock() {
-    assert(pthread_mutex_trylock(&lock_) == 0);
+  inline bool Lock() {
+    int err = pthread_mutex_trylock(&lock_);
+    assert(err == 0 || err != EBUSY);
+    return err == EBUSY;
   }
 
   inline void Unlock() {
-    pthread_mutex_unlock(&lock_);
+    assert(pthread_mutex_unlock(&lock_) == 0);
   }
 
   inline bool Valid() {
@@ -106,30 +107,22 @@ class JIterator : ObjectWrap {
   }
 
   inline bool key(leveldb::Slice& key) {
-    TryLock();
-    bool ok = it_ != NULL && it_->Valid();
-    if (ok) key = it_->key();
-    Unlock();
-    return !ok;
+    if (it_ == NULL || !it_->Valid()) return true;
+    key = it_->key();
+    return false;
   }
 
   inline bool value(leveldb::Slice& val) {
-    TryLock();
-    bool ok = it_ != NULL && it_->Valid();
-    if (ok) val = it_->value();
-    Unlock();
-    return !ok;
+    if (it_ == NULL || !it_->Valid()) return true;
+    val = it_->value();
+    return false;
   }
 
   inline bool current(leveldb::Slice& key, leveldb::Slice& val) {
-    TryLock();
-    bool ok = it_ != NULL && it_->Valid();
-    if (ok) {
-      key = it_->key();
-      val = it_->value();
-    }
-    Unlock();
-    return !ok;
+    if (it_ == NULL || !it_->Valid()) return true;
+    key = it_->key();
+    val = it_->value();
+    return false;
   }
 
   struct Op;
@@ -152,13 +145,11 @@ class JIterator : ObjectWrap {
     {
       callback_ = Persistent<Function>::New(callback);
       it_->Ref();
-      it_->TryLock();
     }
 
     virtual ~Op() {
       callback_.Dispose();
       keyHandle_.Dispose();
-      it_->Unlock();
     }
 
     inline void Exec() {
@@ -173,6 +164,8 @@ class JIterator : ObjectWrap {
     }
 
     inline Handle<Value> Run() {
+      if (it_->Lock())
+        return ThrowError("Concurrent operations not supported");
       return callback_.IsEmpty() ? RunSync() : RunAsync();
     }
 

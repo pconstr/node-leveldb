@@ -1,8 +1,9 @@
 #include <assert.h>
+#include <pthread.h>
+#include <stdlib.h>
 
 #include <leveldb/iterator.h>
 #include <node.h>
-#include <pthread.h>
 #include <v8.h>
 
 #include "handle.h"
@@ -52,7 +53,7 @@ Handle<Value> JIterator::Valid(const Arguments& args) {
   HandleScope scope;
   JIterator* self = ObjectWrap::Unwrap<JIterator>(args.This());
 
-  self->TryLock();
+  if (self->Lock()) return ThrowError("Concurrent operations not supported");
   bool valid = self->Valid();
   self->Unlock();
 
@@ -136,10 +137,16 @@ Handle<Value> JIterator::key(const Arguments& args) {
   HandleScope scope;
   JIterator *self = ObjectWrap::Unwrap<JIterator>(args.This());
 
-  leveldb::Slice val;
-  if (self->key(val)) return Undefined();
+  leveldb::Slice key;
+  bool invalidState = false;
 
-  return scope.Close(ToBuffer(val));
+  if (self->Lock()) return ThrowError("Concurrent operations not supported");
+  invalidState = self->key(key);
+  self->Unlock();
+
+  if (invalidState) return Undefined();
+
+  return scope.Close(ToBuffer(key));
 }
 
 Handle<Value> JIterator::value(const Arguments& args) {
@@ -147,7 +154,13 @@ Handle<Value> JIterator::value(const Arguments& args) {
   JIterator *self = ObjectWrap::Unwrap<JIterator>(args.This());
 
   leveldb::Slice val;
-  if (self->value(val)) return Undefined();
+  bool invalidState = false;
+
+  if (self->Lock()) return ThrowError("Concurrent operations not supported");
+  invalidState = self->value(val);
+  self->Unlock();
+
+  if (invalidState) return Undefined();
 
   return scope.Close(ToBuffer(val));
 }
@@ -158,8 +171,13 @@ Handle<Value> JIterator::current(const Arguments& args) {
 
   leveldb::Slice key;
   leveldb::Slice val;
+  bool invalidState = false;
 
-  if (self->current(key, val)) return Undefined();
+  if (self->Lock()) return ThrowError("Concurrent operations not supported");
+  invalidState = self->current(key, val);
+  self->Unlock();
+
+  if (invalidState) return Undefined();
 
   Local<Array> pair = Array::New(2);
 
@@ -175,6 +193,26 @@ Handle<Value> JIterator::current(const Arguments& args) {
 //
 
 
+void JIterator::RunSeek(Op* data) {
+  data->invalidState_ = data->it_->Seek(data->key_, data->status_);
+}
+
+void JIterator::RunFirst(Op* data) {
+  data->invalidState_ = data->it_->First(data->status_);
+}
+
+void JIterator::RunLast(Op* data) {
+  data->invalidState_ = data->it_->Last(data->status_);
+}
+
+void JIterator::RunNext(Op* data) {
+  data->invalidState_ = data->it_->Next(data->status_);
+}
+
+void JIterator::RunPrev(Op* data) {
+  data->invalidState_ = data->it_->Prev(data->status_);
+}
+
 bool JIterator::Op::Result(Handle<Value>& error, Handle<Value>& result) {
   bool success = false;
 
@@ -187,6 +225,19 @@ bool JIterator::Op::Result(Handle<Value>& error, Handle<Value>& result) {
   }
 
   return success;
+}
+
+Handle<Value> JIterator::Op::RunSync() {
+  Handle<Value> error;
+  Handle<Value> result;
+
+  Exec();
+  Result(error, result);
+  it_->Unlock();
+
+  delete this;
+
+  return error.IsEmpty() ? result : ThrowException(error);
 }
 
 void JIterator::Op::ReturnAsync() {
@@ -207,38 +258,8 @@ void JIterator::Op::ReturnAsync() {
   }
 
   if (tryCatch.HasCaught()) FatalException(tryCatch);
-}
 
-Handle<Value> JIterator::Op::RunSync() {
-  Handle<Value> error;
-  Handle<Value> result;
-
-  Exec();
-  Result(error, result);
-
-  delete this;
-
-  return error.IsEmpty() ? result : ThrowException(error);
-}
-
-void JIterator::RunSeek(Op* data) {
-  data->invalidState_ = data->it_->Seek(data->key_, data->status_);
-}
-
-void JIterator::RunFirst(Op* data) {
-  data->invalidState_ = data->it_->First(data->status_);
-}
-
-void JIterator::RunLast(Op* data) {
-  data->invalidState_ = data->it_->Last(data->status_);
-}
-
-void JIterator::RunNext(Op* data) {
-  data->invalidState_ = data->it_->Next(data->status_);
-}
-
-void JIterator::RunPrev(Op* data) {
-  data->invalidState_ = data->it_->Prev(data->status_);
+  it_->Unlock();
 }
 
 async_rtn JIterator::AsyncOp(uv_work_t* req) {
