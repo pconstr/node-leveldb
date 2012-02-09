@@ -58,74 +58,55 @@ class JIterator : ObjectWrap {
     pthread_mutex_lock(&lock_);
   }
 
+  inline void TryLock() {
+    assert(pthread_mutex_trylock(&lock_) == 0);
+  }
+
   inline void Unlock() {
     pthread_mutex_unlock(&lock_);
   }
 
   inline bool Valid() {
-    Lock();
-    bool ok = it_ != NULL && it_->Valid();
-    Unlock();
-    return ok;
+    return it_ != NULL && it_->Valid();
   }
 
   inline bool Seek(leveldb::Slice& key, leveldb::Status& status) {
-    Lock();
-    bool ok = it_ != NULL;
-    if (ok) {
-      it_->Seek(key);
-      status = it_->status();
-    }
-    Unlock();
-    return !ok;
+    if (it_ == NULL) return true;
+    it_->Seek(key);
+    status = it_->status();
+    return false;
   }
 
   inline bool First(leveldb::Status& status) {
-    Lock();
-    bool ok = it_ != NULL;
-    if (ok) {
-      it_->SeekToFirst();
-      status = it_->status();
-    }
-    Unlock();
-    return !ok;
+    if (it_ == NULL) return true;
+    it_->SeekToFirst();
+    status = it_->status();
+    return false;
   }
 
   inline bool Last(leveldb::Status& status) {
-    Lock();
-    bool ok = it_ != NULL;
-    if (ok) {
-      it_->SeekToLast();
-      status = it_->status();
-    }
-    Unlock();
-    return !ok;
+    if (it_ == NULL) return true;
+    it_->SeekToLast();
+    status = it_->status();
+    return false;
   }
 
   inline bool Next(leveldb::Status& status) {
-    Lock();
-    bool ok = it_ != NULL && it_->Valid();
-    if (ok) {
-      it_->Next();
-      status = it_->status();
-    }
-    Unlock();
-    return !ok;
+    if (it_ == NULL) return true;
+    it_->Next();
+    status = it_->status();
+    return false;
   }
 
   inline bool Prev(leveldb::Status& status) {
-    Lock();
-    bool ok = it_ != NULL && it_->Valid();
-    if (ok) {
-      it_->Prev();
-      status = it_->status();
-    }
-    Unlock();
-    return !ok;
+    if (it_ == NULL) return true;
+    it_->Prev();
+    status = it_->status();
+    return false;
   }
 
   inline bool key(leveldb::Slice& key) {
-    Lock();
+    TryLock();
     bool ok = it_ != NULL && it_->Valid();
     if (ok) key = it_->key();
     Unlock();
@@ -133,7 +114,7 @@ class JIterator : ObjectWrap {
   }
 
   inline bool value(leveldb::Slice& val) {
-    Lock();
+    TryLock();
     bool ok = it_ != NULL && it_->Valid();
     if (ok) val = it_->value();
     Unlock();
@@ -141,7 +122,7 @@ class JIterator : ObjectWrap {
   }
 
   inline bool current(leveldb::Slice& key, leveldb::Slice& val) {
-    Lock();
+    TryLock();
     bool ok = it_ != NULL && it_->Valid();
     if (ok) {
       key = it_->key();
