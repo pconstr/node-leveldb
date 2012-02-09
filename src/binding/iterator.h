@@ -9,8 +9,8 @@
 #include <node.h>
 #include <v8.h>
 
-#include "handle.h"
 #include "helpers.h"
+#include "operation.h"
 
 using namespace v8;
 using namespace node;
@@ -42,9 +42,9 @@ class JIterator : ObjectWrap {
   static Handle<Value> Next(const Arguments& args);
   static Handle<Value> Prev(const Arguments& args);
 
-  static Handle<Value> key(const Arguments& args);
-  static Handle<Value> value(const Arguments& args);
-  static Handle<Value> current(const Arguments& args);
+  static Handle<Value> GetKey(const Arguments& args);
+  static Handle<Value> GetValue(const Arguments& args);
+  static Handle<Value> GetKeyValue(const Arguments& args);
 
  private:
   friend class JHandle;
@@ -70,88 +70,47 @@ class JIterator : ObjectWrap {
     assert(err == 0);
   }
 
-  struct Op;
+  class Op;
+  class Op : public Operation<JIterator,Op> {
+   public:
 
-  typedef void (*RunFunction)(Op* operation);
-
-  static inline Handle<Value> RunOp(RunFunction run, const Arguments& args) {
-    HandleScope scope;
-    JIterator* self = ObjectWrap::Unwrap<JIterator>(args.This());
-
-    // Optional callback
-    Local<Function> callback = GetCallback(args);
-
-    // Build operation
-    Op* op = new Op(run, self, callback);
-
-    return op->Run();
-  }
-
-  static void RunSeek(Op* data);
-  static void RunFirst(Op* data);
-  static void RunLast(Op* data);
-  static void RunNext(Op* data);
-  static void RunPrev(Op* data);
-
-  static void RunGetKey(Op* data);
-  static void RunGetValue(Op* data);
-  static void RunGetKeyValue(Op* data);
-
-  static async_rtn AsyncOp(uv_work_t* req);
-  static async_rtn AfterOp(uv_work_t* req);
-
-  struct Op {
-
-    inline Op(RunFunction run, JIterator* it, Handle<Function>& callback)
-      : run_(run), it_(it), invalidState_(false)
-    {
-      callback_ = Persistent<Function>::New(callback);
-      it_->Ref();
-    }
+    inline Op(ExecFunction& exec, ConvFunction& conv,
+              Handle<Object>& self, Handle<Function>& callback)
+      : Operation<JIterator,Op>(exec, conv, self, callback),
+        invalidState_(0) {}
 
     virtual ~Op() {
-      callback_.Dispose();
       keyHandle_.Dispose();
-      it_->Unref();
     }
 
-    inline void Exec() {
-      if (it_->it_ == NULL) {
-        invalidState_ = true;
-        return;
-      }
-      run_(this);
+    inline Handle<Value> Before() {
+      if (self_->Lock()) return ThrowError("Concurrent operations not supported");
     }
 
-    Handle<Value> RunSync();
-
-    inline Handle<Value> RunAsync() {
-      BEGIN_ASYNC(this, AsyncOp, AfterOp);
-      return Undefined();
+    inline void After() {
+      self_->Unlock();
     }
-
-    inline Handle<Value> Run() {
-      if (it_->Lock())
-        return ThrowError("Concurrent operations not supported");
-      return callback_.IsEmpty() ? RunSync() : RunAsync();
-    }
-
-    void ReturnAsync();
-    void Result(Handle<Value>& error, Handle<Value>& result);
-
-    RunFunction run_;
-
-    JIterator* it_;
 
     leveldb::Status status_;
     leveldb::Slice key_;
     leveldb::Slice value_;
 
-    Persistent<Function> callback_;
     Persistent<Value> keyHandle_;
 
     bool invalidState_;
   };
+
+  static void Seek(Op* data);
+  static void First(Op* data);
+  static void Last(Op* data);
+  static void Next(Op* data);
+  static void Prev(Op* data);
+
+  static void GetKey(Op* data);
+  static void GetValue(Op* data);
+  static void GetKeyValue(Op* data);
+
+  static void Conv(Op* op, Handle<Value>& error, Handle<Value>& result);
 
   leveldb::Iterator* it_;
   pthread_mutex_t lock_;
