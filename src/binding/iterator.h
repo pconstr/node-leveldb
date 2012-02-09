@@ -71,41 +71,6 @@ class JIterator : ObjectWrap {
     return it_ != NULL && it_->Valid();
   }
 
-  inline bool Seek(leveldb::Slice& key, leveldb::Status& status) {
-    if (it_ == NULL) return true;
-    it_->Seek(key);
-    status = it_->status();
-    return false;
-  }
-
-  inline bool First(leveldb::Status& status) {
-    if (it_ == NULL) return true;
-    it_->SeekToFirst();
-    status = it_->status();
-    return false;
-  }
-
-  inline bool Last(leveldb::Status& status) {
-    if (it_ == NULL) return true;
-    it_->SeekToLast();
-    status = it_->status();
-    return false;
-  }
-
-  inline bool Next(leveldb::Status& status) {
-    if (it_ == NULL) return true;
-    it_->Next();
-    status = it_->status();
-    return false;
-  }
-
-  inline bool Prev(leveldb::Status& status) {
-    if (it_ == NULL) return true;
-    it_->Prev();
-    status = it_->status();
-    return false;
-  }
-
   inline bool key(leveldb::Slice& key) {
     if (it_ == NULL || !it_->Valid()) return true;
     key = it_->key();
@@ -141,7 +106,7 @@ class JIterator : ObjectWrap {
   struct Op {
 
     inline Op(RunFunction run, JIterator* it, Handle<Function>& callback)
-      : run_(run), it_(it)
+      : run_(run), it_(it), invalidState_(false)
     {
       callback_ = Persistent<Function>::New(callback);
       it_->Ref();
@@ -150,6 +115,7 @@ class JIterator : ObjectWrap {
     virtual ~Op() {
       callback_.Dispose();
       keyHandle_.Dispose();
+      it_->Unref();
     }
 
     inline void Exec() {
@@ -169,7 +135,13 @@ class JIterator : ObjectWrap {
       return callback_.IsEmpty() ? RunSync() : RunAsync();
     }
 
-    bool Result(Handle<Value>& error, Handle<Value>& result);
+    inline void Result(Handle<Value>& error, Handle<Value>& result) {
+      if (invalidState_) {
+        error = Exception::Error(String::New("Illegal state"));
+      } else if (!status_.ok()) {
+        error = Exception::Error(String::New(status_.ToString().c_str()));
+      }
+    }
 
     void ReturnAsync();
 

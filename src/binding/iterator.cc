@@ -194,37 +194,53 @@ Handle<Value> JIterator::current(const Arguments& args) {
 
 
 void JIterator::RunSeek(Op* data) {
-  data->invalidState_ = data->it_->Seek(data->key_, data->status_);
+  leveldb::Iterator* it = data->it_->it_;
+  if (it == NULL) {
+    data->invalidState_ = true;
+    return;
+  }
+  it->Seek(data->key_);
+  data->status_ = it->status();
 }
 
 void JIterator::RunFirst(Op* data) {
-  data->invalidState_ = data->it_->First(data->status_);
+  leveldb::Iterator* it = data->it_->it_;
+  if (it == NULL) {
+    data->invalidState_ = true;
+    return;
+  }
+  it->SeekToFirst();
+  data->status_ = it->status();
 }
 
 void JIterator::RunLast(Op* data) {
-  data->invalidState_ = data->it_->Last(data->status_);
+  leveldb::Iterator* it = data->it_->it_;
+  if (it == NULL) {
+    data->invalidState_ = true;
+    return;
+  }
+  it->SeekToLast();
+  data->status_ = it->status();
 }
 
 void JIterator::RunNext(Op* data) {
-  data->invalidState_ = data->it_->Next(data->status_);
+  leveldb::Iterator* it = data->it_->it_;
+  if (it == NULL || !it->Valid()) {
+    data->invalidState_ = true;
+    return;
+  }
+  it->Next();
+  data->status_ = it->status();
 }
 
 void JIterator::RunPrev(Op* data) {
-  data->invalidState_ = data->it_->Prev(data->status_);
-}
-
-bool JIterator::Op::Result(Handle<Value>& error, Handle<Value>& result) {
-  bool success = false;
-
-  if (invalidState_) {
-    error = Exception::Error(String::New("Illegal state"));
-    success = true;
-  } else if (!status_.ok()) {
-    error = Exception::Error(String::New(status_.ToString().c_str()));
-    success = true;
+  leveldb::Iterator* it = data->it_->it_;
+  if (it == NULL || !it->Valid()) {
+    data->invalidState_ = true;
+    return;
   }
-
-  return success;
+  it->Prev();
+  data->status_ = it->status();
 }
 
 Handle<Value> JIterator::Op::RunSync() {
@@ -260,6 +276,8 @@ void JIterator::Op::ReturnAsync() {
   if (tryCatch.HasCaught()) FatalException(tryCatch);
 
   it_->Unlock();
+
+  delete this;
 }
 
 async_rtn JIterator::AsyncOp(uv_work_t* req) {
@@ -270,9 +288,7 @@ async_rtn JIterator::AsyncOp(uv_work_t* req) {
 
 async_rtn JIterator::AfterOp(uv_work_t* req) {
   Op *op = (Op*) req->data;
-  op->it_->Unlock();
   op->ReturnAsync();
-  delete op;
   RETURN_ASYNC_AFTER;
 }
 
