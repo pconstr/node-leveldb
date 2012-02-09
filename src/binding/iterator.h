@@ -151,14 +151,6 @@ class JIterator : ObjectWrap {
     return !ok;
   }
 
-  inline bool status(leveldb::Status& status) {
-    Lock();
-    bool ok = it_ != NULL;
-    if (ok) status = it_->status();
-    Unlock();
-    return !ok;
-  }
-
   struct Params {
     Params(JIterator* self, Handle<Function>& cb) : self(self) {
       self->Ref();
