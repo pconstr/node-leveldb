@@ -16,8 +16,10 @@ describe 'snapshot', ->
       db = handle
       done()
 
-  it 'should create a snapshot', ->
-    snapshot = db.snapshot()
+  it 'should create a snapshot', (done) ->
+    db.snapshot (err, snap) ->
+      snapshot = snap
+      done err
 
   it 'should put key/value pair', ->
     db.putSync key, val, sync: true

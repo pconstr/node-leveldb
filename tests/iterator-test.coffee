@@ -27,8 +27,10 @@ describe 'iterator', ->
       db = handle
       done()
 
-  it 'should get an iterator', ->
-    iterator = db.iterator()
+  it 'should get an iterator', (done) ->
+    db.iterator (err, it) ->
+      assert iterator = it
+      done err
 
   it 'should seek to first', (done) ->
     iterator.first done
@@ -96,7 +98,7 @@ describe 'iterator (sync)', ->
     db.writeSync batch, sync: true
 
   it 'should get an iterator', ->
-    assert iterator = db.iterator()
+    assert iterator = db.iteratorSync()
 
   it 'should seek to first', ->
     iterator.firstSync()
