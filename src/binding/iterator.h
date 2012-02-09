@@ -119,6 +119,10 @@ class JIterator : ObjectWrap {
     }
 
     inline void Exec() {
+      if (it_->it_ == NULL) {
+        invalidState_ = true;
+        return;
+      }
       run_(this);
     }
 
