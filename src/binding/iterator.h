@@ -100,15 +100,15 @@ class JIterator : ObjectWrap {
     bool invalidState_;
   };
 
-  static void Seek(Op* data);
-  static void First(Op* data);
-  static void Last(Op* data);
-  static void Next(Op* data);
-  static void Prev(Op* data);
+  static void Seek(Op* op);
+  static void First(Op* op);
+  static void Last(Op* op);
+  static void Next(Op* op);
+  static void Prev(Op* op);
 
-  static void GetKey(Op* data);
-  static void GetValue(Op* data);
-  static void GetKeyValue(Op* data);
+  static void GetKey(Op* op);
+  static void GetValue(Op* op);
+  static void GetKeyValue(Op* op);
 
   static void Conv(Op* op, Handle<Value>& error, Handle<Value>& result);
 
