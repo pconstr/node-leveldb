@@ -342,10 +342,39 @@ class Handle
       Create a new iterator.
 
       @param {Object} [options] Optional options. See `Handle.get()`.
+      @param {Function} [callback] Optional callback.
+        @param {Error} error The error value on error, null otherwise.
+        @param {leveldb.Iterator} The iterator if successful.
 
   ###
 
-  iterator: (options) ->
+  iterator: (options, callback) ->
+
+    # optional options
+    if typeof options is 'function'
+      callback = options
+      options = null
+
+    # required callback
+    throw new Error 'Missing callback' unless callback
+
+    # call native binding
+    it = @self.iterator options, (err, it) ->
+
+      # create wrapper object
+      wrap = new Iterator it unless err
+
+      # call callback
+      callback err, wrap
+
+
+  ###
+
+      Create a new iterator synchronously. See `Handle.iterator()`.
+
+  ###
+
+  iteratorSync: (options) ->
 
     # call native binding
     it = @self.iterator options
@@ -358,9 +387,34 @@ class Handle
 
       Create a new snapshot.
 
+      @param {Function} [callback] Optional callback.
+        @param {Error} error The error value on error, null otherwise.
+        @param {leveldb.Snapshot} The snapshot if successful.
+
   ###
 
-  snapshot: ->
+  snapshot: (callback) ->
+
+    # required callback
+    throw new Error 'Missing callback' unless callback
+
+    # call native binding
+    @self.snapshot (err, snap) =>
+
+      # create wrapper object
+      wrap = new Snapshot @, snap unless err
+
+      # call callback
+      callback err, wrap
+
+
+  ###
+
+      Create a new snapshot synchronously.
+
+  ###
+
+  snapshotSync: ->
 
     # call native binding
     snap = @self.snapshot()

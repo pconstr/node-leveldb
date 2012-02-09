@@ -10,14 +10,13 @@
 #include <v8.h>
 
 #include "batch.h"
+#include "iterator.h"
 #include "node_async_shim.h"
 
 using namespace node;
 using namespace v8;
 
 namespace node_leveldb {
-
-class JIterator;
 
 class JHandle : public ObjectWrap {
  public:
@@ -55,6 +54,27 @@ class JHandle : public ObjectWrap {
     return db_ != NULL;
   };
 
+  inline Handle<Value> RefIterator(leveldb::Iterator* it) {
+    Local<Value> argv[] = { External::New(it) };
+    Local<Object> instance = JIterator::constructor->GetFunction()->NewInstance(1, argv);
+
+    // Keep a weak reference
+    Persistent<Object> weak = Persistent<Object>::New(instance);
+    weak.MakeWeak(this, &UnrefIterator);
+
+    Ref();
+
+    return instance;
+  }
+
+  inline Handle<Value> RefSnapshot(const leveldb::Snapshot* snapshot) {
+    Local<Value> instance = External::New((void*)snapshot);
+    Persistent<Value> weak = Persistent<Value>::New(instance);
+    weak.MakeWeak(this, &UnrefSnapshot);
+    Ref();
+    return instance;
+  }
+
   static void UnrefIterator(Persistent<Value> object, void* parameter);
   static void UnrefSnapshot(Persistent<Value> object, void* parameter);
 
@@ -65,10 +85,7 @@ class JHandle : public ObjectWrap {
     }
 
     virtual ~Params() {
-      if (self) {
-        self->Unref();
-        self = NULL;
-      }
+      if (self) self->Unref();
       callback.Dispose();
     }
 
@@ -81,7 +98,9 @@ class JHandle : public ObjectWrap {
   };
 
   struct OpenParams : Params {
-    OpenParams(leveldb::Options &options, std::string name, Handle<Function> cb)
+    OpenParams(leveldb::Options& options,
+               std::string name,
+               Handle<Function>& cb)
       : Params(NULL, cb), options(options), name(name) {}
     leveldb::DB* db;
     leveldb::Options options;
@@ -91,9 +110,9 @@ class JHandle : public ObjectWrap {
   struct ReadParams : Params {
     ReadParams(JHandle *self,
                leveldb::Slice& key,
-               Persistent<Value> keyHandle,
-               leveldb::ReadOptions &options,
-               Handle<Function> cb)
+               Persistent<Value>& keyHandle,
+               leveldb::ReadOptions& options,
+               Handle<Function>& cb)
       : Params(self, cb),
         key(key),
         keyHandle(keyHandle),
@@ -110,8 +129,10 @@ class JHandle : public ObjectWrap {
   };
 
   struct WriteParams : Params {
-    WriteParams(JHandle *self, leveldb::WriteOptions &options, JBatch *batch,
-                Handle<Function> callback)
+    WriteParams(JHandle *self,
+                leveldb::WriteOptions& options,
+                JBatch* batch,
+                Handle<Function>& callback)
       : Params(self, callback), options(options), batch(batch)
     {
       batch->Ref();
@@ -125,11 +146,32 @@ class JHandle : public ObjectWrap {
     JBatch *batch;
   };
 
+  struct IteratorParams : Params {
+    IteratorParams(JHandle *self,
+                   leveldb::ReadOptions& options,
+                   Handle<Function>& callback)
+      : Params(self, callback), options(options) {}
+    leveldb::ReadOptions options;
+    leveldb::Iterator* it;
+  };
+
+  struct SnapshotParams : Params {
+    SnapshotParams(JHandle *self, Handle<Function> callback)
+      : Params(self, callback) {}
+    leveldb::Snapshot* snapshot;
+  };
+
   static async_rtn Open(uv_work_t* req);
   static async_rtn OpenAfter(uv_work_t* req);
 
   static async_rtn Get(uv_work_t* req);
   static async_rtn GetAfter(uv_work_t* req);
+
+  static async_rtn Iterator(uv_work_t* req);
+  static async_rtn IteratorAfter(uv_work_t* req);
+
+  static async_rtn Snapshot(uv_work_t* req);
+  static async_rtn SnapshotAfter(uv_work_t* req);
 
   static async_rtn After(uv_work_t* req);
 

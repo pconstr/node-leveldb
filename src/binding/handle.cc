@@ -194,18 +194,18 @@ Handle<Value> JHandle::Iterator(const Arguments& args) {
   leveldb::ReadOptions options;
   if (args.Length() > 0) UnpackReadOptions(args[0], options);
 
-  leveldb::Iterator* it = self->db_->NewIterator(options);
+  // Optional callback
+  Local<Function> callback = GetCallback(args);
 
-  Local<Value> argv[] = { External::New(it) };
-  Local<Object> instance = JIterator::constructor->GetFunction()->NewInstance(1, argv);
-
-  // Keep a weak reference
-  Persistent<Object> weak = Persistent<Object>::New(instance);
-  weak.MakeWeak(self, &UnrefIterator);
-
-  self->Ref();
-
-  return scope.Close(instance);
+  if (callback.IsEmpty()) {
+    leveldb::Iterator* it = self->db_->NewIterator(options);
+    Handle<Value> instance = self->RefIterator(it);
+    return scope.Close(instance);
+  } else {
+    IteratorParams *params = new IteratorParams(self, options, callback);
+    BEGIN_ASYNC(params, Iterator, IteratorAfter);
+    return Undefined();
+  }
 }
 
 void JHandle::UnrefSnapshot(Persistent<Value> object, void* parameter) {
@@ -229,15 +229,18 @@ Handle<Value> JHandle::Snapshot(const Arguments& args) {
 
   if (self->db_ == NULL) return ThrowError("Handle closed");
 
-  const leveldb::Snapshot* snapshot = self->db_->GetSnapshot();
+  // Optional callback
+  Local<Function> callback = GetCallback(args);
 
-  Local<Value> instance = External::New((void*)snapshot);
-  Persistent<Value> weak = Persistent<Value>::New(instance);
-  weak.MakeWeak(self, &UnrefSnapshot);
-
-  self->Ref();
-
-  return scope.Close(instance);
+  if (callback.IsEmpty()) {
+    const leveldb::Snapshot* snapshot = self->db_->GetSnapshot();
+    Handle<Value>instance = self->RefSnapshot(snapshot);
+    return scope.Close(instance);
+  } else {
+    SnapshotParams *params = new SnapshotParams(self, callback);
+    BEGIN_ASYNC(params, Snapshot, SnapshotAfter);
+    return Undefined();
+  }
 }
 
 Handle<Value> JHandle::Property(const Arguments& args) {
@@ -467,6 +470,40 @@ async_rtn JHandle::GetAfter(uv_work_t* req) {
   } else {
     params->Callback();
   }
+
+  delete params;
+  RETURN_ASYNC_AFTER;
+}
+
+async_rtn JHandle::Iterator(uv_work_t* req) {
+  IteratorParams* params = (IteratorParams*) req->data;
+  params->it = params->self->db_->NewIterator(params->options);
+  RETURN_ASYNC;
+}
+
+async_rtn JHandle::IteratorAfter(uv_work_t* req) {
+  HandleScope scope;
+  IteratorParams* params = (IteratorParams*) req->data;
+
+  Handle<Value> instance = params->self->RefIterator(params->it);
+  params->Callback(instance);
+
+  delete params;
+  RETURN_ASYNC_AFTER;
+}
+
+async_rtn JHandle::Snapshot(uv_work_t* req) {
+  SnapshotParams* params = (SnapshotParams*) req->data;
+  params->snapshot = const_cast<leveldb::Snapshot*>(params->self->db_->GetSnapshot());
+  RETURN_ASYNC;
+}
+
+async_rtn JHandle::SnapshotAfter(uv_work_t* req) {
+  HandleScope scope;
+  SnapshotParams* params = (SnapshotParams*) req->data;
+
+  Handle<Value> instance = params->self->RefSnapshot(params->snapshot);
+  params->Callback(instance);
 
   delete params;
   RETURN_ASYNC_AFTER;
