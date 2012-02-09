@@ -33,51 +33,54 @@ class JBatch : ObjectWrap {
  private:
   friend class JHandle;
 
-  inline JBatch() : ObjectWrap() {
-    assert(pthread_mutex_init(&lock_, NULL) == 0);
+  inline JBatch() : ObjectWrap(), semaphore_(0) {
+    int err = pthread_mutex_init(&lock_, NULL);
+    assert(err == 0);
   }
 
   virtual ~JBatch() {
     Clear();
-    assert(pthread_mutex_destroy(&lock_) == 0);
+    int err = pthread_mutex_destroy(&lock_);
+    assert(err == 0);
   }
 
-  inline void Lock() {
-    assert(pthread_mutex_lock(&lock_) == 0);
+  inline void ReadLock() {
+    int err = pthread_mutex_lock(&lock_);
+    assert(err == 0);
+    ++semaphore_;
+    err = pthread_mutex_unlock(&lock_);
+    assert(err == 0);
   }
 
-  inline void TryLock() {
-    assert(pthread_mutex_trylock(&lock_) == 0);
+  inline void ReadUnlock() {
+    int err = pthread_mutex_lock(&lock_);
+    assert(err == 0);
+    --semaphore_;
+    err = pthread_mutex_unlock(&lock_);
+    assert(err == 0);
   }
 
-  inline void Unlock() {
-    assert(pthread_mutex_unlock(&lock_) == 0);
-  }
-
-  inline void Put(leveldb::Slice& key, leveldb::Slice& val) {
-    TryLock();
-    wb_.Put(key, val);
-    Unlock();
-  }
-
-  inline void Del(leveldb::Slice& key) {
-    TryLock();
-    wb_.Delete(key);
-    Unlock();
+  inline bool IsReadLocked() {
+    int err = pthread_mutex_lock(&lock_);
+    assert(err == 0);
+    bool locked = semaphore_ != 0;
+    err = pthread_mutex_unlock(&lock_);
+    assert(err == 0);
+    return locked;
   }
 
   inline void Clear() {
-    TryLock();
+    assert(!IsReadLocked());
     std::vector< Persistent<Value> >::iterator it;
     for (it = buffers_.begin(); it < buffers_.end(); ++it) it->Dispose();
     buffers_.clear();
     wb_.Clear();
-    Unlock();
   }
 
   leveldb::WriteBatch wb_;
   std::vector< Persistent<Value> > buffers_;
   pthread_mutex_t lock_;
+  int semaphore_;
 };
 
 } // node_leveldb
