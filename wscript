@@ -110,5 +110,5 @@ def build(bld):
   node_leveldb.target = "leveldb"
   node_leveldb.uselib = ["pthread"]
   node_leveldb.includes = [snappy_dir, leveldb_dir, leveldb_dir + '/include']
-  node_leveldb.cxxflags = ['-Wall', '-O2', '-DNDEBUG', '-DSNAPPY'] + bld.env.PORT_CFLAGS.split(' ') + bld.env.PLATFORM_CFLAGS.split(' ')
+  node_leveldb.cxxflags = ['-Wall', '-O2', '-DSNAPPY'] + bld.env.PORT_CFLAGS.split(' ') + bld.env.PLATFORM_CFLAGS.split(' ')
   bld.add_post_fun(build_post)
