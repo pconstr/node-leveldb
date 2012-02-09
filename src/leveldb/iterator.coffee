@@ -41,19 +41,66 @@ exports.Iterator = class Iterator
   prevSync: ->
     @self.prev()
 
-  key: (options) ->
-    key = @self.key options
+  key: (options = {}, callback) ->
+
+    # optional options
+    if typeof options is 'function'
+      callback = options
+      options = {}
+
+    # required callback
+    throw new Error 'Missing callback' unless callback
+
+    # call native binding
+    @self.key (err, key) ->
+      key = key.toString 'utf8' unless err or options.as_buffer
+      callback err, key
+
+  keySync: (options) ->
+    key = @self.key()
     key = key.toString 'utf8' unless options.as_buffer
     key
 
-  value: (options) ->
-    val = @self.value options
+  value: (options = {}, callback) ->
+
+    # optional options
+    if typeof options is 'function'
+      callback = options
+      options = {}
+
+    # required callback
+    throw new Error 'Missing callback' unless callback
+
+    # call native binding
+    @self.value (err, val) ->
+      val = val.toString 'utf8' unless err or options.as_buffer
+      callback err, val
+
+  valueSync: (options = {}) ->
+    val = @self.value()
     val = val.toString 'utf8' unless options.as_buffer
     val
 
-  current: (options = {}) ->
-    [ key, val ] = @self.current()
-    val = val.toString 'utf8' unless options.as_buffer
-    key = key.toString 'utf8' unless options.as_buffer
-    [ key, val ]
+  current: (options = {}, callback) ->
 
+    # optional options
+    if typeof options is 'function'
+      callback = options
+      options = {}
+
+    # required callback
+    throw new Error 'Missing callback' unless callback
+
+    # call native binding
+    @self.current (err, [ key, val ]) ->
+      unless err or options.as_buffer
+        key = key.toString 'utf8'
+        val = val.toString 'utf8'
+      callback err, key, val
+
+  currentSync: (options = {}) ->
+    [ key, val ] = @self.current()
+    unless options.as_buffer
+      val = val.toString 'utf8'
+      key = key.toString 'utf8'
+    [ key, val ]

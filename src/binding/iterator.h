@@ -70,38 +70,32 @@ class JIterator : ObjectWrap {
     assert(err == 0);
   }
 
-  inline bool Valid() {
-    return it_ != NULL && it_->Valid();
-  }
-
-  inline bool key(leveldb::Slice& key) {
-    if (it_ == NULL || !it_->Valid()) return true;
-    key = it_->key();
-    return false;
-  }
-
-  inline bool value(leveldb::Slice& val) {
-    if (it_ == NULL || !it_->Valid()) return true;
-    val = it_->value();
-    return false;
-  }
-
-  inline bool current(leveldb::Slice& key, leveldb::Slice& val) {
-    if (it_ == NULL || !it_->Valid()) return true;
-    key = it_->key();
-    val = it_->value();
-    return false;
-  }
-
   struct Op;
 
   typedef void (*RunFunction)(Op* operation);
+
+  static inline Handle<Value> RunOp(RunFunction run, const Arguments& args) {
+    HandleScope scope;
+    JIterator* self = ObjectWrap::Unwrap<JIterator>(args.This());
+
+    // Optional callback
+    Local<Function> callback = GetCallback(args);
+
+    // Build operation
+    Op* op = new Op(run, self, callback);
+
+    return op->Run();
+  }
 
   static void RunSeek(Op* data);
   static void RunFirst(Op* data);
   static void RunLast(Op* data);
   static void RunNext(Op* data);
   static void RunPrev(Op* data);
+
+  static void RunGetKey(Op* data);
+  static void RunGetValue(Op* data);
+  static void RunGetKeyValue(Op* data);
 
   static async_rtn AsyncOp(uv_work_t* req);
   static async_rtn AfterOp(uv_work_t* req);
@@ -142,15 +136,8 @@ class JIterator : ObjectWrap {
       return callback_.IsEmpty() ? RunSync() : RunAsync();
     }
 
-    inline void Result(Handle<Value>& error, Handle<Value>& result) {
-      if (invalidState_) {
-        error = Exception::Error(String::New("Illegal state"));
-      } else if (!status_.ok()) {
-        error = Exception::Error(String::New(status_.ToString().c_str()));
-      }
-    }
-
     void ReturnAsync();
+    void Result(Handle<Value>& error, Handle<Value>& result);
 
     RunFunction run_;
 
@@ -158,6 +145,7 @@ class JIterator : ObjectWrap {
 
     leveldb::Status status_;
     leveldb::Slice key_;
+    leveldb::Slice value_;
 
     Persistent<Function> callback_;
     Persistent<Value> keyHandle_;
