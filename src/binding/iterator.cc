@@ -32,11 +32,6 @@ void JIterator::Initialize(Handle<Object> target) {
   NODE_SET_PROTOTYPE_METHOD(constructor, "current", current);
 }
 
-static inline Handle<Value> ToJS(leveldb::Status& status) {
-  if (!status.ok()) return String::New(status.ToString().c_str());
-  return Undefined();
-}
-
 Handle<Value> JIterator::New(const Arguments& args) {
   HandleScope scope;
 
@@ -76,26 +71,12 @@ Handle<Value> JIterator::Seek(const Arguments& args) {
   // Optional callback
   Local<Function> callback = GetCallback(args);
 
-  if (callback.IsEmpty()) {
-    leveldb::Status status;
+  // Build operation
+  Op* op = new Op(&RunSeek, self, callback);
+  op->key_ = key;
+  op->keyHandle_ = Persistent<Value>::New(args[0]);
 
-    self->TryLock();
-    bool error = self->Seek(key, status);
-    self->Unlock();
-
-    if (error) {
-      return ThrowError("Illegal state");
-    } else {
-      return ToJS(status);
-    }
-  } else {
-    SeekParams *data = new SeekParams(
-      self, key, Persistent<Value>::New(args[0]), callback);
-    self->TryLock();
-    BEGIN_ASYNC(data, Seek, After);
-  }
-
-  return Undefined();
+  return op->Run();
 }
 
 Handle<Value> JIterator::First(const Arguments& args) {
@@ -106,25 +87,10 @@ Handle<Value> JIterator::First(const Arguments& args) {
   // Optional callback
   Local<Function> callback = GetCallback(args);
 
-  if (callback.IsEmpty()) {
-    leveldb::Status status;
+  // Build operation
+  Op* op = new Op(&RunFirst, self, callback);
 
-    self->TryLock();
-    bool error = self->First(status);
-    self->Unlock();
-
-    if (error) {
-      return ThrowError("Illegal state");
-    } else {
-      return ToJS(status);
-    }
-  } else {
-    Params *data = new Params(self, callback);
-    self->TryLock();
-    BEGIN_ASYNC(data, First, After);
-  }
-
-  return Undefined();
+  return op->Run();
 }
 
 Handle<Value> JIterator::Last(const Arguments& args) {
@@ -134,25 +100,10 @@ Handle<Value> JIterator::Last(const Arguments& args) {
   // Optional callback
   Local<Function> callback = GetCallback(args);
 
-  if (callback.IsEmpty()) {
-    leveldb::Status status;
+  // Build operation
+  Op* op = new Op(&RunLast, self, callback);
 
-    self->TryLock();
-    bool error = self->Last(status);
-    self->Unlock();
-
-    if (error) {
-      return ThrowError("Illegal state");
-    } else {
-      return ToJS(status);
-    }
-  } else {
-    Params *data = new Params(self, callback);
-    self->TryLock();
-    BEGIN_ASYNC(data, Last, After);
-  }
-
-  return Undefined();
+  return op->Run();
 }
 
 Handle<Value> JIterator::Next(const Arguments& args) {
@@ -162,25 +113,10 @@ Handle<Value> JIterator::Next(const Arguments& args) {
   // Optional callback
   Local<Function> callback = GetCallback(args);
 
-  if (callback.IsEmpty()) {
-    leveldb::Status status;
+  // Build operation
+  Op* op = new Op(&RunNext, self, callback);
 
-    self->TryLock();
-    bool error = self->Next(status);
-    self->Unlock();
-
-    if (error) {
-      return ThrowError("Illegal state");
-    } else {
-      return ToJS(status);
-    }
-  } else {
-    Params *data = new Params(self, callback);
-    self->TryLock();
-    BEGIN_ASYNC(data, Next, After);
-  }
-
-  return Undefined();
+  return op->Run();
 }
 
 Handle<Value> JIterator::Prev(const Arguments& args) {
@@ -190,25 +126,10 @@ Handle<Value> JIterator::Prev(const Arguments& args) {
   // Optional callback
   Local<Function> callback = GetCallback(args);
 
-  if (callback.IsEmpty()) {
-    leveldb::Status status;
+  // Build operation
+  Op* op = new Op(&RunPrev, self, callback);
 
-    self->TryLock();
-    bool error = self->Prev(status);
-    self->Unlock();
-
-    if (error) {
-      return ThrowError("Illegal state");
-    } else {
-      return ToJS(status);
-    }
-  } else {
-    Params *data = new Params(self, callback);
-    self->TryLock();
-    BEGIN_ASYNC(data, Prev, After);
-  }
-
-  return Undefined();
+  return op->Run();
 }
 
 Handle<Value> JIterator::key(const Arguments& args) {
@@ -253,57 +174,85 @@ Handle<Value> JIterator::current(const Arguments& args) {
 // ASYNC FUNCTIONS
 //
 
-async_rtn JIterator::After(uv_work_t* req) {
-  Params *data = (Params*) req->data;
-  data->self->Unlock();
 
-  TryCatch try_catch;
+bool JIterator::Op::Result(Handle<Value>& error, Handle<Value>& result) {
+  bool success = false;
 
-  if (data->error) {
-    Handle<Value> argv[] = { Exception::Error(String::New("Illegal state")) };
-    data->callback->Call(data->self->handle_, 1, argv);
-  } else if (!data->status.ok()) {
-    Local<String> msg = String::New(data->status.ToString().c_str());
-    Handle<Value> argv[] = { Exception::Error(msg) };
-    data->callback->Call(data->self->handle_, 1, argv);
-  } else {
-    data->callback->Call(data->self->handle_, 0, NULL);
+  if (invalidState_) {
+    error = Exception::Error(String::New("Illegal state"));
+    success = true;
+  } else if (!status_.ok()) {
+    error = Exception::Error(String::New(status_.ToString().c_str()));
+    success = true;
   }
 
-  if (try_catch.HasCaught()) FatalException(try_catch);
+  return success;
+}
 
-  delete data;
+void JIterator::Op::ReturnAsync() {
+  HandleScope scope;
+
+  Handle<Value> error;
+  Handle<Value> result;
+
+  Result(error, result);
+
+  TryCatch tryCatch;
+
+  if (error.IsEmpty()) {
+    callback_->Call(it_->handle_, 0, NULL);
+  } else {
+    Handle<Value> argv[] = { error };
+    callback_->Call(it_->handle_, 1, argv);
+  }
+
+  if (tryCatch.HasCaught()) FatalException(tryCatch);
+}
+
+Handle<Value> JIterator::Op::RunSync() {
+  Handle<Value> error;
+  Handle<Value> result;
+
+  Exec();
+  Result(error, result);
+
+  delete this;
+
+  return error.IsEmpty() ? result : ThrowException(error);
+}
+
+void JIterator::RunSeek(Op* data) {
+  data->invalidState_ = data->it_->Seek(data->key_, data->status_);
+}
+
+void JIterator::RunFirst(Op* data) {
+  data->invalidState_ = data->it_->First(data->status_);
+}
+
+void JIterator::RunLast(Op* data) {
+  data->invalidState_ = data->it_->Last(data->status_);
+}
+
+void JIterator::RunNext(Op* data) {
+  data->invalidState_ = data->it_->Next(data->status_);
+}
+
+void JIterator::RunPrev(Op* data) {
+  data->invalidState_ = data->it_->Prev(data->status_);
+}
+
+async_rtn JIterator::AsyncOp(uv_work_t* req) {
+  Op *op = (Op*) req->data;
+  op->Exec();
+  RETURN_ASYNC;
+}
+
+async_rtn JIterator::AfterOp(uv_work_t* req) {
+  Op *op = (Op*) req->data;
+  op->it_->Unlock();
+  op->ReturnAsync();
+  delete op;
   RETURN_ASYNC_AFTER;
-}
-
-async_rtn JIterator::Seek(uv_work_t* req) {
-  SeekParams *data = (SeekParams*) req->data;
-  data->error = data->self->Seek(data->key, data->status);
-  RETURN_ASYNC;
-}
-
-async_rtn JIterator::First(uv_work_t* req) {
-  Params *data = (Params*) req->data;
-  data->error = data->self->First(data->status);
-  RETURN_ASYNC;
-}
-
-async_rtn JIterator::Last(uv_work_t* req) {
-  Params *data = (Params*) req->data;
-  data->error = data->self->Last(data->status);
-  RETURN_ASYNC;
-}
-
-async_rtn JIterator::Next(uv_work_t* req) {
-  Params *data = (Params*) req->data;
-  data->error = data->self->Next(data->status);
-  RETURN_ASYNC;
-}
-
-async_rtn JIterator::Prev(uv_work_t* req) {
-  Params *data = (Params*) req->data;
-  data->error = data->self->Prev(data->status);
-  RETURN_ASYNC;
 }
 
 } // node_leveldb

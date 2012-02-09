@@ -132,44 +132,66 @@ class JIterator : ObjectWrap {
     return !ok;
   }
 
-  struct Params {
-    Params(JIterator* self, Handle<Function>& cb) : self(self) {
-      self->Ref();
-      callback = Persistent<Function>::New(cb);
+  struct Op;
+
+  typedef void (*RunFunction)(Op* operation);
+
+  static void RunSeek(Op* data);
+  static void RunFirst(Op* data);
+  static void RunLast(Op* data);
+  static void RunNext(Op* data);
+  static void RunPrev(Op* data);
+
+  static async_rtn AsyncOp(uv_work_t* req);
+  static async_rtn AfterOp(uv_work_t* req);
+
+  struct Op {
+
+    inline Op(RunFunction run, JIterator* it, Handle<Function>& callback)
+      : run_(run), it_(it)
+    {
+      callback_ = Persistent<Function>::New(callback);
+      it_->Ref();
+      it_->TryLock();
     }
 
-    virtual ~Params() {
-      self->Unref();
-      callback.Dispose();
+    virtual ~Op() {
+      callback_.Dispose();
+      keyHandle_.Dispose();
+      it_->Unlock();
     }
 
-    JIterator* self;
-    Persistent<Function> callback;
-    leveldb::Status status;
-    bool error;
+    inline void Exec() {
+      run_(this);
+    }
+
+    Handle<Value> RunSync();
+
+    inline Handle<Value> RunAsync() {
+      BEGIN_ASYNC(this, AsyncOp, AfterOp);
+      return Undefined();
+    }
+
+    inline Handle<Value> Run() {
+      return callback_.IsEmpty() ? RunSync() : RunAsync();
+    }
+
+    bool Result(Handle<Value>& error, Handle<Value>& result);
+
+    void ReturnAsync();
+
+    RunFunction run_;
+
+    JIterator* it_;
+
+    leveldb::Status status_;
+    leveldb::Slice key_;
+
+    Persistent<Function> callback_;
+    Persistent<Value> keyHandle_;
+
+    bool invalidState_;
   };
-
-  struct SeekParams : Params {
-    SeekParams(JIterator* self,
-               leveldb::Slice& key,
-               Persistent<Value> keyHandle,
-               Handle<Function>& cb)
-      : Params(self, cb), key(key), keyHandle(keyHandle) {}
-
-    virtual ~SeekParams() {
-      if (!keyHandle.IsEmpty()) keyHandle.Dispose();
-    }
-
-    leveldb::Slice key;
-    Persistent<Value> keyHandle;
-  };
-
-  static async_rtn After(uv_work_t* req);
-  static async_rtn Seek(uv_work_t* req);
-  static async_rtn First(uv_work_t* req);
-  static async_rtn Last(uv_work_t* req);
-  static async_rtn Next(uv_work_t* req);
-  static async_rtn Prev(uv_work_t* req);
 
   leveldb::Iterator* it_;
   pthread_mutex_t lock_;
