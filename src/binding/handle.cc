@@ -165,7 +165,9 @@ Handle<Value> JHandle::Write(const Arguments& args) {
 
   // Pass parameters to async function
   if (callback.IsEmpty()) {
+    batch->ReadLock();
     leveldb::Status status = self->db_->Write(options, &batch->wb_);
+    batch->ReadUnlock();
     if (!status.ok()) return ThrowError(status.ToString().c_str());
   } else {
     WriteParams *params = new WriteParams(self, options, batch, callback);
@@ -518,9 +520,9 @@ async_rtn JHandle::After(uv_work_t* req) {
 
 async_rtn JHandle::Write(uv_work_t* req) {
   WriteParams *params = (WriteParams*) req->data;
-  params->batch->Lock();
+  params->batch->ReadLock();
   params->status = params->self->db_->Write(params->options, &params->batch->wb_);
-  params->batch->Unlock();
+  params->batch->ReadUnlock();
   RETURN_ASYNC;
 }
 
