@@ -214,7 +214,7 @@ void JHandle::UnrefSnapshot(Persistent<Value> object, void* parameter) {
   JHandle* self = (JHandle*)parameter;
   leveldb::Snapshot* snapshot = (leveldb::Snapshot*)External::Unwrap(object);
 
-  assert(handle);
+  assert(self);
   assert(snapshot);
 
   self->db_->ReleaseSnapshot(snapshot);
