@@ -233,7 +233,7 @@ void JIterator::RunPrev(Op* data) {
 
 Handle<Value> JIterator::Op::RunSync() {
   Handle<Value> error;
-  Handle<Value> result;
+  Handle<Value> result = Null();
 
   Exec();
   Result(error, result);
