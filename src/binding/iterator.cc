@@ -56,7 +56,12 @@ Handle<Value> JIterator::New(const Arguments& args) {
 Handle<Value> JIterator::Valid(const Arguments& args) {
   HandleScope scope;
   JIterator* self = ObjectWrap::Unwrap<JIterator>(args.This());
-  return self->Valid() ? True() : False();
+
+  self->TryLock();
+  bool valid = self->Valid();
+  self->Unlock();
+
+  return valid ? True() : False();
 }
 
 Handle<Value> JIterator::Seek(const Arguments& args) {
@@ -73,7 +78,12 @@ Handle<Value> JIterator::Seek(const Arguments& args) {
 
   if (callback.IsEmpty()) {
     leveldb::Status status;
-    if (self->Seek(key, status)) {
+
+    self->TryLock();
+    bool error = self->Seek(key, status);
+    self->Unlock();
+
+    if (error) {
       return ThrowError("Illegal state");
     } else {
       return ToJS(status);
@@ -81,6 +91,7 @@ Handle<Value> JIterator::Seek(const Arguments& args) {
   } else {
     SeekParams *data = new SeekParams(
       self, key, Persistent<Value>::New(args[0]), callback);
+    self->TryLock();
     BEGIN_ASYNC(data, Seek, After);
   }
 
@@ -97,13 +108,19 @@ Handle<Value> JIterator::First(const Arguments& args) {
 
   if (callback.IsEmpty()) {
     leveldb::Status status;
-    if (self->First(status)) {
+
+    self->TryLock();
+    bool error = self->First(status);
+    self->Unlock();
+
+    if (error) {
       return ThrowError("Illegal state");
     } else {
       return ToJS(status);
     }
   } else {
     Params *data = new Params(self, callback);
+    self->TryLock();
     BEGIN_ASYNC(data, First, After);
   }
 
@@ -119,13 +136,19 @@ Handle<Value> JIterator::Last(const Arguments& args) {
 
   if (callback.IsEmpty()) {
     leveldb::Status status;
-    if (self->Last(status)) {
+
+    self->TryLock();
+    bool error = self->Last(status);
+    self->Unlock();
+
+    if (error) {
       return ThrowError("Illegal state");
     } else {
       return ToJS(status);
     }
   } else {
     Params *data = new Params(self, callback);
+    self->TryLock();
     BEGIN_ASYNC(data, Last, After);
   }
 
@@ -141,13 +164,19 @@ Handle<Value> JIterator::Next(const Arguments& args) {
 
   if (callback.IsEmpty()) {
     leveldb::Status status;
-    if (self->Next(status)) {
+
+    self->TryLock();
+    bool error = self->Next(status);
+    self->Unlock();
+
+    if (error) {
       return ThrowError("Illegal state");
     } else {
       return ToJS(status);
     }
   } else {
     Params *data = new Params(self, callback);
+    self->TryLock();
     BEGIN_ASYNC(data, Next, After);
   }
 
@@ -163,13 +192,19 @@ Handle<Value> JIterator::Prev(const Arguments& args) {
 
   if (callback.IsEmpty()) {
     leveldb::Status status;
-    if (self->Prev(status)) {
+
+    self->TryLock();
+    bool error = self->Prev(status);
+    self->Unlock();
+
+    if (error) {
       return ThrowError("Illegal state");
     } else {
       return ToJS(status);
     }
   } else {
     Params *data = new Params(self, callback);
+    self->TryLock();
     BEGIN_ASYNC(data, Prev, After);
   }
 
@@ -220,6 +255,7 @@ Handle<Value> JIterator::current(const Arguments& args) {
 
 async_rtn JIterator::After(uv_work_t* req) {
   Params *data = (Params*) req->data;
+  data->self->Unlock();
 
   TryCatch try_catch;
 
