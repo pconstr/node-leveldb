@@ -26,7 +26,8 @@ class JIterator : ObjectWrap {
       delete it_;
       it_ = NULL;
     }
-    assert(pthread_mutex_destroy(&lock_) == 0);
+    int err = pthread_mutex_destroy(&lock_);
+    assert(err == 0);
   }
 
   static Persistent<FunctionTemplate> constructor;
@@ -50,7 +51,8 @@ class JIterator : ObjectWrap {
 
   // No instance creation outside of Handle
   inline JIterator(leveldb::Iterator* it) : ObjectWrap(), it_(it) {
-    assert(pthread_mutex_init(&lock_, NULL) == 0);
+    int err = pthread_mutex_init(&lock_, NULL);
+    assert(err == 0);
   }
 
   // No copying allowed
@@ -59,12 +61,13 @@ class JIterator : ObjectWrap {
 
   inline bool Lock() {
     int err = pthread_mutex_trylock(&lock_);
-    assert(err == 0 || err != EBUSY);
+    assert(err == 0 || err == EBUSY);
     return err == EBUSY;
   }
 
   inline void Unlock() {
-    assert(pthread_mutex_unlock(&lock_) == 0);
+    int err = pthread_mutex_unlock(&lock_);
+    assert(err == 0);
   }
 
   inline bool Valid() {
