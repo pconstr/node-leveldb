@@ -1,6 +1,5 @@
 #include <assert.h>
 #include <pthread.h>
-#include <stdlib.h>
 
 #include <leveldb/iterator.h>
 #include <node.h>
@@ -54,7 +53,7 @@ Handle<Value> JIterator::Valid(const Arguments& args) {
   JIterator* self = ObjectWrap::Unwrap<JIterator>(args.This());
 
   if (self->Lock()) return ThrowError("Concurrent operations not supported");
-  bool valid = self->Valid();
+  bool valid = self->it_ != NULL && self->it_->Valid();
   self->Unlock();
 
   return valid ? True() : False();
@@ -81,110 +80,31 @@ Handle<Value> JIterator::Seek(const Arguments& args) {
 }
 
 Handle<Value> JIterator::First(const Arguments& args) {
-  HandleScope scope;
-
-  JIterator* self = ObjectWrap::Unwrap<JIterator>(args.This());
-
-  // Optional callback
-  Local<Function> callback = GetCallback(args);
-
-  // Build operation
-  Op* op = new Op(&RunFirst, self, callback);
-
-  return op->Run();
+  return RunOp(&RunFirst, args);
 }
 
 Handle<Value> JIterator::Last(const Arguments& args) {
-  HandleScope scope;
-  JIterator* self = ObjectWrap::Unwrap<JIterator>(args.This());
-
-  // Optional callback
-  Local<Function> callback = GetCallback(args);
-
-  // Build operation
-  Op* op = new Op(&RunLast, self, callback);
-
-  return op->Run();
+  return RunOp(&RunLast, args);
 }
 
 Handle<Value> JIterator::Next(const Arguments& args) {
-  HandleScope scope;
-  JIterator* self = ObjectWrap::Unwrap<JIterator>(args.This());
-
-  // Optional callback
-  Local<Function> callback = GetCallback(args);
-
-  // Build operation
-  Op* op = new Op(&RunNext, self, callback);
-
-  return op->Run();
+  return RunOp(&RunNext, args);
 }
 
 Handle<Value> JIterator::Prev(const Arguments& args) {
-  HandleScope scope;
-  JIterator *self = ObjectWrap::Unwrap<JIterator>(args.This());
-
-  // Optional callback
-  Local<Function> callback = GetCallback(args);
-
-  // Build operation
-  Op* op = new Op(&RunPrev, self, callback);
-
-  return op->Run();
+  return RunOp(&RunPrev, args);
 }
 
 Handle<Value> JIterator::key(const Arguments& args) {
-  HandleScope scope;
-  JIterator *self = ObjectWrap::Unwrap<JIterator>(args.This());
-
-  leveldb::Slice key;
-  bool invalidState = false;
-
-  if (self->Lock()) return ThrowError("Concurrent operations not supported");
-  invalidState = self->key(key);
-  self->Unlock();
-
-  if (invalidState) return Undefined();
-
-  return scope.Close(ToBuffer(key));
+  return RunOp(&RunGetKey, args);
 }
 
 Handle<Value> JIterator::value(const Arguments& args) {
-  HandleScope scope;
-  JIterator *self = ObjectWrap::Unwrap<JIterator>(args.This());
-
-  leveldb::Slice val;
-  bool invalidState = false;
-
-  if (self->Lock()) return ThrowError("Concurrent operations not supported");
-  invalidState = self->value(val);
-  self->Unlock();
-
-  if (invalidState) return Undefined();
-
-  return scope.Close(ToBuffer(val));
+  return RunOp(&RunGetValue, args);
 }
 
 Handle<Value> JIterator::current(const Arguments& args) {
-  HandleScope scope;
-  JIterator *self = ObjectWrap::Unwrap<JIterator>(args.This());
-
-  leveldb::Slice key;
-  leveldb::Slice val;
-  bool invalidState = false;
-
-  if (self->Lock()) return ThrowError("Concurrent operations not supported");
-  invalidState = self->current(key, val);
-  self->Unlock();
-
-  if (invalidState) return Undefined();
-
-  Local<Array> pair = Array::New(2);
-
-  pair->Set(0, ToBuffer(key));
-  pair->Set(1, ToBuffer(val));
-
-  return scope.Close(pair);
+  return RunOp(&RunGetKeyValue, args);
 }
 
 
@@ -231,13 +151,41 @@ void JIterator::RunPrev(Op* data) {
   }
 }
 
+void JIterator::RunGetKey(Op* data) {
+  leveldb::Iterator* it = data->it_->it_;
+  if (it->Valid()) {
+    data->value_ = it->key();
+  } else {
+    data->status_ = it->status();
+  }
+}
+
+void JIterator::RunGetValue(Op* data) {
+  leveldb::Iterator* it = data->it_->it_;
+  if (it->Valid()) {
+    data->value_ = it->value();
+  } else {
+    data->status_ = it->status();
+  }
+}
+
+void JIterator::RunGetKeyValue(Op* data) {
+  leveldb::Iterator* it = data->it_->it_;
+  if (it->Valid()) {
+    data->key_ = it->key();
+    data->value_ = it->value();
+  } else {
+    data->status_ = it->status();
+  }
+}
+
 Handle<Value> JIterator::Op::RunSync() {
   Handle<Value> error;
   Handle<Value> result = Null();
 
   Exec();
-  Result(error, result);
   it_->Unlock();
+  Result(error, result);
 
   delete this;
 
@@ -247,25 +195,38 @@ Handle<Value> JIterator::Op::RunSync() {
 void JIterator::Op::ReturnAsync() {
   HandleScope scope;
 
-  Handle<Value> error;
-  Handle<Value> result;
+  it_->Unlock();
+
+  Handle<Value> error = Null();
+  Handle<Value> result = Null();
 
   Result(error, result);
 
   TryCatch tryCatch;
 
-  if (error.IsEmpty()) {
-    callback_->Call(it_->handle_, 0, NULL);
-  } else {
-    Handle<Value> argv[] = { error };
-    callback_->Call(it_->handle_, 1, argv);
-  }
+  Handle<Value> argv[] = { error, result };
+  callback_->Call(it_->handle_, 2, argv);
 
   if (tryCatch.HasCaught()) FatalException(tryCatch);
 
-  it_->Unlock();
-
   delete this;
+}
+
+void JIterator::Op::Result(Handle<Value>& error, Handle<Value>& result) {
+  if (invalidState_) {
+    error = Exception::Error(String::New("Illegal state"));
+  } else if (!status_.ok()) {
+    error = Exception::Error(String::New(status_.ToString().c_str()));
+  } else if (!value_.empty()) {
+    if (!key_.empty()) {
+      Local<Array> array = Array::New(2);
+      array->Set(0, ToBuffer(key_));
+      array->Set(1, ToBuffer(value_));
+      result = array;
+    } else {
+      result = ToBuffer(value_);
+    }
+  }
 }
 
 async_rtn JIterator::AsyncOp(uv_work_t* req) {
