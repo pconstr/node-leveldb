@@ -195,52 +195,40 @@ Handle<Value> JIterator::current(const Arguments& args) {
 
 void JIterator::RunSeek(Op* data) {
   leveldb::Iterator* it = data->it_->it_;
-  if (it == NULL) {
-    data->invalidState_ = true;
-    return;
-  }
   it->Seek(data->key_);
   data->status_ = it->status();
 }
 
 void JIterator::RunFirst(Op* data) {
   leveldb::Iterator* it = data->it_->it_;
-  if (it == NULL) {
-    data->invalidState_ = true;
-    return;
-  }
   it->SeekToFirst();
   data->status_ = it->status();
 }
 
 void JIterator::RunLast(Op* data) {
   leveldb::Iterator* it = data->it_->it_;
-  if (it == NULL) {
-    data->invalidState_ = true;
-    return;
-  }
   it->SeekToLast();
   data->status_ = it->status();
 }
 
 void JIterator::RunNext(Op* data) {
   leveldb::Iterator* it = data->it_->it_;
-  if (it == NULL || !it->Valid()) {
+  if (it->Valid()) {
+    it->Next();
+    data->status_ = it->status();
+  } else {
     data->invalidState_ = true;
-    return;
   }
-  it->Next();
-  data->status_ = it->status();
 }
 
 void JIterator::RunPrev(Op* data) {
   leveldb::Iterator* it = data->it_->it_;
-  if (it == NULL || !it->Valid()) {
+  if (it->Valid()) {
+    it->Prev();
+    data->status_ = it->status();
+  } else {
     data->invalidState_ = true;
-    return;
   }
-  it->Prev();
-  data->status_ = it->status();
 }
 
 Handle<Value> JIterator::Op::RunSync() {
