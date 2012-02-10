@@ -1,4 +1,4 @@
-binding = require '../../build/leveldb.node'
+binding = require '../leveldb.node'
 
 ###
 
