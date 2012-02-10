@@ -32,6 +32,7 @@ template < class T > class Operation {
   }
 
   virtual inline Handle<Value> BeforeRun() { return Handle<Value>(); }
+  virtual inline void AfterExecute() {}
   virtual inline void BeforeReturn() {}
 
   inline Handle<Value> Run() {
