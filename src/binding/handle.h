@@ -3,6 +3,7 @@
 
 #include <assert.h>
 
+#include <vector>
 #include <string>
 
 #include <leveldb/db.h>
@@ -209,6 +210,33 @@ class JHandle : public ObjectWrap {
     leveldb::Snapshot* snap_;
   };
 
+  class ApproximateSizesOp;
+  class ApproximateSizesOp : public Operation<ApproximateSizesOp> {
+   public:
+
+    inline ApproximateSizesOp(const ExecFunction exec, const ConvFunction conv,
+                              Handle<Object>& handle, Handle<Function>& callback)
+      : Operation<ApproximateSizesOp>(exec, conv, handle, callback), sizes_(NULL)
+    {
+      self_ = ObjectWrap::Unwrap<JHandle>(handle);
+      self_->Ref();
+    }
+
+    virtual ~ApproximateSizesOp() {
+      self_->Unref();
+      std::vector< Persistent<Value> >::iterator it;
+      for (it = handles_.begin(); it < handles_.end(); ++it) it->Dispose();
+      if (sizes_) delete[] sizes_;
+    }
+
+    JHandle* self_;
+
+    std::vector<leveldb::Range> ranges_;
+    std::vector< Persistent<Value> > handles_;
+
+    uint64_t* sizes_;
+  };
+
   static void Open(OpenOp* op);
   static void Open(OpenOp* op, Handle<Value>& error, Handle<Value>& result);
 
@@ -230,6 +258,11 @@ class JHandle : public ObjectWrap {
   static void Snapshot(SnapshotOp* op);
   static void Snapshot(SnapshotOp* op,
                        Handle<Value>& error, Handle<Value>& result);
+
+
+  static void ApproximateSizes(ApproximateSizesOp* op);
+  static void ApproximateSizes(ApproximateSizesOp* op,
+                               Handle<Value>& error, Handle<Value>& result);
 
   leveldb::DB* db_;
 };
