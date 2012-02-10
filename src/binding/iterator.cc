@@ -173,9 +173,7 @@ void JIterator::GetKeyValue(Op* op) {
   }
 }
 
-void JIterator::Conv(
-  Op* op, Handle<Value>& error, Handle<Value>& result)
-{
+void JIterator::Conv(Op* op, Handle<Value>& error, Handle<Value>& result) {
   if (op->invalidState_) {
     error = Exception::Error(String::New("Illegal state"));
   } else if (!op->status_.ok()) {
