@@ -197,14 +197,9 @@ class JHandle : public ObjectWrap {
                       Handle<Object>& handle, Handle<Function>& callback)
       : Op<PropertyOp>(exec, conv, handle, callback), hasProperty_(false) {}
 
-    virtual ~PropertyOp() {
-      nameHandle_.Dispose();
-    }
-
     std::string name_;
     std::string value_;
     bool hasProperty_;
-    Persistent<Value> nameHandle_;
   };
 
   class ApproximateSizesOp;
