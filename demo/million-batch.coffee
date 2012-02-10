@@ -17,8 +17,6 @@ leveldb.open path, create_if_missing: true, (err, db) ->
     delta = Date.now() - start;
     console.log 'Completed in %d ms', delta
     console.log '%s inserts per second', Math.floor(totalSize * 1000 / delta)
-    console.log '\nClosing...'
-    db.close -> console.log 'Done'
 
   bench = ->
     console.log "i = #{i}" if i % 10000 == 0
