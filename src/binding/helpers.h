@@ -24,7 +24,7 @@ static inline Handle<Value> ThrowError(const char* err) {
   return ThrowException(Exception::Error(String::New(err)));
 }
 
-static inline leveldb::Slice ToSlice(Handle<Value> value) {
+static inline leveldb::Slice ToSlice(const Handle<Value>& value) {
   if (Buffer::HasInstance(value)) {
     Local<Object> obj = value->ToObject();
     return leveldb::Slice(Buffer::Data(obj), Buffer::Length(obj));
@@ -44,7 +44,9 @@ static inline leveldb::Slice ToSlice(
   }
 }
 
-static inline leveldb::Slice ToSlice(Handle<Value> value, Persistent<Value>& buf) {
+static inline leveldb::Slice ToSlice(const Handle<Value>& value,
+                                     Persistent<Value>& buf)
+{
   if (Buffer::HasInstance(value)) {
     buf = Persistent<Value>::New(value);
     return ToSlice(value);
