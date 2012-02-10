@@ -148,7 +148,6 @@ Handle<Value> JHandle::Write(const Arguments& args) {
 
   WriteOp* op = WriteOp::New(Write, Write, args);
   op->batch_ = ObjectWrap::Unwrap<JBatch>(args[0]->ToObject());
-  op->batch_->Ref();
 
   // Optional write options
   if (argc > 1) UnpackWriteOptions(args[1], op->options_);

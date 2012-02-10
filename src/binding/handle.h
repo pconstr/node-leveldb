@@ -156,6 +156,12 @@ class JHandle : public ObjectWrap {
       batch_->Unref();
     }
 
+    virtual inline Handle<Value> BeforeRun() {
+      assert(batch_);
+      batch_->Ref();
+      return Op<WriteOp>::BeforeRun();
+    }
+
     JBatch* batch_;
     leveldb::WriteOptions options_;
   };
