@@ -71,15 +71,19 @@ class JIterator : ObjectWrap {
   }
 
   class Op;
-  class Op : public Operation<JIterator,Op> {
+  class Op : public Operation<Op> {
    public:
 
     inline Op(ExecFunction& exec, ConvFunction& conv,
-              Handle<Object>& self, Handle<Function>& callback)
-      : Operation<JIterator,Op>(exec, conv, self, callback),
-        invalidState_(0) {}
+              Handle<Object>& handle, Handle<Function>& callback)
+      : Operation<Op>(exec, conv, handle, callback), invalidState_(0)
+    {
+      self_ = ObjectWrap::Unwrap<JIterator>(handle);
+      self_->Ref();
+    }
 
     virtual ~Op() {
+      self_->Unref();
       keyHandle_.Dispose();
     }
 
@@ -90,6 +94,23 @@ class JIterator : ObjectWrap {
     inline void After() {
       self_->Unlock();
     }
+
+    static inline Handle<Value> Go(ExecFunction run, ConvFunction conv,
+                                   const Arguments& args)
+    {
+      HandleScope scope;
+      return New(run, conv, args)->Run();
+    }
+
+    static inline Op* New(ExecFunction run, ConvFunction conv,
+                          const Arguments& args)
+    {
+      Handle<Object> self = args.This();
+      Handle<Function> callback = GetCallback(args);
+      return new Op(run, conv, self, callback);
+    }
+
+    JIterator* self_;
 
     leveldb::Status status_;
     leveldb::Slice key_;

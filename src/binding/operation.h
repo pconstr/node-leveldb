@@ -11,18 +11,17 @@ using namespace node;
 
 namespace node_leveldb {
 
-template < class T, class S > class Operation {
+template < class T > class Operation {
  public:
 
-  typedef void (*ExecFunction)(S* op);
+  typedef void (*ExecFunction)(T* op);
   typedef void (*ConvFunction)(
-    S* op, Handle<Value>& error, Handle<Value>& result);
+    T* op, Handle<Value>& error, Handle<Value>& result);
 
   inline Operation(ExecFunction exec, ConvFunction conv,
                    Handle<Object>& self, Handle<Function>& callback)
     : exec_(exec), conv_(conv)
   {
-    self_ = ObjectWrap::Unwrap<T>(self);
     handle_ = Persistent<Object>::New(self);
     callback_ = Persistent<Function>::New(callback);
   }
@@ -47,7 +46,7 @@ template < class T, class S > class Operation {
 
       Handle<Value> result = Null();
 
-      S* self = static_cast<S*>(this);
+      T* self = static_cast<T*>(this);
       exec_(self);
       conv_(self, error, result);
       After();
@@ -64,31 +63,9 @@ template < class T, class S > class Operation {
     }
   }
 
-  static inline Handle<Value> Run(
-    ExecFunction run, ConvFunction conv, const Arguments& args)
-  {
-    HandleScope scope;
-    return New(run, conv, args)->Run();
-  }
-
-  static inline S* New(
-    ExecFunction run, ConvFunction conv, const Arguments& args)
-  {
-    // Self object
-    Handle<Object> self = args.This();
-
-    // Optional callback
-    Handle<Function> callback = GetCallback(args);
-
-    // Build operation
-    S* op = new S(run, conv, self, callback);
-
-    return op;
-  }
-
   static async_rtn Async(uv_work_t* req) {
     Operation* op = static_cast<Operation*>(req->data);
-    S* self = static_cast<S*>(req->data);
+    T* self = static_cast<T*>(req->data);
     op->exec_(self);
     RETURN_ASYNC;
   }
@@ -100,12 +77,13 @@ template < class T, class S > class Operation {
     Handle<Value> result = Null();
 
     Operation* op = static_cast<Operation*>(req->data);
-    S* self = static_cast<S*>(req->data);
+    T* self = static_cast<T*>(req->data);
 
     op->conv_(self, error, result);
 
     TryCatch tryCatch;
 
+    assert(!op->callback_.IsEmpty());
     Handle<Value> argv[] = { error, result };
     op->callback_->Call(op->handle_, 2, argv);
 
@@ -118,8 +96,6 @@ template < class T, class S > class Operation {
 
   ExecFunction exec_;
   ConvFunction conv_;
-
-  T* self_;
 
   Persistent<Object> handle_;
   Persistent<Function> callback_;
