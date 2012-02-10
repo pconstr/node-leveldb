@@ -67,38 +67,38 @@ Handle<Value> JIterator::Seek(const Arguments& args) {
   if (args.Length() < 1 || !Buffer::HasInstance(args[0]))
     return ThrowTypeError("Invalid arguments");
 
-  Op* op = Op::New(&Seek, Conv, args);
+  Op* op = Op::New(Seek, Conv, args);
   op->key_ = ToSlice(args[0], op->keyHandle_);
 
   return op->Run();
 }
 
 Handle<Value> JIterator::First(const Arguments& args) {
-  return Op::Go(&First, Conv, args);
+  return Op::Go(First, Conv, args);
 }
 
 Handle<Value> JIterator::Last(const Arguments& args) {
-  return Op::Go(&Last, Conv, args);
+  return Op::Go(Last, Conv, args);
 }
 
 Handle<Value> JIterator::Next(const Arguments& args) {
-  return Op::Go(&Next, Conv, args);
+  return Op::Go(Next, Conv, args);
 }
 
 Handle<Value> JIterator::Prev(const Arguments& args) {
-  return Op::Go(&Prev, Conv, args);
+  return Op::Go(Prev, Conv, args);
 }
 
 Handle<Value> JIterator::GetKey(const Arguments& args) {
-  return Op::Go(&GetKey, Conv, args);
+  return Op::Go(GetKey, Conv, args);
 }
 
 Handle<Value> JIterator::GetValue(const Arguments& args) {
-  return Op::Go(&GetValue, Conv, args);
+  return Op::Go(GetValue, Conv, args);
 }
 
 Handle<Value> JIterator::GetKeyValue(const Arguments& args) {
-  return Op::Go(&GetKeyValue, Conv, args);
+  return Op::Go(GetKeyValue, Conv, args);
 }
 
 

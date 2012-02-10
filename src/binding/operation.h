@@ -18,7 +18,7 @@ template < class T > class Operation {
   typedef void (*ConvFunction)(
     T* op, Handle<Value>& error, Handle<Value>& result);
 
-  inline Operation(ExecFunction exec, ConvFunction conv,
+  inline Operation(const ExecFunction exec, const ConvFunction conv,
                    Handle<Object>& self, Handle<Function>& callback)
     : exec_(exec), conv_(conv)
   {
@@ -61,6 +61,23 @@ template < class T > class Operation {
       return Undefined();
 
     }
+  }
+
+  static inline Handle<Value> Go(const ExecFunction run,
+                                 const ConvFunction conv,
+                                 const Arguments& args)
+  {
+    HandleScope scope;
+    return New(run, conv, args)->Run();
+  }
+
+  static inline T* New(const ExecFunction run,
+                       const ConvFunction conv,
+                       const Arguments& args)
+  {
+    Handle<Object> self = args.This();
+    Handle<Function> callback = GetCallback(args);
+    return new T(run, conv, self, callback);
   }
 
   static async_rtn Async(uv_work_t* req) {
