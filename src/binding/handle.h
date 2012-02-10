@@ -130,7 +130,7 @@ class JHandle : public ObjectWrap {
 
     inline ReadOp(const ExecFunction exec, const ConvFunction conv,
                   Handle<Object>& handle, Handle<Function>& callback)
-      : Op<ReadOp>(exec, conv, handle, callback) {}
+      : Op<ReadOp>(exec, conv, handle, callback), result_(NULL) {}
 
     virtual ~ReadOp() {
       keyHandle_.Dispose();
@@ -139,7 +139,7 @@ class JHandle : public ObjectWrap {
     leveldb::Slice key_;
     leveldb::ReadOptions options_;
 
-    std::string result_;
+    std::string* result_;
 
     Persistent<Value> keyHandle_;
   };
