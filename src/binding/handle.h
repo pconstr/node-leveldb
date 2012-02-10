@@ -78,6 +78,37 @@ class JHandle : public ObjectWrap {
   static void UnrefIterator(Persistent<Value> object, void* parameter);
   static void UnrefSnapshot(Persistent<Value> object, void* parameter);
 
+  template <class T>
+  class Op : public Operation<T> {
+   public:
+
+    typedef void (*ExecFunction)(T* op);
+    typedef void (*ConvFunction)(
+      T* op, Handle<Value>& error, Handle<Value>& result);
+
+    inline Op(const ExecFunction exec, const ConvFunction conv,
+              Handle<Object>& handle, Handle<Function>& callback)
+      : Operation<T>(exec, conv, handle, callback)
+    {
+      self_ = ObjectWrap::Unwrap<JHandle>(handle);
+      self_->Ref();
+    }
+
+    virtual ~Op() {
+      self_->Unref();
+    }
+
+    virtual inline Handle<Value> BeforeRun() {
+      if (self_->db_ == NULL) return ThrowError("Handle closed");
+      return Handle<Value>();
+    }
+
+    JHandle* self_;
+
+    leveldb::Status status_;
+
+  };
+
   class OpenOp;
   class OpenOp : public Operation<OpenOp> {
    public:
@@ -94,31 +125,18 @@ class JHandle : public ObjectWrap {
   };
 
   class ReadOp;
-  class ReadOp : public Operation<ReadOp> {
+  class ReadOp : public Op<ReadOp> {
    public:
 
     inline ReadOp(const ExecFunction exec, const ConvFunction conv,
                   Handle<Object>& handle, Handle<Function>& callback)
-      : Operation<ReadOp>(exec, conv, handle, callback)
-    {
-      self_ = ObjectWrap::Unwrap<JHandle>(handle);
-      self_->Ref();
-    }
+      : Op<ReadOp>(exec, conv, handle, callback) {}
 
     virtual ~ReadOp() {
-      self_->Unref();
       keyHandle_.Dispose();
     }
 
-    inline Handle<Value> Before() {
-      if (self_->db_ == NULL) return ThrowError("Handle closed");
-      return Handle<Value>();
-    }
-
-    JHandle* self_;
-
     leveldb::Slice key_;
-    leveldb::Status status_;
     leveldb::ReadOptions options_;
 
     std::string result_;
@@ -127,109 +145,57 @@ class JHandle : public ObjectWrap {
   };
 
   class WriteOp;
-  class WriteOp : public Operation<WriteOp> {
+  class WriteOp : public Op<WriteOp> {
    public:
 
     inline WriteOp(const ExecFunction exec, const ConvFunction conv,
                    Handle<Object>& handle, Handle<Function>& callback)
-      : Operation<WriteOp>(exec, conv, handle, callback)
-    {
-      self_ = ObjectWrap::Unwrap<JHandle>(handle);
-      self_->Ref();
-    }
+      : Op<WriteOp>(exec, conv, handle, callback) {}
 
     virtual ~WriteOp() {
-      self_->Unref();
       batch_->Unref();
     }
 
-    inline Handle<Value> Before() {
-      if (self_->db_ == NULL) return ThrowError("Handle closed");
-      return Handle<Value>();
-    }
-
-    JHandle* self_;
     JBatch* batch_;
-
-    leveldb::Status status_;
     leveldb::WriteOptions options_;
   };
 
   class IteratorOp;
-  class IteratorOp : public Operation<IteratorOp> {
+  class IteratorOp : public Op<IteratorOp> {
    public:
 
     inline IteratorOp(const ExecFunction exec, const ConvFunction conv,
                       Handle<Object>& handle, Handle<Function>& callback)
-      : Operation<IteratorOp>(exec, conv, handle, callback)
-    {
-      self_ = ObjectWrap::Unwrap<JHandle>(handle);
-      self_->Ref();
-    }
-
-    virtual ~IteratorOp() {
-      self_->Unref();
-    }
-
-    inline Handle<Value> Before() {
-      if (self_->db_ == NULL) return ThrowError("Handle closed");
-      return Handle<Value>();
-    }
-
-    JHandle* self_;
+      : Op<IteratorOp>(exec, conv, handle, callback) {}
 
     leveldb::Iterator* it_;
-    leveldb::Status status_;
     leveldb::ReadOptions options_;
   };
 
   class SnapshotOp;
-  class SnapshotOp : public Operation<SnapshotOp> {
+  class SnapshotOp : public Op<SnapshotOp> {
    public:
 
     inline SnapshotOp(const ExecFunction exec, const ConvFunction conv,
                       Handle<Object>& handle, Handle<Function>& callback)
-      : Operation<SnapshotOp>(exec, conv, handle, callback)
-    {
-      self_ = ObjectWrap::Unwrap<JHandle>(handle);
-      self_->Ref();
-    }
+      : Op<SnapshotOp>(exec, conv, handle, callback) {}
 
-    virtual ~SnapshotOp() {
-      self_->Unref();
-    }
-
-    inline Handle<Value> Before() {
-      if (self_->db_ == NULL) return ThrowError("Handle closed");
-      return Handle<Value>();
-    }
-
-    JHandle* self_;
-
-    leveldb::Status status_;
     leveldb::Snapshot* snap_;
   };
 
   class ApproximateSizesOp;
-  class ApproximateSizesOp : public Operation<ApproximateSizesOp> {
+  class ApproximateSizesOp : public Op<ApproximateSizesOp> {
    public:
 
     inline ApproximateSizesOp(const ExecFunction exec, const ConvFunction conv,
                               Handle<Object>& handle, Handle<Function>& callback)
-      : Operation<ApproximateSizesOp>(exec, conv, handle, callback), sizes_(NULL)
-    {
-      self_ = ObjectWrap::Unwrap<JHandle>(handle);
-      self_->Ref();
-    }
+      : Op<ApproximateSizesOp>(exec, conv, handle, callback), sizes_(NULL) {}
 
     virtual ~ApproximateSizesOp() {
-      self_->Unref();
       std::vector< Persistent<Value> >::iterator it;
       for (it = handles_.begin(); it < handles_.end(); ++it) it->Dispose();
       if (sizes_) delete[] sizes_;
     }
-
-    JHandle* self_;
 
     std::vector<leveldb::Range> ranges_;
     std::vector< Persistent<Value> > handles_;
