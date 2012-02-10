@@ -31,8 +31,8 @@ template < class T > class Operation {
     callback_.Dispose();
   }
 
-  inline Handle<Value> Before() { return Handle<Value>(); }
-  inline void After() {}
+  virtual inline Handle<Value> Before() { return Handle<Value>(); }
+  virtual inline void After() {}
 
   inline Handle<Value> Run() {
     Handle<Value> error = Before();
@@ -48,8 +48,8 @@ template < class T > class Operation {
 
       T* self = static_cast<T*>(this);
       exec_(self);
-      conv_(self, error, result);
       After();
+      conv_(self, error, result);
 
       delete this;
 
@@ -84,6 +84,7 @@ template < class T > class Operation {
     Operation* op = static_cast<Operation*>(req->data);
     T* self = static_cast<T*>(req->data);
     op->exec_(self);
+    op->After();
     RETURN_ASYNC;
   }
 
