@@ -215,69 +215,32 @@ Handle<Value> JHandle::Property(const Arguments& args) {
 
 Handle<Value> JHandle::ApproximateSizes(const Arguments& args) {
   HandleScope scope;
-  JHandle* self = ObjectWrap::Unwrap<JHandle>(args.This());
-
-  if (self->db_ == NULL) return ThrowError("Handle closed");
 
   if (args.Length() < 1 || !args[0]->IsArray())
     return ThrowTypeError("Invalid arguments");
 
-  std::vector<leveldb::Range> ranges;
-  std::vector< Persistent<Value> > handles;
-
   Local<Array> array(Array::Cast(*args[0]));
-  int len = array->Length();
 
+  int len = array->Length();
   if (len % 2 != 0)
     return ThrowTypeError("Invalid arguments");
 
-  // Optional callback
-  Local<Function> callback = GetCallback(args);
+  ApproximateSizesOp* op =
+    ApproximateSizesOp::New(ApproximateSizes, ApproximateSizes, args);
 
   for (int i = 0; i < len; i += 2) {
     if (array->Has(i) && array->Has(i + 1)) {
       Local<Value> lStart = array->Get(i);
       Local<Value> lLimit = array->Get(i + 1);
 
-      leveldb::Slice start = ToSlice(lStart);
-      leveldb::Slice limit = ToSlice(lLimit);
+      leveldb::Slice start = ToSlice(lStart, op->handles_);
+      leveldb::Slice limit = ToSlice(lLimit, op->handles_);
 
-      if (!callback.IsEmpty()) {
-        handles.push_back(Persistent<Value>::New(lStart));
-        handles.push_back(Persistent<Value>::New(lLimit));
-      }
-
-      ranges.push_back(leveldb::Range(start, limit));
+      op->ranges_.push_back(leveldb::Range(start, limit));
     }
   }
 
-  int nRanges = ranges.size();
-  uint64_t* sizes = new uint64_t[ nRanges ];
-  self->db_->GetApproximateSizes(&ranges[0], nRanges, sizes);
-
-  Local<Array> result = Array::New(nRanges);
-  for (int i = 0; i < nRanges; ++i) {
-    uint64_t size = sizes[i];
-    if (size < INT_MAX) {
-      result->Set(i, Integer::New(static_cast<uint32_t>(sizes[i])));
-    } else {
-      result->Set(i, Number::New(static_cast<double>(sizes[i])));
-    }
-  }
-
-  delete[] sizes;
-
-  if (!callback.IsEmpty()) {
-    std::vector< Persistent<Value> >::iterator it;
-    for (it = handles.begin(); it < handles.end(); ++it) it->Dispose();
-
-    Handle<Value> argv[] = { Null(), result };
-    callback->Call(args.This(), 2, argv);
-
-    return args.This();
-  } else {
-    return scope.Close(result);
-  }
+  return op->Run();
 }
 
 Handle<Value> JHandle::CompactRange(const Arguments& args) {
@@ -361,6 +324,31 @@ void JHandle::Snapshot(SnapshotOp* op, Handle<Value>& error, Handle<Value>& resu
   } else {
     error = Exception::Error(String::New(op->status_.ToString().c_str()));
   }
+}
+
+void JHandle::ApproximateSizes(ApproximateSizesOp* op) {
+  int len = op->ranges_.size();
+  op->sizes_ = new uint64_t[len];
+  op->self_->db_->GetApproximateSizes(&op->ranges_[0], len, op->sizes_);
+}
+
+void JHandle::ApproximateSizes(ApproximateSizesOp* op,
+                               Handle<Value>& error, Handle<Value>& result)
+{
+  int len = op->ranges_.size();
+
+  Handle<Array> array = Array::New(len);
+
+  for (int i = 0; i < len; ++i) {
+    uint64_t size = op->sizes_[i];
+    if (size < INT_MAX) {
+      array->Set(i, Integer::New(static_cast<uint32_t>(size)));
+    } else {
+      array->Set(i, Number::New(static_cast<double>(size)));
+    }
+  }
+
+  result = array;
 }
 
 } // namespace node_leveldb
