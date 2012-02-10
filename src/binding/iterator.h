@@ -87,11 +87,11 @@ class JIterator : ObjectWrap {
       keyHandle_.Dispose();
     }
 
-    inline Handle<Value> Before() {
+    virtual inline Handle<Value> Before() {
       if (self_->Lock()) return ThrowError("Concurrent operations not supported");
     }
 
-    inline void After() {
+    virtual inline void After() {
       self_->Unlock();
     }
 
