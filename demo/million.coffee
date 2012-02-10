@@ -32,7 +32,3 @@ for i in [0..100000]
 delta = Date.now() - start;
 console.log 'Completed in %d ms', delta
 console.log '%s inserts per second', Math.floor(1000000000 / delta)
-
-console.log 'Closing and destroying database'
-db.closeSync()
-leveldb.destroySync path
