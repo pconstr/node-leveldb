@@ -74,7 +74,7 @@ class JIterator : ObjectWrap {
   class Op : public Operation<Op> {
    public:
 
-    inline Op(ExecFunction& exec, ConvFunction& conv,
+    inline Op(const ExecFunction exec, const ConvFunction conv,
               Handle<Object>& handle, Handle<Function>& callback)
       : Operation<Op>(exec, conv, handle, callback), invalidState_(0)
     {
@@ -93,21 +93,6 @@ class JIterator : ObjectWrap {
 
     inline void After() {
       self_->Unlock();
-    }
-
-    static inline Handle<Value> Go(ExecFunction run, ConvFunction conv,
-                                   const Arguments& args)
-    {
-      HandleScope scope;
-      return New(run, conv, args)->Run();
-    }
-
-    static inline Op* New(ExecFunction run, ConvFunction conv,
-                          const Arguments& args)
-    {
-      Handle<Object> self = args.This();
-      Handle<Function> callback = GetCallback(args);
-      return new Op(run, conv, self, callback);
     }
 
     JIterator* self_;
