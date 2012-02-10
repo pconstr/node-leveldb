@@ -1,3 +1,6 @@
 .DS_Store
+build
+deps
 node_modules
 npm-debug.log
+src

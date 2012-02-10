@@ -1,5 +1,5 @@
 leveldb = exports = module.exports = require './leveldb/handle'
-binding = require '../build/leveldb.node'
+binding = require './leveldb.node'
 
 leveldb.version = '0.5.0'
 leveldb.bindingVersion = binding.bindingVersion

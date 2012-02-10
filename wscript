@@ -101,7 +101,8 @@ def clean(ctx):
 
 def build_post(bld):
   module_path = bld.path.find_resource('leveldb.node').abspath(bld.env)
-  system('cp %r build/leveldb.node' % module_path)
+  system('mkdir -p lib/leveldb')
+  system('cp %r lib/leveldb.node' % module_path)
 
 def build(bld):
   node_leveldb = bld.new_task_gen("cxx", "shlib", "node_addon")
