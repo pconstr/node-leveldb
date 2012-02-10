@@ -46,11 +46,18 @@ class JIterator : ObjectWrap {
   static Handle<Value> GetValue(const Arguments& args);
   static Handle<Value> GetKeyValue(const Arguments& args);
 
+  static Handle<Value> GetRefSlice(Local<String> property,
+                                   const AccessorInfo& info);
+  static void SetRefSlice(Local<String> property, Local<Value> value,
+                          const AccessorInfo& info);
+
  private:
   friend class JHandle;
 
   // No instance creation outside of Handle
-  inline JIterator(leveldb::Iterator* it) : ObjectWrap(), it_(it) {
+  inline JIterator(leveldb::Iterator* it)
+    : ObjectWrap(), it_(it), refSlice_(false)
+  {
     int err = pthread_mutex_init(&lock_, NULL);
     assert(err == 0);
   }
@@ -121,6 +128,8 @@ class JIterator : ObjectWrap {
 
   leveldb::Iterator* it_;
   pthread_mutex_t lock_;
+
+  bool refSlice_;
 };
 
 } // node_leveldb

@@ -61,6 +61,8 @@ static void FreeString(char* data, void* hint) {
   delete str;
 }
 
+static void FreeNoop(char* data, void* hint) {}
+
 static inline Handle<Value> ToBuffer(std::string* val) {
   Buffer* buf = Buffer::New(const_cast<char*>(val->data()),
                             val->size(), FreeString, val);
@@ -69,6 +71,12 @@ static inline Handle<Value> ToBuffer(std::string* val) {
 
 static inline Handle<Value> ToBuffer(const leveldb::Slice& val) {
   Buffer* buf = Buffer::New(const_cast<char*>(val.data()), val.size());
+  return buf->handle_;
+}
+
+static inline Handle<Value> RefBuffer(const leveldb::Slice& val) {
+  Buffer* buf = Buffer::New(const_cast<char*>(val.data()), val.size(),
+                            FreeNoop, NULL);
   return buf->handle_;
 }
 
