@@ -54,9 +54,17 @@ describe 'db', ->
         db = handle
         done()
 
-    it 'should get property', ->
-      assert db.property 'leveldb.stats'
-      assert.equal undefined, db.property ''
+    it 'should get property', (done) ->
+      db.property 'leveldb.stats', (err, value) ->
+        assert.ifError err
+        assert value
+        db.property '', (err, value) ->
+          assert.ifError value
+          done err, value
+
+    it 'should get property (sync)', ->
+      assert db.propertySync 'leveldb.stats'
+      assert.equal undefined, db.propertySync ''
 
     it 'should get no approximate size', ->
       assert.equal 0, db.approximateSizesSync []

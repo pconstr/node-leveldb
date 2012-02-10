@@ -344,7 +344,7 @@ class Handle
       @param {Object} [options] Optional options. See `Handle.get()`.
       @param {Function} [callback] Optional callback.
         @param {Error} error The error value on error, null otherwise.
-        @param {leveldb.Iterator} The iterator if successful.
+        @param {leveldb.Iterator} iterator The iterator if successful.
 
   ###
 
@@ -389,7 +389,7 @@ class Handle
 
       @param {Function} [callback] Optional callback.
         @param {Error} error The error value on error, null otherwise.
-        @param {leveldb.Snapshot} The snapshot if successful.
+        @param {leveldb.Snapshot} snapshot The snapshot if successful.
 
   ###
 
@@ -429,10 +429,28 @@ class Handle
 
       @param {String} name The database property name. See the
         `leveldb/db.h` header file for property names.
+      @param {Function} [callback] Optional callback.
+        @param {Error} error The error value on error, null otherwise.
+        @param {String} value The property value if successful.
 
   ###
 
-  property: (name) ->
+  property: (name, callback) ->
+
+    # required callback
+    throw new Error 'Missing callback' unless callback
+
+    # call native binding
+    @self.property name, callback
+
+
+  ###
+
+      Get a database property synchronously. See `Handle.property()`.
+
+  ###
+
+  propertySync: (name) ->
 
     # call native binding
     @self.property(name)

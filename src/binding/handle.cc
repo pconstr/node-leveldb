@@ -196,21 +196,14 @@ Handle<Value> JHandle::Snapshot(const Arguments& args) {
 
 Handle<Value> JHandle::Property(const Arguments& args) {
   HandleScope scope;
-  JHandle* self = ObjectWrap::Unwrap<JHandle>(args.This());
-
-  if (self->db_ == NULL) return ThrowError("Handle closed");
 
   if (args.Length() < 1 || !args[0]->IsString())
     return ThrowTypeError("Invalid arguments");
 
-  std::string name(*String::Utf8Value(args[0]));
-  std::string value;
+  PropertyOp* op = PropertyOp::New(Property, Property, args);
+  op->name_ = *String::Utf8Value(args[0]);
 
-  if (self->db_->GetProperty(leveldb::Slice(name), &value)) {
-    return scope.Close(String::New(value.c_str()));
-  } else {
-    return Undefined();
-  }
+  return op->Run();
 }
 
 Handle<Value> JHandle::ApproximateSizes(const Arguments& args) {
@@ -324,6 +317,15 @@ void JHandle::Snapshot(SnapshotOp* op, Handle<Value>& error, Handle<Value>& resu
   } else {
     error = Exception::Error(String::New(op->status_.ToString().c_str()));
   }
+}
+
+void JHandle::Property(PropertyOp* op) {
+  leveldb::Slice name(op->name_);
+  op->hasProperty_ = op->self_->db_->GetProperty(name, &op->value_);
+}
+
+void JHandle::Property(PropertyOp* op, Handle<Value>& error, Handle<Value>& result) {
+  if (op->hasProperty_) result = String::New(op->value_.c_str());
 }
 
 void JHandle::ApproximateSizes(ApproximateSizesOp* op) {
