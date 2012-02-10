@@ -1,6 +1,7 @@
 #ifndef NODE_LEVELDB_HELPERS_H_
 #define NODE_LEVELDB_HELPERS_H_
 
+#include <string>
 #include <vector>
 
 #include <v8.h>
@@ -53,6 +54,17 @@ static inline leveldb::Slice ToSlice(const Handle<Value>& value,
   } else {
     return leveldb::Slice();
   }
+}
+
+static void FreeString(char* data, void* hint) {
+  std::string* str = static_cast<std::string*>(hint);
+  delete str;
+}
+
+static inline Handle<Value> ToBuffer(std::string* val) {
+  Buffer* buf = Buffer::New(const_cast<char*>(val->data()),
+                            val->size(), FreeString, val);
+  return buf->handle_;
 }
 
 static inline Handle<Value> ToBuffer(const leveldb::Slice& val) {

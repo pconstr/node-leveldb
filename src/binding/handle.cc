@@ -276,16 +276,9 @@ void JHandle::Read(ReadOp* op) {
   op->status_ = op->self_->db_->Get(op->options_, op->key_, op->result_);
 }
 
-static void FreeString(char* data, void* hint) {
-  std::string* str = static_cast<std::string*>(hint);
-  delete str;
-}
-
 void JHandle::Read(ReadOp* op, Handle<Value>& error, Handle<Value>& result) {
   if (op->status_.ok()) {
-    Buffer* buf = Buffer::New(const_cast<char*>(op->result_->data()),
-                              op->result_->size(), FreeString, op->result_);
-    result = buf->handle_;
+    result = ToBuffer(op->result_);
   } else if (!op->status_.IsNotFound()) {
     error = Exception::Error(String::New(op->status_.ToString().c_str()));
   }
