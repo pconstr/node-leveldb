@@ -183,6 +183,24 @@ class JHandle : public ObjectWrap {
     leveldb::Snapshot* snap_;
   };
 
+  class PropertyOp;
+  class PropertyOp : public Op<PropertyOp> {
+   public:
+
+    inline PropertyOp(const ExecFunction exec, const ConvFunction conv,
+                      Handle<Object>& handle, Handle<Function>& callback)
+      : Op<PropertyOp>(exec, conv, handle, callback), hasProperty_(false) {}
+
+    virtual ~PropertyOp() {
+      nameHandle_.Dispose();
+    }
+
+    std::string name_;
+    std::string value_;
+    bool hasProperty_;
+    Persistent<Value> nameHandle_;
+  };
+
   class ApproximateSizesOp;
   class ApproximateSizesOp : public Op<ApproximateSizesOp> {
    public:
@@ -225,6 +243,9 @@ class JHandle : public ObjectWrap {
   static void Snapshot(SnapshotOp* op,
                        Handle<Value>& error, Handle<Value>& result);
 
+  static void Property(PropertyOp* op);
+  static void Property(PropertyOp* op,
+                       Handle<Value>& error, Handle<Value>& result);
 
   static void ApproximateSizes(ApproximateSizesOp* op);
   static void ApproximateSizes(ApproximateSizesOp* op,
