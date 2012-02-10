@@ -41,7 +41,7 @@ void JHandle::Initialize(Handle<Object> target) {
   constructor->SetClassName(String::NewSymbol("Handle"));
 
   // Instance methods
-  NODE_SET_PROTOTYPE_METHOD(constructor, "get", Get);
+  NODE_SET_PROTOTYPE_METHOD(constructor, "get", Read);
   NODE_SET_PROTOTYPE_METHOD(constructor, "write", Write);
   NODE_SET_PROTOTYPE_METHOD(constructor, "iterator", Iterator);
   NODE_SET_PROTOTYPE_METHOD(constructor, "snapshot", Snapshot);
@@ -81,106 +81,85 @@ Handle<Value> JHandle::Open(const Arguments& args) {
   if (args.Length() < 1 || !args[0]->IsString())
     return ThrowTypeError("Invalid arguments");
 
+  OpenOp* op = OpenOp::New(Open, Open, args);
+
   // Required filename
-  std::string name(*String::Utf8Value(args[0]));
+  op->name_ = *String::Utf8Value(args[0]);
 
   // Optional options
-  leveldb::Options options;
-  if (args.Length() > 1 && args[1]->IsObject() && !args[1]->IsFunction())
-    UnpackOptions(args[1], options);
+  if (args.Length() > 1 && !args[1]->IsFunction())
+    UnpackOptions(args[1], op->options_);
 
-  // Optional callback
-  Local<Function> callback = GetCallback(args);
-
-  // Pass parameters to async function
-  if (callback.IsEmpty()) {
-    leveldb::DB* db;
-    leveldb::Status status = leveldb::DB::Open(options, name, &db);
-    if (!status.ok()) return Error(status);
-    Local<Value> argc[] = { External::New(db) };
-    Local<Object> self = constructor->GetFunction()->NewInstance(1, argc);
-    return scope.Close(self);
-  } else {
-    OpenParams *params = new OpenParams(options, name, callback);
-    BEGIN_ASYNC(params, Open, OpenAfter);
-    return Undefined();
-  }
+  return op->Run();
 }
 
-Handle<Value> JHandle::Get(const Arguments& args) {
+Handle<Value> JHandle::Destroy(const Arguments& args) {
   HandleScope scope;
 
-  JHandle* self = ObjectWrap::Unwrap<JHandle>(args.This());
+  if (args.Length() < 1 || !args[0]->IsString())
+    return ThrowTypeError("Invalid arguments");
+
+  OpenOp* op = OpenOp::New(Destroy, OpenConv, args);
+  op->name_ = *String::Utf8Value(args[0]);
+
+  // Optional options
+  if (args.Length() > 1) UnpackOptions(args[1], op->options_);
+
+  return op->Run();
+}
+
+Handle<Value> JHandle::Repair(const Arguments& args) {
+  HandleScope scope;
+
+  if (args.Length() < 1 || !args[0]->IsString())
+    return ThrowTypeError("Invalid arguments");
+
+  OpenOp* op = OpenOp::New(Repair, OpenConv, args);
+  op->name_ = *String::Utf8Value(args[0]);
+
+  // Optional options
+  if (args.Length() > 1) UnpackOptions(args[1], op->options_);
+
+  return op->Run();
+}
+
+Handle<Value> JHandle::Read(const Arguments& args) {
+  HandleScope scope;
+
   int argc = args.Length();
-
-  if (self->db_ == NULL) return ThrowError("Handle closed");
-
   if (argc < 1 || !Buffer::HasInstance(args[0]))
     return ThrowTypeError("Invalid arguments");
 
-  // Key
-  Persistent<Value> keyHandle;
-  leveldb::Slice key = ToSlice(args[0], keyHandle);
+  ReadOp* op = ReadOp::New(Read, Read, args);
+  op->key_ = ToSlice(args[0], op->keyHandle_);
 
   // Optional read options
-  leveldb::ReadOptions options;
-  if (argc > 1) UnpackReadOptions(args[1], options);
+  if (argc > 1) UnpackReadOptions(args[1], op->options_);
 
-  // Optional callback
-  Local<Function> callback = GetCallback(args);
-
-  if (callback.IsEmpty()) {
-    std::string result;
-    if (!keyHandle.IsEmpty()) keyHandle.Dispose();
-    leveldb::Status status = self->db_->Get(options, key, &result);
-    if (!status.ok()) return Error(status);
-    return scope.Close(ToBuffer(result));
-  } else {
-    ReadParams* params = new ReadParams(self, key, keyHandle, options, callback);
-    BEGIN_ASYNC(params, Get, GetAfter);
-  }
-
-  return args.This();
+  return op->Run();
 }
 
 Handle<Value> JHandle::Write(const Arguments& args) {
   HandleScope scope;
 
-  JHandle* self = ObjectWrap::Unwrap<JHandle>(args.This());
   int argc = args.Length();
-
-  if (self->db_ == NULL) return ThrowError("Handle closed");
-
   if (argc < 1 || !JBatch::HasInstance(args[0]))
     return ThrowTypeError("Invalid arguments");
 
-  JBatch* batch = ObjectWrap::Unwrap<JBatch>(args[0]->ToObject());
+  WriteOp* op = WriteOp::New(Write, Write, args);
+  op->batch_ = ObjectWrap::Unwrap<JBatch>(args[0]->ToObject());
+  op->batch_->Ref();
 
   // Optional write options
-  leveldb::WriteOptions options;
-  if (argc > 1) UnpackWriteOptions(args[1], options);
+  if (argc > 1) UnpackWriteOptions(args[1], op->options_);
 
-  // Optional callback
-  Local<Function> callback = GetCallback(args);
-
-  // Pass parameters to async function
-  if (callback.IsEmpty()) {
-    batch->ReadLock();
-    leveldb::Status status = self->db_->Write(options, &batch->wb_);
-    batch->ReadUnlock();
-    if (!status.ok()) return ThrowError(status.ToString().c_str());
-  } else {
-    WriteParams *params = new WriteParams(self, options, batch, callback);
-    BEGIN_ASYNC(params, Write, After);
-  }
-
-  return args.This();
+  return op->Run();
 }
 
 void JHandle::UnrefIterator(Persistent<Value> object, void* parameter) {
   assert(object->IsObject());
 
-  JHandle* self = (JHandle*)parameter;
+  JHandle* self = static_cast<JHandle*>(parameter);
   assert(self);
 
   self->Unref();
@@ -189,32 +168,17 @@ void JHandle::UnrefIterator(Persistent<Value> object, void* parameter) {
 
 Handle<Value> JHandle::Iterator(const Arguments& args) {
   HandleScope scope;
-  JHandle* self = ObjectWrap::Unwrap<JHandle>(args.This());
-
-  if (self->db_ == NULL) return ThrowError("Handle closed");
-
-  leveldb::ReadOptions options;
-  if (args.Length() > 0) UnpackReadOptions(args[0], options);
-
-  // Optional callback
-  Local<Function> callback = GetCallback(args);
-
-  if (callback.IsEmpty()) {
-    leveldb::Iterator* it = self->db_->NewIterator(options);
-    Handle<Value> instance = self->RefIterator(it);
-    return scope.Close(instance);
-  } else {
-    IteratorParams *params = new IteratorParams(self, options, callback);
-    BEGIN_ASYNC(params, Iterator, IteratorAfter);
-    return Undefined();
-  }
+  IteratorOp* op = IteratorOp::New(Iterator, Iterator, args);
+  if (args.Length() > 0) UnpackReadOptions(args[0], op->options_);
+  return op->Run();
 }
 
 void JHandle::UnrefSnapshot(Persistent<Value> object, void* parameter) {
   assert(object->IsExternal());
 
-  JHandle* self = (JHandle*)parameter;
-  leveldb::Snapshot* snapshot = (leveldb::Snapshot*)External::Unwrap(object);
+  JHandle* self = static_cast<JHandle*>(parameter);
+  leveldb::Snapshot* snapshot =
+    static_cast<leveldb::Snapshot*>(External::Unwrap(object));
 
   assert(self);
   assert(snapshot);
@@ -227,22 +191,7 @@ void JHandle::UnrefSnapshot(Persistent<Value> object, void* parameter) {
 
 Handle<Value> JHandle::Snapshot(const Arguments& args) {
   HandleScope scope;
-  JHandle* self = ObjectWrap::Unwrap<JHandle>(args.This());
-
-  if (self->db_ == NULL) return ThrowError("Handle closed");
-
-  // Optional callback
-  Local<Function> callback = GetCallback(args);
-
-  if (callback.IsEmpty()) {
-    const leveldb::Snapshot* snapshot = self->db_->GetSnapshot();
-    Handle<Value>instance = self->RefSnapshot(snapshot);
-    return scope.Close(instance);
-  } else {
-    SnapshotParams *params = new SnapshotParams(self, callback);
-    BEGIN_ASYNC(params, Snapshot, SnapshotAfter);
-    return Undefined();
-  }
+  return SnapshotOp::Go(Snapshot, Snapshot, args);
 }
 
 Handle<Value> JHandle::Property(const Arguments& args) {
@@ -336,206 +285,82 @@ Handle<Value> JHandle::CompactRange(const Arguments& args) {
   return ThrowError("Method not implemented");
 }
 
-Handle<Value> JHandle::Destroy(const Arguments& args) {
-  HandleScope scope;
-
-  if (args.Length() < 1 || !args[0]->IsString())
-    return ThrowTypeError("Invalid arguments");
-
-  // Required name
-  String::Utf8Value name(args[0]);
-
-  // Optional options
-  leveldb::Options options;
-  if (args.Length() > 1) UnpackOptions(args[1], options);
-
-  // Optional callback
-  Local<Function> callback = GetCallback(args);
-
-  if (callback.IsEmpty()) {
-    leveldb::Status status = leveldb::DestroyDB(*name, options);
-    if (!status.ok()) return ThrowError(status.ToString().c_str());
-  } else {
-    OpenParams *params = new OpenParams(options, *name, callback);
-    BEGIN_ASYNC(params, Destroy, After);
-  }
-
-  return Undefined();
-}
-
-Handle<Value> JHandle::Repair(const Arguments& args) {
-  HandleScope scope;
-
-  if (args.Length() < 1 || !args[0]->IsString())
-    return ThrowTypeError("Invalid arguments");
-
-  // Required name
-  String::Utf8Value name(args[0]);
-
-  // Optional options
-  leveldb::Options options;
-  if (args.Length() > 1) UnpackOptions(args[1], options);
-
-  // Optional callback
-  Local<Function> callback = GetCallback(args);
-
-  if (callback.IsEmpty()) {
-    leveldb::Status status = leveldb::RepairDB(*name, options);
-    if (!status.ok()) return ThrowError(status.ToString().c_str());
-  } else {
-    OpenParams *params = new OpenParams(options, *name, callback);
-    BEGIN_ASYNC(params, Repair, After);
-  }
-
-  return Undefined();
-}
-
-void JHandle::Params::Callback() {
-  TryCatch try_catch;
-
-  Handle<Object> that;
-  if (self) {
-    that = self->handle_;
-  } else {
-    that = Object::New();
-  }
-
-  if (!status.ok() && !status.IsNotFound()) {
-    // error, callback with first argument as error object
-    Local<String> message = String::New(status.ToString().c_str());
-    Local<Value> argv[] = { Exception::Error(message) };
-    callback->Call(that, 1, argv);
-  } else {
-    callback->Call(that, 0, NULL);
-  }
-
-  if (try_catch.HasCaught()) FatalException(try_catch);
-}
-
-void JHandle::Params::Callback(const Handle<Value>& result) {
-  assert(!callback.IsEmpty());
-
-  TryCatch try_catch;
-
-  if (result.IsEmpty()) {
-    callback->Call(self->handle_, 0, NULL);
-  } else {
-    Handle<Value> argv[] = { Null(), result };
-    callback->Call(self->handle_, 2, argv);
-  }
-
-  if (try_catch.HasCaught()) FatalException(try_catch);
-}
-
 
 //
 // ASYNC FUNCTIONS
 //
 
-async_rtn JHandle::Open(uv_work_t* req) {
-  OpenParams* params = (OpenParams*) req->data;
-  params->status = leveldb::DB::Open(params->options, params->name, &params->db);
-  RETURN_ASYNC;
+void JHandle::Open(OpenOp* op) {
+  op->status_ = leveldb::DB::Open(op->options_, op->name_, &op->db_);
 }
 
-async_rtn JHandle::OpenAfter(uv_work_t* req) {
-  HandleScope scope;
-  OpenParams* params = (OpenParams*) req->data;
-
-  if (params->status.ok()) {
-    Local<Value> argc[] = { External::New(params->db) };
-    Local<Object> self = constructor->GetFunction()->NewInstance(1, argc);
-    JHandle* handle = ObjectWrap::Unwrap<JHandle>(self);
-    handle->Ref();
-    params->self = handle;
-    params->Callback(self);
+void JHandle::Open(OpenOp* op, Handle<Value>& error, Handle<Value>& result) {
+  if (op->status_.ok()) {
+    Local<Value> argc[] = { External::New(op->db_) };
+    result = constructor->GetFunction()->NewInstance(1, argc);
   } else {
-    params->Callback();
+    error = Exception::Error(String::New(op->status_.ToString().c_str()));
   }
-
-  delete params;
-  RETURN_ASYNC_AFTER;
 }
 
-async_rtn JHandle::Get(uv_work_t* req) {
-  ReadParams* params = (ReadParams*) req->data;
-  params->status = params->self->db_->Get(params->options, params->key, &params->result);
-  RETURN_ASYNC;
+void JHandle::Destroy(OpenOp* op) {
+  op->status_ = leveldb::DestroyDB(op->name_, op->options_);
 }
 
-async_rtn JHandle::GetAfter(uv_work_t* req) {
-  HandleScope scope;
+void JHandle::Repair(OpenOp* op) {
+  op->status_ = leveldb::RepairDB(op->name_, op->options_);
+}
 
-  ReadParams* params = (ReadParams*) req->data;
-  if (params->status.ok()) {
-    params->Callback(ToBuffer(params->result));
+void JHandle::OpenConv(OpenOp* op, Handle<Value>& error, Handle<Value>& result) {
+  if (!op->status_.ok())
+    error = Exception::Error(String::New(op->status_.ToString().c_str()));
+}
+
+void JHandle::Read(ReadOp* op) {
+  op->status_ = op->self_->db_->Get(op->options_, op->key_, &op->result_);
+}
+
+void JHandle::Read(ReadOp* op, Handle<Value>& error, Handle<Value>& result) {
+  if (op->status_.ok()) {
+    result = ToBuffer(op->result_);
+  } else if (!op->status_.IsNotFound()) {
+    error = Exception::Error(String::New(op->status_.ToString().c_str()));
+  }
+}
+
+void JHandle::Write(WriteOp* op) {
+  op->batch_->ReadLock();
+  op->status_ = op->self_->db_->Write(op->options_, &op->batch_->wb_);
+  op->batch_->ReadUnlock();
+}
+
+void JHandle::Write(WriteOp* op, Handle<Value>& error, Handle<Value>& result) {
+  if (!op->status_.ok())
+    error = Exception::Error(String::New(op->status_.ToString().c_str()));
+}
+
+void JHandle::Iterator(IteratorOp* op) {
+  op->it_ = op->self_->db_->NewIterator(op->options_);
+}
+
+void JHandle::Iterator(IteratorOp* op, Handle<Value>& error, Handle<Value>& result) {
+  if (op->status_.ok()) {
+    result = op->self_->RefIterator(op->it_);
   } else {
-    params->Callback();
+    error = Exception::Error(String::New(op->status_.ToString().c_str()));
   }
-
-  delete params;
-  RETURN_ASYNC_AFTER;
 }
 
-async_rtn JHandle::Iterator(uv_work_t* req) {
-  IteratorParams* params = (IteratorParams*) req->data;
-  params->it = params->self->db_->NewIterator(params->options);
-  RETURN_ASYNC;
+void JHandle::Snapshot(SnapshotOp* op) {
+  op->snap_ = const_cast<leveldb::Snapshot*>(op->self_->db_->GetSnapshot());
 }
 
-async_rtn JHandle::IteratorAfter(uv_work_t* req) {
-  HandleScope scope;
-  IteratorParams* params = (IteratorParams*) req->data;
-
-  Handle<Value> instance = params->self->RefIterator(params->it);
-  params->Callback(instance);
-
-  delete params;
-  RETURN_ASYNC_AFTER;
-}
-
-async_rtn JHandle::Snapshot(uv_work_t* req) {
-  SnapshotParams* params = (SnapshotParams*) req->data;
-  params->snapshot = const_cast<leveldb::Snapshot*>(params->self->db_->GetSnapshot());
-  RETURN_ASYNC;
-}
-
-async_rtn JHandle::SnapshotAfter(uv_work_t* req) {
-  HandleScope scope;
-  SnapshotParams* params = (SnapshotParams*) req->data;
-
-  Handle<Value> instance = params->self->RefSnapshot(params->snapshot);
-  params->Callback(instance);
-
-  delete params;
-  RETURN_ASYNC_AFTER;
-}
-
-async_rtn JHandle::After(uv_work_t* req) {
-  Params *params = (Params*) req->data;
-  params->Callback();
-  delete params;
-  RETURN_ASYNC_AFTER;
-}
-
-async_rtn JHandle::Write(uv_work_t* req) {
-  WriteParams *params = (WriteParams*) req->data;
-  params->batch->ReadLock();
-  params->status = params->self->db_->Write(params->options, &params->batch->wb_);
-  params->batch->ReadUnlock();
-  RETURN_ASYNC;
-}
-
-async_rtn JHandle::Destroy(uv_work_t* req) {
-  OpenParams* params = (OpenParams*) req->data;
-  params->status = leveldb::DestroyDB(params->name, params->options)
-  RETURN_ASYNC;
-}
-
-async_rtn JHandle::Repair(uv_work_t* req) {
-  OpenParams* params = (OpenParams*) req->data;
-  params->status = leveldb::RepairDB(params->name, params->options)
-  RETURN_ASYNC;
+void JHandle::Snapshot(SnapshotOp* op, Handle<Value>& error, Handle<Value>& result) {
+  if (op->status_.ok()) {
+    result = op->self_->RefSnapshot(op->snap_);
+  } else {
+    error = Exception::Error(String::New(op->status_.ToString().c_str()));
+  }
 }
 
 } // namespace node_leveldb
