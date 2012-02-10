@@ -68,7 +68,8 @@ static inline Handle<Value> ToBuffer(std::string* val) {
 }
 
 static inline Handle<Value> ToBuffer(const leveldb::Slice& val) {
-  return Buffer::New(String::New(val.data(), val.size()));
+  Buffer* buf = Buffer::New(const_cast<char*>(val.data()), val.size());
+  return buf->handle_;
 }
 
 static inline Handle<Value> ToString(const leveldb::Slice& val) {
