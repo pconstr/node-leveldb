@@ -5,64 +5,139 @@ path    = require 'path'
 
 
 
-describe 'batch', ->
+describe 'Batch', ->
   filename = "#{__dirname}/../tmp/batch-test-file"
+  db = null
 
-  db = leveldb.openSync filename, create_if_missing: true
+  async = (test, callback) -> (err) ->
+    assert.ifError err
+    test()
+    callback()
 
-  value = 'Hello World'
-  newValue = 'Goodbye World'
+  hasPut = ->
+    assert.equal "Goodbye #{i}", db.getSync "#{i}" for i in [100..119]
 
-  it 'should insert data (async)', (done) ->
-    batch = new leveldb.Batch
-    batch.put "#{i}", value for i in [100..199]
-    db.write batch, sync: true, done
+  hasDel = ->
+    assert.ifError db.getSync "#{i}" for i in [180..199]
 
-  it 'should insert data (sync)', ->
-    batch = new leveldb.Batch
-    batch.put "#{i}", value for i in [200..299]
-    db.writeSync batch
+  hasBoth = ->
+    assert.equal "Goodbye #{i}", db.getSync "#{i}" for i in [100..119]
+    assert.ifError db.getSync "#{i}" for i in [180..199]
 
-  it 'should get values', ->
-    for i in [100..299]
-      val = db.getSync "#{i}"
-      assert.equal value, val
+  hasNoop = ->
+    assert.ifError db.getSync "#{i}" for i in [100..109]
+    assert.equal "Hello #{i}", db.getSync "#{i}" for i in [110..189]
+    assert.ifError db.getSync "#{i}" for i in [190..199]
 
-  it 'should delete data (async)', (done) ->
-    batch = new leveldb.Batch
-    batch.del "#{i}" for i in [100..149]
-    db.write batch, sync: true, done
+  # populate fresh database
+  beforeEach ->
+    db = leveldb.openSync filename, create_if_missing: true, error_if_exists: true
+    db.putSync "#{i}", "Hello #{i}" for i in [110..189]
+    hasNoop()
 
-  it 'should delete data (sync)', ->
-    batch = new leveldb.Batch
-    batch.del "#{i}" for i in [150..199]
-    db.writeSync batch
+  # close and destroy database
+  afterEach (done) ->
+    db = null
+    leveldb.destroy filename, done
 
-  it 'should not get values', ->
-    for i in [100..199]
-      val = db.getSync "#{i}"
-      assert.ifError val
+  describe 'async new', ->
+    b = null
 
-  it 'should replace data (async)', (done) ->
-    batch = db.batch()
-    for i in [200..249]
-      batch.del "#{i}"
-      batch.put "k#{i}", newValue
-    batch.write sync: true, done
+    it 'should put()', (done) ->
+      batch = new leveldb.Batch
+      batch.put "#{i}", "Goodbye #{i}" for i in [100..119]
+      db.write batch, async hasPut, done
 
-  it 'should replace data (sync)', ->
-    batch = db.batch()
-    for i in [250..299]
-      batch.del "#{i}"
-      batch.put "k#{i}", newValue
-    batch.writeSync batch
+    it 'should del()', (done) ->
+      batch = new leveldb.Batch
+      batch.del "#{i}" for i in [180..189]
+      db.write batch, async hasDel, done
 
-  it 'should not get values', ->
-    for i in [200..299]
-      val = db.getSync "#{i}"
-      assert.ifError val
+    it 'should put() del()', (done) ->
+      b = batch = new leveldb.Batch
+      batch.put "#{i}", "Goodbye #{i}" for i in [100..119]
+      batch.del "#{i}" for i in [180..189]
+      db.write batch, async hasBoth, done
 
-  it 'should get values', ->
-    for i in [200..299]
-      val = db.getSync "k#{i}"
-      assert.equal newValue, val
+    it 'should put() del() again', (done) ->
+      db.write b, async hasBoth, done
+
+    it 'should not put() del() after clear()', (done) ->
+      b.clear()
+      db.write b, async hasNoop, done
+
+  describe 'sync new', ->
+    b = null
+
+    it 'should put()', ->
+      batch = new leveldb.Batch
+      batch.put "#{i}", "Goodbye #{i}" for i in [100..119]
+      db.writeSync batch
+      hasPut()
+
+    it 'should del()', ->
+      batch = new leveldb.Batch
+      batch.del "#{i}" for i in [180..189]
+      db.writeSync batch
+      hasDel()
+
+    it 'should put() del()', ->
+      b = batch = new leveldb.Batch
+      batch.put "#{i}", "Goodbye #{i}" for i in [100..119]
+      batch.del "#{i}" for i in [180..189]
+      db.writeSync batch
+      hasBoth()
+
+    it 'should put() del() again', (done) ->
+      db.write b, async hasBoth, done
+
+    it 'should not put() del() after clear()', (done) ->
+      b.clear()
+      db.write b, async hasNoop, done
+
+  describe 'async db.batch()', ->
+    b = null
+
+    it 'should put()', (done) ->
+      batch = db.batch()
+      batch.put "#{i}", "Goodbye #{i}" for i in [100..119]
+      batch.write async hasPut, done
+
+    it 'should del()', (done) ->
+      batch = db.batch()
+      batch.del "#{i}" for i in [180..189]
+      batch.write async hasDel, done
+
+    it 'should put() del()', (done) ->
+      b = batch = db.batch()
+      batch.put "#{i}", "Goodbye #{i}" for i in [100..119]
+      batch.del "#{i}" for i in [180..189]
+      batch.write async hasBoth, done
+
+    it 'should not put() del() again', (done) ->
+      db.write b, async hasNoop, done
+
+  describe 'sync db.batch()', ->
+    b = null
+
+    it 'should put()', ->
+      batch = db.batch()
+      batch.put "#{i}", "Goodbye #{i}" for i in [100..119]
+      batch.writeSync()
+      hasPut()
+
+    it 'should del()', ->
+      batch = db.batch()
+      batch.del "#{i}" for i in [180..189]
+      batch.writeSync()
+      hasDel()
+
+    it 'should put() del()', ->
+      b = batch = db.batch()
+      batch.put "#{i}", "Goodbye #{i}" for i in [100..119]
+      batch.del "#{i}" for i in [180..189]
+      batch.writeSync()
+      hasBoth()
+
+    it 'should not put() del() again', (done) ->
+      db.write b, async hasNoop, done
