@@ -1,1 +1,14 @@
+.DS_Store
+.svn
+.git
+*.o
+
+node_modules
+npm-debug.log
+
 build
+demo/testdb
+
+deps/leveldb/build_config.mk
+deps/snappy/Makefile
+
