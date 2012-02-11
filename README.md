@@ -1,5 +1,3 @@
-Usage with npm install is currently borked.  The leveldb code was switched to be done via git submodule which does not work when installing with npm.  A new solution will need to be derived but is as of yet unknown.
-
 # Node-LevelDB
 
 The leveldb library provides a persistent key value store. Keys and values are arbitrary byte arrays. The keys are ordered within the key value store according to a user-specified comparator function.
