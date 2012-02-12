@@ -56,9 +56,9 @@ exports.Iterator = class Iterator
       key = key.toString 'utf8' unless err or options.as_buffer
       callback err, key
 
-  keySync: (options) ->
+  keySync: (options = {}) ->
     key = @self.key()
-    key = key.toString 'utf8' unless options.as_buffer
+    key = key.toString 'utf8' if key and not options.as_buffer
     key
 
   value: (options = {}, callback) ->
@@ -78,7 +78,7 @@ exports.Iterator = class Iterator
 
   valueSync: (options = {}) ->
     val = @self.value()
-    val = val.toString 'utf8' unless options.as_buffer
+    val = val.toString 'utf8' if val and not options.as_buffer
     val
 
   current: (options = {}, callback) ->
@@ -92,15 +92,18 @@ exports.Iterator = class Iterator
     throw new Error 'Missing callback' unless callback
 
     # call native binding
-    @self.current (err, [ key, val ]) ->
-      unless err or options.as_buffer
-        key = key.toString 'utf8'
-        val = val.toString 'utf8'
+    @self.current (err, kv) ->
+      if kv
+        [ key, val ] = kv
+        unless err or options.as_buffer
+          key = key.toString 'utf8'
+          val = val.toString 'utf8'
       callback err, key, val
 
   currentSync: (options = {}) ->
-    [ key, val ] = @self.current()
-    unless options.as_buffer
-      val = val.toString 'utf8'
-      key = key.toString 'utf8'
+    if kv = @self.current()
+      [ key, val ] = kv
+      unless options.as_buffer
+        val = val.toString 'utf8'
+        key = key.toString 'utf8'
     [ key, val ]

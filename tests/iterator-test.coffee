@@ -9,131 +9,110 @@ describe 'iterator', ->
   filename = "#{__dirname}/../tmp/iterator-test-file"
   db = null
   iterator = null
-  value = 'Hello World'
 
-  it 'should open database', (done) ->
-    leveldb.open filename, create_if_missing: true, (err, handle) ->
-      db = handle
-      done()
-
-  it 'should insert batch data', (done) ->
-    batch = new leveldb.Batch
-    batch.put "#{i}", value for i in [100..200]
-    db.write batch, sync: true, done
-
-  it 'should open database', (done) ->
-    leveldb.open filename, (err, handle) ->
-      assert.ifError err
-      db = handle
-      done()
-
-  it 'should get an iterator', (done) ->
-    db.iterator (err, it) ->
-      assert iterator = it
+  beforeEach (done) ->
+    db = leveldb.openSync filename, create_if_missing: true, error_if_exists: true
+    batch = db.batch()
+    batch.put "#{i}", "Hello #{i}" for i in [100..200]
+    batch.write sync: true, (err) ->
+      assert.equal "Hello #{i}", db.getSync "#{i}" for i in [100..200]
       done err
 
-  it 'should seek to first', (done) ->
-    iterator.first done
-
-  it 'should get values', (done) ->
-    testNext = (i) ->
-      iterator.current (err, key, val) ->
-        assert.ifError err
-        assert.equal "#{i}", key
-        assert.equal value, val
-        iterator.next (err) ->
-          assert.ifError err
-          if ++i <= 200
-            testNext i
-          else
-            done()
-
-    testNext 100
-
-  it 'should not be valid', ->
-    assert.ifError iterator.valid()
-
-  it 'should seek to key 201', (done) ->
-    iterator.seek '201', done
-
-  it 'should not be valid', ->
-    assert.ifError iterator.valid()
-
-  it 'should seek to last key', (done) ->
-    iterator.last done
-
-  it 'should get values in reverse', (done) ->
-    testNext = (i) ->
-      iterator.current (err, key, val) ->
-        assert.ifError err
-        assert.equal "#{i}", key
-        assert.equal value, val
-        iterator.prev (err) ->
-          assert.ifError err
-          if --i >= 100
-            testNext i
-          else
-            done()
-
-    testNext 200
-
-  it 'should not be valid', ->
-    assert.ifError iterator.valid()
-
-  it 'should close database', (done) ->
+  afterEach (done) ->
     db = null
     iterator = null
-    process.nextTick done
+    leveldb.destroy filename, done
 
-describe 'iterator (sync)', ->
-  filename = "#{__dirname}/../tmp/iterator-async-test-file"
-  db = null
-  iterator = null
-  value = 'Hello World'
+  describe 'async', ->
 
-  it 'should open database', ->
-    db = leveldb.openSync filename, create_if_missing: true
+    beforeEach (done) ->
+      db.iterator (err, iter) ->
+        iterator = iter
+        done err
 
-  it 'should insert batch data', ->
-    batch = new leveldb.Batch
-    batch.put "#{i}", value for i in [100..200]
-    db.writeSync batch, sync: true
+    it 'should get values', (done) ->
+      iterator.first (err) ->
+        assert.ifError err
+        i = 100
+        next = (err) ->
+          assert.ifError err
+          iterator.current (err, key, val) ->
+            assert.ifError err
+            expectKey = "#{i}"
+            expectVal = "Hello #{i}"
+            assert.equal expectKey, key
+            assert.equal expectVal, val
+            iterator.key (err, key) ->
+              assert.ifError err
+              assert.equal expectKey, key
+              iterator.value (err, val) ->
+                assert.ifError err
+                assert.equal expectVal, val
+                iterator.next if ++i <= 200 then next else done
+        next()
 
-  it 'should get an iterator', ->
-    assert iterator = db.iteratorSync()
+    it 'should not get invalid key', (done) ->
+      iterator.seek '201', (err) ->
+        assert.ifError err
+        assert.ifError iterator.valid()
+        iterator.current (err, key, val) ->
+          assert.ifError key
+          assert.ifError val
+          done err
 
-  it 'should seek to first', ->
-    iterator.firstSync()
+    it 'should get values in reverse', (done) ->
+      iterator.last (err) ->
+        i = 200
+        next = (err) ->
+          assert.ifError err
+          iterator.current (err, key, val) ->
+            assert.ifError err
+            expectKey = "#{i}"
+            expectVal = "Hello #{i}"
+            assert.equal expectKey, key
+            assert.equal expectVal, val
+            iterator.key (err, key) ->
+              assert.ifError err
+              assert.equal expectKey, key
+              iterator.value (err, val) ->
+                assert.ifError err
+                assert.equal expectVal, val
+                iterator.prev if --i >= 100 then next else done
+        next()
 
-  it 'should get values', ->
-    for i in [100..200]
-      [key, val] = iterator.currentSync()
-      assert.equal "#{i}", key
-      assert.equal value, val
-      iterator.nextSync()
+  describe 'sync', ->
 
-  it 'should not be valid', ->
-    assert.ifError iterator.valid()
+    beforeEach ->
+      iterator = db.iteratorSync()
 
-  it 'should seek to key 201', ->
-    iterator.seekSync '201'
+    it 'should get values', ->
+      iterator.firstSync()
+      for i in [100..200]
+        [key, val] = iterator.currentSync()
+        expectKey = "#{i}"
+        expectVal = "Hello #{i}"
+        assert iterator.valid()
+        assert.equal expectKey, key
+        assert.equal expectVal, val
+        assert.equal expectKey, iterator.keySync()
+        assert.equal expectVal, iterator.valueSync()
+        iterator.nextSync()
 
-  it 'should not be valid', ->
-    assert.ifError iterator.valid()
+    it 'should not get invalid key', ->
+      iterator.seekSync '201'
+      assert.ifError iterator.valid()
+      assert.ifError iterator.keySync()
+      assert.ifError iterator.valueSync()
 
-  it 'should seek last key', ->
-    iterator.lastSync()
-
-  it 'should get values in reverse', ->
-    for i in [200..100]
-      [key, val] = iterator.currentSync()
-      assert.equal "#{i}", key
-      assert.equal value, val
-      iterator.prevSync()
-
-  it 'should not be valid', ->
-    assert.ifError iterator.valid()
-
-  it 'should close database', ->
-    db = null
-    iterator = null
+    it 'should get values in reverse', ->
+      iterator.lastSync()
+      for i in [200..100]
+        [key, val] = iterator.currentSync()
+        expectKey = "#{i}"
+        expectVal = "Hello #{i}"
+        assert iterator.valid()
+        assert.equal expectKey, key
+        assert.equal expectVal, val
+        assert.equal expectKey, iterator.keySync()
+        assert.equal expectVal, iterator.valueSync()
+        iterator.prevSync()
