@@ -51,7 +51,7 @@ exports.Batch = class Batch
 
       Constructor.
 
-      @param {Handle} [handle] Pass a database handle to use with
+      @param {leveldb.Handle} [handle] Pass a database handle to use with
         `batch.write()` or `batch.writeSync()`.
 
   ###
@@ -102,7 +102,8 @@ exports.Batch = class Batch
 
   ###
 
-      Commit the batch operations to disk. See `Handle.write()`.
+      Commit the batch operations to disk synchronously.
+      See `Handle.write()`.
 
   ###
 
