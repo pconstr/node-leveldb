@@ -1,86 +1,179 @@
 binding = require '../leveldb.node'
 
+###
+
+    An iterator allows sequential and random access to the database.
+
+    Usage:
+
+        var leveldb = require('leveldb');
+
+        var db = leveldb.open('/tmp/test.db')
+          , it = db.iterator();
+
+        // iterator is initially invalid
+        it.firstSync();
+
+        // get a key
+        it.get('foobar');
+
+###
+
 exports.Iterator = class Iterator
 
   noop = (err) -> throw err if err
 
+
+  ###
+
+      Constructor.
+
+      @param {Native} self The underlying iterator object.
+
+  ###
+
   constructor: (@self) ->
 
-  # startKey, [limitKey], [options], callback
-  forRange: (startKey) ->
 
-    args = Array.prototype.slice.call args, 1
+  ###
 
-    limitKey = args.shift() if typeof args[0] is 'string' or Buffer.isBuffer args[0]
-    options = args.shift() if typeof args[0] is 'object'
+      True if the iterator is positioned at a valid key.
 
-    # required callback
-    throw new Error 'Missing callback' unless typeof args[0] is 'function'
-    callback = args[0]
-
-    limit = limitKey.toString 'binary' if limitKey
-
-    next = (err) =>
-      return callback err if err
-      @current options, (err, key, val) =>
-        callback err, key, val
-        if not err and key and limit and key.toString 'binary' isnt limit
-          @next next
-
-    @seek startKey, next
-
-  forEach: (options, callback) ->
-
-    # optional options
-    if typeof options is 'function'
-      callback = options
-      options = {}
-
-    # required callback
-    throw new Error 'Missing callback' unless callback
-
-    next = (err) =>
-      return callback err if err
-      @current options, (err, key, val) =>
-        callback err, key, val
-        @next next unless err
-
-    @first next
+  ###
 
   valid: ->
     @self.valid()
+
+
+  ###
+
+      Position the iterator at a key.
+
+      @param {String} key The key at which to position the iterator.
+      @param {Function} [callback] Optional callback.
+        @param {Error} error The error value on error, null otherwise.
+
+  ###
 
   seek: (key, callback = noop) ->
     key = new Buffer key unless Buffer.isBuffer key
     @self.seek key, callback
 
+
+  ###
+
+      Synchronous version of `Iterator.seek()`.
+
+  ###
+
   seekSync: (key) ->
     key = new Buffer key unless Buffer.isBuffer key
     @self.seek key
 
+
+  ###
+
+      Position the iterator at the first key.
+
+      @param {Function} [callback] Optional callback.
+        @param {Error} error The error value on error, null otherwise.
+
+  ###
+
   first: (callback = noop) ->
     @self.first callback
+
+
+  ###
+
+      Synchronous version of `Iterator.first()`.
+
+  ###
 
   firstSync: ->
     @self.first()
 
+
+  ###
+
+      Position the iterator at the last key.
+
+      @param {Function} [callback] Optional callback.
+        @param {Error} error The error value on error, null otherwise.
+
+  ###
+
   last: (callback = noop) ->
     @self.last callback
+
+
+  ###
+
+      Synchronous version of `Iterator.last()`.
+
+  ###
 
   lastSync: ->
     @self.last()
 
+
+  ###
+
+      Advance the iterator to the next key.
+
+      @param {Function} [callback] Optional callback.
+        @param {Error} error The error value on error, null otherwise.
+
+  ###
+
   next: (callback = noop) ->
     @self.next callback
+
+
+  ###
+
+      Synchronous version of `Iterator.next()`.
+
+  ###
 
   nextSync: ->
     @self.next()
 
+
+  ###
+
+      Advance the iterator to the previous key.
+
+      @param {Function} [callback] Optional callback.
+        @param {Error} error The error value on error, null otherwise.
+
+  ###
+
   prev: (callback = noop) ->
     @self.prev callback
 
+
+  ###
+
+      Synchronous version of `Iterator.prev()`.
+
+  ###
+
   prevSync: ->
     @self.prev()
+
+
+  ###
+
+      Get the key at the current iterator position.
+
+      @param {Object} [options] Optional options. See `Handle.get()`
+      @param {Function} [callback] Optional callback. If not given, returns
+        the key synchronously.
+        @param {Error} error The error value on error, null otherwise.
+        @param {String|Buffer} key The key if successful.
+
+  ###
 
   key: (options = {}, callback) ->
 
@@ -103,6 +196,19 @@ exports.Iterator = class Iterator
       key = key.toString 'utf8' if key and not options.as_buffer
       key
 
+
+  ###
+
+      Get the value at the current iterator position.
+
+      @param {Object} [options] Optional options. See `Handle.get()`
+      @param {Function} [callback] Optional callback. If not given, returns
+        the value synchronously.
+        @param {Error} error The error value on error, null otherwise.
+        @param {String|Buffer} value The value if successful.
+
+  ###
+
   value: (options = {}, callback) ->
 
     # optional options
@@ -123,6 +229,20 @@ exports.Iterator = class Iterator
       val = @self.value()
       val = val.toString 'utf8' if val and not options.as_buffer
       val
+
+
+  ###
+
+      Get the key and value at the current iterator position.
+
+      @param {Object} [options] Optional options. See `Handle.get()`
+      @param {Function} [callback] Optional callback. If not given, returns
+        the key synchronously.
+        @param {Error} error The error value on error, null otherwise.
+        @param {String|Buffer} key The key if successful.
+        @param {String|Buffer} value The value if successful.
+
+  ###
 
   current: (options = {}, callback) ->
 
