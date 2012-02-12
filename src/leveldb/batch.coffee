@@ -9,7 +9,7 @@ binding = require '../leveldb.node'
 
         var leveldb = require('leveldb');
 
-        var db = leveldb.openSync('/tmp/test.db')
+        var db = leveldb.open('/tmp/test.db')
           , batch = db.batch();
 
         batch
@@ -18,7 +18,7 @@ binding = require '../leveldb.node'
           .put('pass', 'xyzzy')
           .writeSync();
 
-        var db2 = leveldb.openSync('/tmp/test2.db')
+        var db2 = leveldb.open('/tmp/test2.db')
           , batch2 = new leveldb.Batch;
 
         batch2
