@@ -39,7 +39,8 @@ noop = (err) -> throw err if err
         alone.
       @param {Boolean} [options.compression=true] Set to false to disable
         Snappy compression.
-    @param {Function} callback The callback function.
+    @param {Function} [callback] Optional callback. If not given, returns
+      the database handle synchronously.
       @param {Error} error The error value on error, null otherwise.
       @param {leveldb.Handle} handle If successful, the database handle.
 
@@ -52,29 +53,18 @@ exports.open = (path, options, callback) ->
     callback = options
     options = null
 
-  # required callback
-  throw new Error 'Missing callback' unless callback
+  if callback
 
-  # call native binding
-  binding.open path, options, (err, self) ->
+    # async
+    binding.open path, options, (err, self) ->
+      handle = self and new Handle self
+      callback err, handle
 
-    # create wrapper object
-    callback err, self and new Handle self
+  else
 
-
-###
-
-    Open a leveldb database synchronously. See `leveldb.open()`.
-
-###
-
-exports.openSync = (path, options) ->
-
-  # call native binding
-  self = binding.open path, options
-
-  # create wraper object
-  new Handle self
+    # sync
+    self = binding.open path, options
+    new Handle self
 
 
 ###
@@ -179,7 +169,8 @@ class Handle
           disk will be cached in memory.
         @param {Boolean} [options.as_buffer=false] If true, data will be
           returned as a `Buffer`.
-      @param {Function} callback The callback.
+      @param {Function} [callback] Optional callback. If not given, returns
+        the record value synchronously.
         @param {Error} error The error value on error, null otherwise.
         @param {String|Buffer} value If successful, the value.
 
@@ -195,39 +186,25 @@ class Handle
       callback = options
       options = null
 
-    # required callback
-    throw new Error 'Missing callback' unless callback
+    if callback
 
-    # call native binding
-    @self.get key, options, (err, value) ->
-      if callback
-        # to string unless returning as buffer
-        value = value.toString 'utf8' if value and not options?.as_buffer
-        callback(err, value)
-      else
-        throw err if err
+      # async
+      @self.get key, options, (err, value) ->
+        if callback
+          # to string unless returning as buffer
+          value = value.toString 'utf8' if value and not options?.as_buffer
+          callback(err, value)
+        else
+          throw err if err
+      @ # return this for chaining
 
-    @ # return this for chaining
-
-
-  ###
-
-      Get a value from the database synchronously. See `Handle.get()`.
-
-  ###
-
-  getSync: (key, options) ->
-
-    # to buffer if string
-    key = new Buffer key unless Buffer.isBuffer key
-
-    # call native binding
-    value = @self.get key, options
-
-    # to string unless returning as buffer
-    if value and not options?.as_buffer
-      value.toString 'utf8'
     else
+
+      # sync
+      value = @self.get key, options
+
+      # to string unless returning as buffer
+      value = value.toString 'utf8' if value and not options?.as_buffer
       value
 
 
@@ -362,6 +339,7 @@ class Handle
       @self.iterator options, (err, it) ->
         wrap = new Iterator it unless err
         callback err, wrap
+      @ # return this for chaining
 
     else
 
@@ -374,7 +352,8 @@ class Handle
 
       Create a new snapshot.
 
-      @param {Function} [callback] Optional callback.
+      @param {Function} [callback] Optional callback. If not given, returns
+        a snapshot synchronously.
         @param {Error} error The error value on error, null otherwise.
         @param {leveldb.Snapshot} snapshot The snapshot if successful.
 
@@ -382,32 +361,19 @@ class Handle
 
   snapshot: (callback) ->
 
-    # required callback
-    throw new Error 'Missing callback' unless callback
+    if callback
 
-    # call native binding
-    @self.snapshot (err, snap) =>
+      # async
+      @self.snapshot (err, snap) =>
+        wrap = new Snapshot @, snap unless err
+        callback err, wrap
+      @ # return this for chaining
 
-      # create wrapper object
-      wrap = new Snapshot @, snap unless err
+    else
 
-      # call callback
-      callback err, wrap
-
-
-  ###
-
-      Create a new snapshot synchronously.
-
-  ###
-
-  snapshotSync: ->
-
-    # call native binding
-    snap = @self.snapshot()
-
-    # create wrapper object
-    new Snapshot @, snap
+      # sync
+      snap = @self.snapshot()
+      new Snapshot @, snap
 
 
   ###
@@ -416,7 +382,8 @@ class Handle
 
       @param {String} name The database property name. See the
         `leveldb/db.h` header file for property names.
-      @param {Function} [callback] Optional callback.
+      @param {Function} [callback] Optional callback. If not given, returns
+        the property value synchronously.
         @param {Error} error The error value on error, null otherwise.
         @param {String} value The property value if successful.
 
@@ -424,23 +391,16 @@ class Handle
 
   property: (name, callback) ->
 
-    # required callback
-    throw new Error 'Missing callback' unless callback
+    if callback
 
-    # call native binding
-    @self.property name, callback
+      # async
+      @self.property name, callback
+      @ # return this for chaining
 
+    else
 
-  ###
-
-      Get a database property synchronously. See `Handle.property()`.
-
-  ###
-
-  propertySync: (name) ->
-
-    # call native binding
-    @self.property(name)
+      # sync
+      @self.property(name)
 
 
   ###
@@ -449,13 +409,16 @@ class Handle
 
       Usage:
 
-        db.approximateSize('foo', 'bar', callback);
         db.approximateSize(['foo', 'bar'], ['baz', 'zee'], callback);
         db.approximateSize([['foo', 'bar'], ['baz', 'zee']], callback);
 
       @param {Array} slices An array of start/limit key ranges.
         @param {String|Buffer} start The start key in the range, inclusive.
         @param {String|Buffer} limit The limit key in the range, exclusive.
+      @param {Function} [callback] Optional callback. If not given, returns
+        the approximate sizes synchronously.
+        @param {Error} error The error value on error, null otherwise.
+        @param {String} value The property value if successful.
 
   ###
 
@@ -464,75 +427,29 @@ class Handle
     # variable args
     args = Array.prototype.slice.call arguments
 
-    # required callback
-    callback =
-      if typeof args[args.length - 1] is 'function'
-        args.pop()
-      else
-        throw new Error 'Missing callback' unless callback
+    # optional callback
+    callback = args.pop() if typeof args[args.length - 1] is 'function'
 
-    # flatten args
-    args = unpackSlices args
-
-    # call native binding
-    @self.approximateSizes args, callback
-
-    @ # return this for chaining
-
-
-
-  ###
-
-      Approximate the on-disk storage bytes for key ranges synchronously.
-      See `Handle.approximateSizes()`.
-
-  ###
-
-  approximateSizesSync: ->
-
-    # flatten args
-    args = unpackSlices arguments
-
-    # call native binding
-    @self.approximateSizes args
-
-
-  # helper function for approximateSizes()
-  # normalizes arguments to a flattened array of
-  #   [ key1, val1, ..., keyN, valN]
-  unpackSlices = (args) ->
-
-    # bounds is an array of [ key, val ]
-    bounds =
-
-      # first arg is array
-      if Array.isArray args[0]
-
-        # second arg is array
-        if Array.isArray args[1]
-
-          # approximateSizes([k1,v1], ..., [kN,vN])
-          Array.prototype.slice.call args
-        else
-
-          # approximateSizes([ [k1,v1], ..., [kN,vN] ])
-          args[0]
-
-      else
-
-        # approximateSizes(k, v)
-        [args]
-
-    # flattened [k1, v1, ..., kN, vN]
-    slices = []
+    # (['foo', 'bar'], ['baz', 'zee']) or ([['foo', 'bar'], ['baz', 'zee']])
+    args = if Array.isArray args[0][0] then args[0] else args
 
     # flatten bounds
-    for [ key, val ] in bounds when key and val
+    slices = []
+    for [ start, limit ] in args
       # to buffer if string
-      slices.push if Buffer.isBuffer key then key else new Buffer key
-      slices.push if Buffer.isBuffer val then val else new Buffer val
+      slices.push if Buffer.isBuffer start then start else Buffer start
+      slices.push if Buffer.isBuffer limit then limit else Buffer limit
 
-    slices
+    if callback
+
+      # async
+      @self.approximateSizes slices, callback
+      @ # return this for chaining
+
+    else
+
+      # sync
+      @self.approximateSizes slices
 
 
   # TODO: compactRange
@@ -582,19 +499,3 @@ class Snapshot
     @self.get key, options, callback
 
     @ # return this for chaining
-
-
-  ###
-
-      Get a value from the database snapshot synchronously.
-      See `Handle.get()`.
-
-  ###
-
-  getSync: (key, options = {}) ->
-
-    # set snapshot option
-    options.snapshot = @snapshot
-
-    # call handle get
-    @self.get key, options
