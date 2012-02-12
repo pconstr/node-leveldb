@@ -34,6 +34,62 @@ exports.Iterator = class Iterator
 
   constructor: (@self) ->
 
+  ###
+
+      Apply a callback over a range.
+
+      The iterator will be positioned at the given key or the first key if
+      not given, then the callback will be applied on each record moving
+      forward until the iterator is positioned at the limit key or at an
+      invalid key. Stops on first error.
+
+      @param {String|Buffer} [startKey] Optional start key (inclusive) from
+        which to begin applying the callback. If not given, defaults to the
+        first key.
+      @param {String|Buffer} [limitKey] Optional limit key (inclusive) at
+        which to end applying the callback.
+      @param {Object} [options] Optional options.
+        @param {Boolean} [options.as_buffer=false] If true, data will be
+          returned as a `Buffer`.
+      @param {Function} callback The callback to apply to the range.
+        @param {Error} error The error value on error, null otherwise.
+        @param {String|Buffer} key The key.
+        @param {String|Buffer} value The value.
+
+  ###
+
+  forRange: ->
+
+    args = Array.prototype.slice.call arguments
+
+    # required callback
+    callback = args.pop()
+    throw new Error 'Missing callback' unless callback
+
+    # optional options
+    options = args.pop() if typeof args[args.length - 1] is 'object'
+
+    # optional keys
+    if args.length is 2
+      [ startKey, limitKey ] = args
+    else
+      startKey = args[0]
+
+    limit = limitKey.toString 'binary' if limitKey
+
+    next = (err) =>
+      return callback err if err
+      @current options, (err, key, val) =>
+        return callback err if err
+        if key
+          callback null, key, val
+          @next next if not limit or limit isnt key.toString 'binary'
+
+    if startKey
+      @seek startKey, next
+    else
+      @first next
+
 
   ###
 

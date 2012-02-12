@@ -318,7 +318,13 @@ class Handle
 
       Create a new iterator.
 
-      @param {Object} [options] Optional options. See `Handle.get()`.
+      @param {Object} [options] Optional options. See also the
+        `leveldb/options.h` header file.
+        @param {Boolean} [options.verify_checksums=false] If true, all data
+          read from underlying storage will be verified against
+          corresponding checksums.
+        @param {Boolean} [options.fill_cache=true] If true, data read from
+          disk will be cached in memory.
       @param {Function} [callback] Optional callback. If not given, returns
         an iterator synchronously.
         @param {Error} error The error value on error, null otherwise.
