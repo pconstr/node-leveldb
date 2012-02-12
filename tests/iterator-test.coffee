@@ -115,3 +115,41 @@ describe 'iterator', ->
         assert.equal expectKey, iterator.key()
         assert.equal expectVal, iterator.value()
         iterator.prevSync()
+
+  describe 'forRange()', ->
+
+    it 'should iterate over all keys', (done) ->
+      iterator = db.iterator()
+      i = 100
+      iterator.forRange (err, key, val) ->
+        assert.ifError
+        assert.equal "#{i}", key
+        assert.equal "Hello #{i}", val
+        done() if ++i > 200
+
+    it 'should iterate from start key', (done) ->
+      iterator = db.iterator()
+      i = 110
+      iterator.forRange '110', (err, key, val) ->
+        assert.ifError
+        assert.equal "#{i}", key
+        assert.equal "Hello #{i}", val
+        done() if ++i > 200
+
+    it 'should iterate until limit key', (done) ->
+      iterator = db.iterator()
+      i = 100
+      iterator.forRange null, '190', (err, key, val) ->
+        assert.ifError
+        assert.equal "#{i}", key
+        assert.equal "Hello #{i}", val
+        done() if ++i > 190
+
+    it 'should iterate over range', (done) ->
+      iterator = db.iterator()
+      i = 110
+      iterator.forRange '110', '190', (err, key, val) ->
+        assert.ifError
+        assert.equal "#{i}", key
+        assert.equal "Hello #{i}", val
+        done() if ++i > 190
