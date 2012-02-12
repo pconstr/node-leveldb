@@ -83,36 +83,36 @@ describe 'iterator', ->
   describe 'sync', ->
 
     beforeEach ->
-      iterator = db.iteratorSync()
+      iterator = db.iterator()
 
     it 'should get values', ->
       iterator.firstSync()
       for i in [100..200]
-        [key, val] = iterator.currentSync()
+        [key, val] = iterator.current()
         expectKey = "#{i}"
         expectVal = "Hello #{i}"
         assert iterator.valid()
         assert.equal expectKey, key
         assert.equal expectVal, val
-        assert.equal expectKey, iterator.keySync()
-        assert.equal expectVal, iterator.valueSync()
+        assert.equal expectKey, iterator.key()
+        assert.equal expectVal, iterator.value()
         iterator.nextSync()
 
     it 'should not get invalid key', ->
       iterator.seekSync '201'
       assert.ifError iterator.valid()
-      assert.ifError iterator.keySync()
-      assert.ifError iterator.valueSync()
+      assert.ifError iterator.key()
+      assert.ifError iterator.value()
 
     it 'should get values in reverse', ->
       iterator.lastSync()
       for i in [200..100]
-        [key, val] = iterator.currentSync()
+        [key, val] = iterator.current()
         expectKey = "#{i}"
         expectVal = "Hello #{i}"
         assert iterator.valid()
         assert.equal expectKey, key
         assert.equal expectVal, val
-        assert.equal expectKey, iterator.keySync()
-        assert.equal expectVal, iterator.valueSync()
+        assert.equal expectKey, iterator.key()
+        assert.equal expectVal, iterator.value()
         iterator.prevSync()

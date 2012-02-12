@@ -342,7 +342,8 @@ class Handle
       Create a new iterator.
 
       @param {Object} [options] Optional options. See `Handle.get()`.
-      @param {Function} [callback] Optional callback.
+      @param {Function} [callback] Optional callback. If not given, returns
+        an iterator synchronously.
         @param {Error} error The error value on error, null otherwise.
         @param {leveldb.Iterator} iterator The iterator if successful.
 
@@ -355,32 +356,18 @@ class Handle
       callback = options
       options = null
 
-    # required callback
-    throw new Error 'Missing callback' unless callback
+    if callback
 
-    # call native binding
-    it = @self.iterator options, (err, it) ->
+      # async
+      @self.iterator options, (err, it) ->
+        wrap = new Iterator it unless err
+        callback err, wrap
 
-      # create wrapper object
-      wrap = new Iterator it unless err
+    else
 
-      # call callback
-      callback err, wrap
-
-
-  ###
-
-      Create a new iterator synchronously. See `Handle.iterator()`.
-
-  ###
-
-  iteratorSync: (options) ->
-
-    # call native binding
-    it = @self.iterator options
-
-    # create wrapper object
-    new Iterator it
+      # sync
+      it = @self.iterator options
+      new Iterator it
 
 
   ###
