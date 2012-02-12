@@ -22,7 +22,7 @@ base to implement things like CouchDB.
 ```js
 var leveldb = require('leveldb');
 
-var db = leveldb.openSync("path/to/my/db", { create_if_missing: true });
+var db = leveldb.open("path/to/my/db", { create_if_missing: true });
 
 var key = "mykey";
 db.putSync(key, "My Value!");
