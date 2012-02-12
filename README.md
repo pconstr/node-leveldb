@@ -13,8 +13,8 @@ Since LevelDB provides good primitives like MVCC and binary support (It was desi
  * get the build working for 0.7
 
 ## Status
-
-This project is still under heavy development in my free-time.  It was started by a long night where I couldn't sleep.  I am not a C++ coder and am learning as I go.
+var db = leveldb.open("path/to/my/db", { create_if_missing: true });
+>>>>>>> Update README
 
 The I/O in this initial version is all blocking and doesn't make use of node's thread pool for disk I/O.  Since my use case is single-user applications, this is a perfectly fine compromise.
 
