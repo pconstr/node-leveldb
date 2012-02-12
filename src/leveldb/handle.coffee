@@ -497,5 +497,3 @@ class Snapshot
 
     # call handle get
     @self.get key, options, callback
-
-    @ # return this for chaining
