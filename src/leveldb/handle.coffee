@@ -91,7 +91,7 @@ exports.destroy = (path, options, callback) ->
 
 ###
 
-    Destroy a leveldb database synchronously. See `leveldb.open()`.
+    Synchronously version of `leveldb.open()`.
 
 ###
 
@@ -125,7 +125,7 @@ exports.repair = (path, options, callback) ->
 
 ###
 
-    Repair a leveldb database synchronously. See `leveldb.repair()`.
+    Synchronously version of `leveldb.repair()`.
 
 ###
 
@@ -227,7 +227,7 @@ class Handle
 
   ###
 
-      Put a value in the database synchronously. See `Handle.put()`.
+      Synchronously version of `Handle.put()`.
 
   ###
 
@@ -254,7 +254,7 @@ class Handle
 
   ###
 
-      Delete a value from the database synchronously. See `Handle.del()`.
+      Synchronously version of `Handle.del()`.
 
   ###
 
@@ -294,7 +294,7 @@ class Handle
 
   ###
 
-      Commit batch operations to disk synchronously. See `Handle.write()`.
+      Synchronously version of `Handle.write()`.
 
   ###
 
