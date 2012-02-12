@@ -15,23 +15,23 @@ describe 'Batch', ->
     callback()
 
   hasPut = ->
-    assert.equal "Goodbye #{i}", db.getSync "#{i}" for i in [100..119]
+    assert.equal "Goodbye #{i}", db.get "#{i}" for i in [100..119]
 
   hasDel = ->
-    assert.ifError db.getSync "#{i}" for i in [180..199]
+    assert.ifError db.get "#{i}" for i in [180..199]
 
   hasBoth = ->
-    assert.equal "Goodbye #{i}", db.getSync "#{i}" for i in [100..119]
-    assert.ifError db.getSync "#{i}" for i in [180..199]
+    assert.equal "Goodbye #{i}", db.get "#{i}" for i in [100..119]
+    assert.ifError db.get "#{i}" for i in [180..199]
 
   hasNoop = ->
-    assert.ifError db.getSync "#{i}" for i in [100..109]
-    assert.equal "Hello #{i}", db.getSync "#{i}" for i in [110..189]
-    assert.ifError db.getSync "#{i}" for i in [190..199]
+    assert.ifError db.get "#{i}" for i in [100..109]
+    assert.equal "Hello #{i}", db.get "#{i}" for i in [110..189]
+    assert.ifError db.get "#{i}" for i in [190..199]
 
   # populate fresh database
   beforeEach ->
-    db = leveldb.openSync filename, create_if_missing: true, error_if_exists: true
+    db = leveldb.open filename, create_if_missing: true, error_if_exists: true
     db.putSync "#{i}", "Hello #{i}" for i in [110..189]
     hasNoop()
 

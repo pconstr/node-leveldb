@@ -10,13 +10,12 @@ describe 'iterator', ->
   db = null
   iterator = null
 
-  beforeEach (done) ->
-    db = leveldb.openSync filename, create_if_missing: true, error_if_exists: true
+  beforeEach ->
+    db = leveldb.open filename, create_if_missing: true, error_if_exists: true
     batch = db.batch()
     batch.put "#{i}", "Hello #{i}" for i in [100..200]
-    batch.write sync: true, (err) ->
-      assert.equal "Hello #{i}", db.getSync "#{i}" for i in [100..200]
-      done err
+    batch.writeSync()
+    assert.equal "Hello #{i}", db.get "#{i}" for i in [100..200]
 
   afterEach (done) ->
     db = null
