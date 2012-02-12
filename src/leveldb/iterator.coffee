@@ -223,7 +223,9 @@ exports.Iterator = class Iterator
 
       Get the key at the current iterator position.
 
-      @param {Object} [options] Optional options. See `Handle.get()`
+      @param {Object} [options] Optional options.
+        @param {Boolean} [options.as_buffer=false] If true, data will be
+          returned as a `Buffer`.
       @param {Function} [callback] Optional callback. If not given, returns
         the key synchronously.
         @param {Error} error The error value on error, null otherwise.
@@ -257,7 +259,9 @@ exports.Iterator = class Iterator
 
       Get the value at the current iterator position.
 
-      @param {Object} [options] Optional options. See `Handle.get()`
+      @param {Object} [options] Optional options.
+        @param {Boolean} [options.as_buffer=false] If true, data will be
+          returned as a `Buffer`.
       @param {Function} [callback] Optional callback. If not given, returns
         the value synchronously.
         @param {Error} error The error value on error, null otherwise.
@@ -291,7 +295,9 @@ exports.Iterator = class Iterator
 
       Get the key and value at the current iterator position.
 
-      @param {Object} [options] Optional options. See `Handle.get()`
+      @param {Object} [options] Optional options.
+        @param {Boolean} [options.as_buffer=false] If true, data will be
+          returned as a `Buffer`.
       @param {Function} [callback] Optional callback. If not given, returns
         the key synchronously.
         @param {Error} error The error value on error, null otherwise.
