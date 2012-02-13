@@ -31,10 +31,6 @@ void JIterator::Initialize(Handle<Object> target) {
   NODE_SET_PROTOTYPE_METHOD(constructor, "key", GetKey);
   NODE_SET_PROTOTYPE_METHOD(constructor, "value", GetValue);
   NODE_SET_PROTOTYPE_METHOD(constructor, "current", GetKeyValue);
-
-  constructor->InstanceTemplate()->SetAccessor(
-    String::NewSymbol("refSlice"), GetRefSlice, SetRefSlice, Handle<Value>(),
-    DEFAULT, static_cast<PropertyAttribute>(DontEnum|DontDelete));
 }
 
 Handle<Value> JIterator::New(const Arguments& args) {
@@ -104,28 +100,6 @@ Handle<Value> JIterator::GetValue(const Arguments& args) {
 
 Handle<Value> JIterator::GetKeyValue(const Arguments& args) {
   return Op::Go(GetKeyValue, Conv, args);
-}
-
-Handle<Value> JIterator::GetRefSlice(Local<String> property,
-                                     const AccessorInfo& info)
-{
-  JIterator* self = ObjectWrap::Unwrap<JIterator>(info.Holder());
-  if (self->Lock()) return ThrowError("Concurrent operations not supported");
-  bool refSlice = self->refSlice_;
-  self->Unlock();
-  return refSlice ? True() : False();
-}
-
-void JIterator::SetRefSlice(Local<String> property, Local<Value> value,
-                            const AccessorInfo& info)
-{
-  JIterator* self = ObjectWrap::Unwrap<JIterator>(info.Holder());
-  if (self->Lock()) {
-    ThrowError("Concurrent operations not supported");
-  } else {
-    self->refSlice_ = value->BooleanValue();
-    self->Unlock();
-  }
 }
 
 
@@ -208,20 +182,11 @@ void JIterator::Conv(Op* op, Handle<Value>& error, Handle<Value>& result) {
   } else if (!op->value_.empty()) {
     if (!op->key_.empty()) {
       Local<Array> array = Array::New(2);
-      if (op->self_->refSlice_) {
-        array->Set(0, RefBuffer(op->key_));
-        array->Set(1, RefBuffer(op->value_));
-      } else {
-        array->Set(0, ToBuffer(op->key_));
-        array->Set(1, ToBuffer(op->value_));
-      }
+      array->Set(0, ToBuffer(op->key_));
+      array->Set(1, ToBuffer(op->value_));
       result = array;
     } else {
-      if (op->self_->refSlice_) {
-        result = RefBuffer(op->value_);
-      } else {
-        result = ToBuffer(op->value_);
-      }
+      result = ToBuffer(op->value_);
     }
   }
 }
