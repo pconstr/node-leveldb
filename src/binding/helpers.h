@@ -80,10 +80,6 @@ static inline Handle<Value> RefBuffer(const leveldb::Slice& val) {
   return buf->handle_;
 }
 
-static inline Handle<Value> ToString(const leveldb::Slice& val) {
-  return String::New(val.data(), val.size());
-}
-
 static inline Local<Function> GetCallback(const Arguments& args) {
   int idx = args.Length() - 1;
   if (args[idx]->IsFunction()) return Local<Function>::Cast(args[idx]);
