@@ -70,11 +70,6 @@ static inline Handle<Value> ToBuffer(std::string* val) {
 }
 
 static inline Handle<Value> ToBuffer(const leveldb::Slice& val) {
-  Buffer* buf = Buffer::New(const_cast<char*>(val.data()), val.size());
-  return buf->handle_;
-}
-
-static inline Handle<Value> RefBuffer(const leveldb::Slice& val) {
   Buffer* buf = Buffer::New(const_cast<char*>(val.data()), val.size(),
                             FreeNoop, NULL);
   return buf->handle_;
