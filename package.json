@@ -9,11 +9,10 @@
   "version": "0.5.5",
   "main": "lib",
   "scripts": {
-    "prepublish": "./node_modules/coffee-script/bin/cake build",
-    "install": "./node_modules/coffee-script/bin/cake build",
-    "pretest": "./node_modules/coffee-script/bin/cake build && mkdir -p tmp",
-    "test": "find tests -name '*-test.*' -print0 | xargs -0 ./node_modules/mocha/bin/mocha -R spec",
-    "posttest": "rm -rf tmp"
+    "prepublish": "make",
+    "preinstall": "make",
+    "postinstall": "make distclean",
+    "test": "make test"
   },
   "repository": {
     "type": "git",
