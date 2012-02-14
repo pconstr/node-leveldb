@@ -1,3 +1,4 @@
+REPORTER=dot
 BINARY=./lib/leveldb.node
 BUILD_CONFIG=./deps/leveldb/build_config.mk
 SOURCES=\
@@ -32,7 +33,7 @@ distclean: clean
 
 test: $(BINARY) coffee
 	mkdir -p tmp
-	-find test -name '*-test.*' -print0 | xargs -0 $(MOCHA) -R spec
+	-@$(MOCHA) --reporter $(REPORTER) test/*-test.coffee
 	rm -rf tmp
 
 $(BUILD_CONFIG):
