@@ -70,14 +70,23 @@ npm test
 ```
 
 
-## Contributing
+## Contributors
 
-Since I am not experienced in the world of C++ and am still learning, I
-welcome contributions.  Mainly what I need right now is someone with
-experience to review my code and tell me things I'm doing stupid.  Maybe add
-a C++ best pratices note to this document.  Also once the initial blocking
-version of the library is done, I'll need to add async ability to all the
-functions that do disk I/O.
-
-Currently Randall Leeds (@tilgovi and one of the CouchDB commiters) has
-expressed interest in helping and already has commit rights to the project.
+```
+   161  Michael Phan-Ba
+    39  Tim Caswell
+    22  Nathan Landis
+    19  gabor@google.com
+    15  jorlow@chromium.org
+    12  dgrogan@chromium.org
+    12  Stefan Thomas
+     9  Carter Thaxton
+     9  Randall Leeds
+     6  Damon Oehlman
+     5  Hans Wennborg
+     4  shinuza
+     3  hans@chromium.org
+     2  Sanjay Ghemawat
+     1  (no author)
+     1  Gabor Cselle
+```
