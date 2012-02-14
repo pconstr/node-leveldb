@@ -14,7 +14,7 @@
   "scripts": {
     "prepublish": "make",
     "preinstall": "make",
-    "postinstall": "make distclean",
+    "postinstall": "make clean",
     "test": "make test"
   },
   "repository": {
