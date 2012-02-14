@@ -6,6 +6,6 @@ build
 demo/testdb
 deps/leveldb/*_test
 deps/leveldb/db_bench
-lib
+lib/leveldb.node
 node_modules
 npm-debug.log

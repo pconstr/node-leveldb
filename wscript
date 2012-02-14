@@ -62,6 +62,7 @@ node_leveldb_src = ["src/binding/" + path for path in [
 ]]
 
 build_config = join(leveldb_dir, 'build_config.mk')
+snappy_makefile = join(snappy_dir, 'Makefile')
 
 def set_options(opt):
   opt.tool_options("compiler_cxx")
@@ -85,19 +86,22 @@ def configure(conf):
   conf.check_tool("compiler_cc")
   conf.check_tool("node_addon")
 
-  if not exists('./deps/snappy/Makefile'):
-    Utils.exec_command('./configure', cwd = './deps/snappy')
+  if not exists(snappy_makefile):
+    Utils.exec_command('./configure', cwd = snappy_dir)
 
   if not exists(build_config):
-    system('cd %s && sh build_detect_platform' % leveldb_dir)
+    Utils.exec_command('sh build_detect_platform', cwd = leveldb_dir)
 
   parse_build_config(conf.env)
 
 def clean(ctx):
   if exists('build'): rmtree('build')
-  if exists(build_config): remove(build_config)
-  if exists('./deps/snappy/Makefile'):
-    Utils.exec_command('make distclean', cwd = './deps/snappy')
+
+  if exists(build_config):
+    Utils.exec_command('make clean', cwd = leveldb_dir)
+
+  if exists(snappy_makefile):
+    Utils.exec_command('make distclean', cwd = snappy_dir)
 
 def build_post(bld):
   module_path = bld.path.find_resource('leveldb.node').abspath(bld.env)

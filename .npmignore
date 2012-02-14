@@ -1,6 +1,6 @@
 .DS_Store
 build
-deps
+lib/leveldb.node
 node_modules
 npm-debug.log
 src
