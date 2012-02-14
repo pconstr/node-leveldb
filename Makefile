@@ -32,7 +32,7 @@ distclean: clean
 
 test: $(BINARY) coffee
 	mkdir -p tmp
-	-find tests -name '*-test.*' -print0 | xargs -0 $(MOCHA) -R spec
+	-find test -name '*-test.*' -print0 | xargs -0 $(MOCHA) -R spec
 	rm -rf tmp
 
 $(BUILD_CONFIG):
