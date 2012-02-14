@@ -6,7 +6,7 @@
   ],
   "description": "Bindings for using LevelDB through node.",
   "homepage": "https://github.com/my8bird/node-leveldb",
-  "version": "0.5.4",
+  "version": "0.5.5",
   "main": "lib",
   "scripts": {
     "install":     "node-waf configure build",
