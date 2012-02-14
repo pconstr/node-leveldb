@@ -11,7 +11,7 @@
   "scripts": {
     "prepublish": "make",
     "preinstall": "make",
-    "postinstall": "make npmclean",
+    "postinstall": "make distclean",
     "test": "make test"
   },
   "repository": {

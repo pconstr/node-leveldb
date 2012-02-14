@@ -14,8 +14,8 @@ coffee:
 clean:
 	node-waf clean
 
-npmclean: clean
-	rm -rf deps
+distclean: clean
+	rm -f lib/leveldb.node
 
 test: build coffee
 	mkdir -p tmp
@@ -25,4 +25,4 @@ test: build coffee
 $(BUILD_CONFIG):
 	node-waf configure
 
-.PHONY: build coffee configure clean npmclean test
+.PHONY: build coffee configure clean distclean test
