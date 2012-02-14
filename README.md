@@ -14,7 +14,6 @@ Since LevelDB provides good primitives like MVCC and binary support (It was desi
 
 ## Status
 var db = leveldb.open("path/to/my/db", { create_if_missing: true });
->>>>>>> Update README
 
 The I/O in this initial version is all blocking and doesn't make use of node's thread pool for disk I/O.  Since my use case is single-user applications, this is a perfectly fine compromise.
 
@@ -75,3 +74,23 @@ This is the short-term and long roadmap to track progress.
 - ...
 - Hand off project to a loyal maintainer and start my next adventure.
 
+## Contributors
+
+```
+   161  Michael Phan-Ba
+    39  Tim Caswell
+    22  Nathan Landis
+    19  gabor@google.com
+    15  jorlow@chromium.org
+    12  dgrogan@chromium.org
+    12  Stefan Thomas
+     9  Carter Thaxton
+     9  Randall Leeds
+     6  Damon Oehlman
+     5  Hans Wennborg
+     4  shinuza
+     3  hans@chromium.org
+     2  Sanjay Ghemawat
+     1  (no author)
+     1  Gabor Cselle
+```
