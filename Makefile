@@ -18,9 +18,9 @@ SOURCES=\
 COFFEE=./node_modules/.bin/coffee
 MOCHA=./node_modules/.bin/mocha
 
-build: configure $(BINARY)
+build: $(BINARY)
 
-configure: $(BUILD_CONFIG)
+package: distclean build clean
 
 coffee:
 	$(COFFEE) --bare --compile --output lib src
@@ -29,7 +29,7 @@ clean:
 	node-waf clean
 
 distclean: clean
-	rm -f lib/leveldb.node
+	rm -rf lib
 
 test: $(BINARY) coffee
 	mkdir -p tmp
@@ -39,7 +39,7 @@ test: $(BINARY) coffee
 $(BUILD_CONFIG):
 	node-waf configure
 
-$(BINARY): $(SOURCES)
+$(BINARY): $(SOURCES) $(BUILD_CONFIG)
 	node-waf build
 
-.PHONY: build coffee configure clean distclean test
+.PHONY: build coffee clean distclean package test

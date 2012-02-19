@@ -105,7 +105,7 @@ def clean(ctx):
 
 def build_post(bld):
   module_path = bld.path.find_resource('leveldb.node').abspath(bld.env)
-  system('mkdir -p lib/leveldb')
+  system('mkdir -p lib')
   system('cp %r lib/leveldb.node' % module_path)
 
 def build(bld):
