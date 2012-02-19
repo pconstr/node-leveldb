@@ -10,7 +10,7 @@
   "main": "lib",
   "scripts": {
     "install":     "node-waf configure build",
-    "postinstall": "./node_modules/.bin/coffee -b -c -o lib/ src",
+    "postinstall": "./node_modules/coffee-script/bin/coffee -b -c -o lib/ src",
     "test": "mkdir -p tmp && find tests/ -name '*test.*' -print0 | xargs -0 mocha -R spec ; rm -r tmp"
   },
   "repository": {
