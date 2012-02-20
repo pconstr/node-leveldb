@@ -5,7 +5,7 @@ path    = require 'path'
 
 
 
-describe 'iterator', ->
+describe 'Iterator', ->
   filename = "#{__dirname}/../tmp/iterator-test-file"
   db = null
   iterator = null
@@ -89,7 +89,7 @@ describe 'iterator', ->
               iterator.prev if --i >= 100 then next else done
       next()
 
-  describe 'forRange()', ->
+  itShouldBehaveLikeForRange = ->
 
     it 'should iterate over all keys', (done) ->
       i = 100
@@ -122,3 +122,10 @@ describe 'iterator', ->
         assert.equal "#{i}", key
         assert.equal "Hello #{i}", val
         done() if ++i > 190
+
+  describe 'forRange()', ->
+    itShouldBehaveLikeForRange()
+
+  describe 'db.forRange()', ->
+    beforeEach -> iterator = db
+    itShouldBehaveLikeForRange()
