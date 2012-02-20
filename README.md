@@ -1,4 +1,4 @@
-[![Build Status](https://secure.travis-ci.org/mikepb/node-leveldb.png)](http://travis-ci.org/mikepb/node-leveldb)
+[![Build Status](https://secure.travis-ci.org/my8bird/node-leveldb.png)](http://travis-ci.org/my8bird/node-leveldb)
 
 # Node-LevelDB
 
@@ -14,14 +14,17 @@ Since LevelDB provides good primitives like MVCC and binary support (It was desi
 
  * get the build working for 0.7
 
-## Status
-var db = leveldb.open("path/to/my/db", { create_if_missing: true });
+leveldb.open("path/to/my/db", { create_if_missing: true }, onOpen);
 
-The I/O in this initial version is all blocking and doesn't make use of node's thread pool for disk I/O.  Since my use case is single-user applications, this is a perfectly fine compromise.
-
-Eventually I'll need to make async versions of all the calls so that it can also be used in a highly concurrent server environment.
-
-## API
+function onOpen(err, db) {
+  var key = "mykey";
+  db.put(key, "My Value!", function(err) {
+    db.getSync(key, function(err, value) {
+      console.dir(value); // prints: My Value!
+      db.del(key);
+    });
+  });
+}
 
 The API is meant to be an almost one-to-one mapping to the underlying C++ library.  Essentially it's a key/value store, but has some extra nice things like sorted keys, snapshots and iterators.
 
@@ -40,7 +43,7 @@ This is the main Class and probably the only one that a user needs to create man
     db.close();
 
 I'll document more as this stabilizes.  In the mean-time, check out the demo scripts I use for testing.
-<https://github.com/creationix/node-leveldb/blob/master/demo>
+<https://github.com/my8bird/node-leveldb/blob/master/demo>
 
 ## Compiling
 
