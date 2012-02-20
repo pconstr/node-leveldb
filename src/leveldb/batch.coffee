@@ -9,36 +9,50 @@ binding = require '../leveldb.node'
 
         var leveldb = require('leveldb');
 
-        var db = leveldb.open('/tmp/test.db')
-          , batch = db.batch();
+        var db, db2, batch, batch2 = new leveldb.Batch, writes = 2;
 
-        batch
-          .put('foo', 'bar')
-          .del('baz')
-          .put('pass', 'xyzzy')
-          .writeSync();
+        leveldb.open('/tmp/test.db', onOpen);
 
-        var db2 = leveldb.open('/tmp/test2.db')
-          , batch2 = new leveldb.Batch;
+        function onOpen(err, handle) {
+          db = handle;
+          batch = db.batch();
+          batch
+            .put('foo', 'bar')
+            .del('baz')
+            .put('pass', 'xyzzy')
+            .write(afterWrite);
+        }
 
-        batch2
-          .put('foo', 'coconut')
-          .del('pass');
+        function afterWrite(err) {
+          leveldb.open('/tmp/test2.db', onOpen2);
+        }
 
-        db.writeSync(batch2);
-        db2.writeSync(batch2);
+        function onOpen2(err, handle) {
+          db2 = handle;
+          batch2
+            .put('foo', 'coconut')
+            .del('pass');
 
-        // batch2 has not been cleared to allow for reuse.
-        batch2.clear();
+          db.write(batch2, afterWrite2);
+          db2.write(batch2, afterWrite2);
+        }
 
-        // works because the batch is cleared after committing when using
-        // batch.commit() or batch.commitSync()
-        batch
-          .put('hello', 'world')
-          .put('goodbye', 'world');
+        function afterWrite2(err) {
+          writes -= 1;
+          if (writes <= 0) {
+            // batch2 has not been cleared to allow for reuse.
+            batch2.clear();
 
-        db.writeSync(batch);
-        db2.writeSync(batch);
+            // works because the batch is cleared after committing when using
+            // batch.commit()
+            batch
+              .put('hello', 'world')
+              .put('goodbye', 'world');
+
+            db.write(batch);
+            db2.write(batch);
+          }
+        }
 
 ###
 
@@ -77,8 +91,7 @@ exports.Batch = class Batch
 
     # call native binding
     @self.put key, val
-
-    @ # return this for chaining
+    @
 
 
   ###
@@ -96,13 +109,12 @@ exports.Batch = class Batch
 
     # call native binding
     @self.del key
-
-    @ # return this for chaining
+    @
 
 
   ###
 
-      Commit the batch operations to disk synchronously.
+      Commit the batch operations to disk.
       See `Handle.write()`.
 
   ###
@@ -134,29 +146,10 @@ exports.Batch = class Batch
 
   ###
 
-      Commit the batch operations to disk synchronously. See `Batch.write()`.
-
-  ###
-
-  writeSync: (options) ->
-
-    # require handle
-    throw new Error 'No handle' unless @handle
-
-    # call native method
-    @handle.write @self, options
-
-    # clear batch
-    @self.clear()
-
-    @ # return this for chaining
-
-
-  ###
-
       Reset this batch instance by removing all pending operations.
 
   ###
 
   clear: ->
     @self.clear()
+    @

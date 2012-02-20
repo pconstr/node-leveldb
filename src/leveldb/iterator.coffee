@@ -8,14 +8,21 @@ binding = require '../leveldb.node'
 
         var leveldb = require('leveldb');
 
-        var db = leveldb.open('/tmp/test.db')
-          , it = db.iterator();
+        leveldb.open('/tmp/test.db', function(err, db) {
+          db.iterator(function(err, it) {
 
-        // iterator is initially invalid
-        it.firstSync();
+            // iterator is initially invalid
+            it.first(function(err) {
 
-        // get a key
-        it.get('foobar');
+              // get a key
+              it.get('foobar', function(err, val) {
+
+                console.log(val);
+
+              });
+            });
+          });
+        });
 
 ###
 
@@ -118,17 +125,6 @@ exports.Iterator = class Iterator
 
   ###
 
-      Synchronous version of `Iterator.seek()`.
-
-  ###
-
-  seekSync: (key) ->
-    key = new Buffer key unless Buffer.isBuffer key
-    @self.seek key
-
-
-  ###
-
       Position the iterator at the first key.
 
       @param {Function} [callback] Optional callback.
@@ -138,16 +134,6 @@ exports.Iterator = class Iterator
 
   first: (callback = noop) ->
     @self.first callback
-
-
-  ###
-
-      Synchronous version of `Iterator.first()`.
-
-  ###
-
-  firstSync: ->
-    @self.first()
 
 
   ###
@@ -165,16 +151,6 @@ exports.Iterator = class Iterator
 
   ###
 
-      Synchronous version of `Iterator.last()`.
-
-  ###
-
-  lastSync: ->
-    @self.last()
-
-
-  ###
-
       Advance the iterator to the next key.
 
       @param {Function} [callback] Optional callback.
@@ -184,16 +160,6 @@ exports.Iterator = class Iterator
 
   next: (callback = noop) ->
     @self.next callback
-
-
-  ###
-
-      Synchronous version of `Iterator.next()`.
-
-  ###
-
-  nextSync: ->
-    @self.next()
 
 
   ###
@@ -211,23 +177,12 @@ exports.Iterator = class Iterator
 
   ###
 
-      Synchronous version of `Iterator.prev()`.
-
-  ###
-
-  prevSync: ->
-    @self.prev()
-
-
-  ###
-
       Get the key at the current iterator position.
 
       @param {Object} [options] Optional options.
         @param {Boolean} [options.as_buffer=false] If true, data will be
           returned as a `Buffer`.
-      @param {Function} [callback] Optional callback. If not given, returns
-        the key synchronously.
+      @param {Function} callback The callback function.
         @param {Error} error The error value on error, null otherwise.
         @param {String|Buffer} key The key if successful.
 
@@ -240,19 +195,12 @@ exports.Iterator = class Iterator
       callback = options
       options = {}
 
-    if callback
+    throw new Error 'Missing callback' unless callback
 
-      # async
-      @self.key (err, key) ->
-        key = key.toString 'utf8' unless err or options.as_buffer
-        callback err, key
-
-    else
-
-      # sync
-      key = @self.key()
-      key = key.toString 'utf8' if key and not options.as_buffer
-      key
+    # async
+    @self.key (err, key) ->
+      key = key.toString 'utf8' unless err or options.as_buffer
+      callback err, key
 
 
   ###
@@ -262,8 +210,7 @@ exports.Iterator = class Iterator
       @param {Object} [options] Optional options.
         @param {Boolean} [options.as_buffer=false] If true, data will be
           returned as a `Buffer`.
-      @param {Function} [callback] Optional callback. If not given, returns
-        the value synchronously.
+      @param {Function} callback The callback function.
         @param {Error} error The error value on error, null otherwise.
         @param {String|Buffer} value The value if successful.
 
@@ -276,19 +223,12 @@ exports.Iterator = class Iterator
       callback = options
       options = {}
 
-    if callback
+    throw new Error 'Missing callback' unless callback
 
-      # async
-      @self.value (err, val) ->
-        val = val.toString 'utf8' unless err or options.as_buffer
-        callback err, val
-
-    else
-
-      # sync
-      val = @self.value()
-      val = val.toString 'utf8' if val and not options.as_buffer
-      val
+    # async
+    @self.value (err, val) ->
+      val = val.toString 'utf8' unless err or options.as_buffer
+      callback err, val
 
 
   ###
@@ -298,8 +238,7 @@ exports.Iterator = class Iterator
       @param {Object} [options] Optional options.
         @param {Boolean} [options.as_buffer=false] If true, data will be
           returned as a `Buffer`.
-      @param {Function} [callback] Optional callback. If not given, returns
-        the key synchronously.
+      @param {Function} callback The callback function.
         @param {Error} error The error value on error, null otherwise.
         @param {String|Buffer} key The key if successful.
         @param {String|Buffer} value The value if successful.
@@ -313,23 +252,13 @@ exports.Iterator = class Iterator
       callback = options
       options = {}
 
-    if callback
+    throw new Error 'Missing callback' unless callback
 
-      # async
-      @self.current (err, kv) ->
-        if kv
-          [ key, val ] = kv
-          unless err or options.as_buffer
-            key = key.toString 'utf8'
-            val = val.toString 'utf8'
-        callback err, key, val
-
-    else
-
-      # sync
-      if kv = @self.current()
+    # async
+    @self.current (err, kv) ->
+      if kv
         [ key, val ] = kv
-        unless options.as_buffer
-          val = val.toString 'utf8'
+        unless err or options.as_buffer
           key = key.toString 'utf8'
-      [ key, val ]
+          val = val.toString 'utf8'
+      callback err, key, val

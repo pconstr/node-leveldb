@@ -53,18 +53,11 @@ exports.open = (path, options, callback) ->
     callback = options
     options = null
 
-  if callback
+  throw new Error 'Missing callback' unless callback
 
-    # async
-    binding.open path, options, (err, self) ->
-      handle = self and new Handle self
-      callback err, handle
-
-  else
-
-    # sync
-    self = binding.open path, options
-    new Handle self
+  binding.open path, options, (err, self) ->
+    handle = self and new Handle self
+    callback err, handle
 
 
 ###
@@ -91,18 +84,6 @@ exports.destroy = (path, options, callback) ->
 
 ###
 
-    Synchronously version of `leveldb.open()`.
-
-###
-
-exports.destroySync = (path, options) ->
-
-  # call native binding
-  binding.destroy path, options
-
-
-###
-
     Repair a leveldb database.
 
     @param {String} path The path to the database file.
@@ -121,18 +102,6 @@ exports.repair = (path, options, callback) ->
 
   # call native binding
   binding.repair path, options, callback or noop
-
-
-###
-
-    Synchronously version of `leveldb.repair()`.
-
-###
-
-exports.repairSync = (path, options) ->
-
-  # call native binding
-  binding.repair path, options
 
 
 ###
@@ -169,8 +138,7 @@ class Handle
           disk will be cached in memory.
         @param {Boolean} [options.as_buffer=false] If true, data will be
           returned as a `Buffer`.
-      @param {Function} [callback] Optional callback. If not given, returns
-        the record value synchronously.
+      @param {Function} callback The callback function.
         @param {Error} error The error value on error, null otherwise.
         @param {String|Buffer} value If successful, the value.
 
@@ -178,34 +146,24 @@ class Handle
 
   get: (key, options, callback) ->
 
-    # to buffer if string
-    key = new Buffer key unless Buffer.isBuffer key
-
     # optional options
     if typeof options is 'function'
       callback = options
       options = null
 
-    if callback
+    throw new Error 'Missing callback' unless callback
 
-      # async
-      @self.get key, options, (err, value) ->
-        if callback
-          # to string unless returning as buffer
-          value = value.toString 'utf8' if value and not options?.as_buffer
-          callback(err, value)
-        else
-          throw err if err
-      @ # return this for chaining
+    # to buffer if string
+    key = new Buffer key unless Buffer.isBuffer key
 
-    else
-
-      # sync
-      value = @self.get key, options
-
-      # to string unless returning as buffer
-      value = value.toString 'utf8' if value and not options?.as_buffer
-      value
+    @self.get key, options, (err, value) ->
+      if callback
+        # to string unless returning as buffer
+        value = value.toString 'utf8' if value and not options?.as_buffer
+        callback(err, value)
+      else
+        throw err if err
+    @
 
 
   ###
@@ -222,18 +180,7 @@ class Handle
 
   put: (key, val, options, callback) ->
     @batch().put(key, val).write options, callback
-    @ # return this for chaining
-
-
-  ###
-
-      Synchronously version of `Handle.put()`.
-
-  ###
-
-  putSync: (key, val, options) ->
-    @batch().put(key, val).writeSync options
-    @ # return this for chaining
+    @
 
 
   ###
@@ -249,18 +196,7 @@ class Handle
 
   del: (key, options, callback) ->
     @batch().del(key).write options, callback
-    @ # return this for chaining
-
-
-  ###
-
-      Synchronously version of `Handle.del()`.
-
-  ###
-
-  delSync: (key, options) ->
-    @batch().del(key).writeSync options
-    @ # return this for chaining
+    @
 
 
   ###
@@ -286,21 +222,8 @@ class Handle
       callback = options
       options = null
 
-    # call native binding
     @self.write batch.self, options, callback or noop
-
-    @ # return this for chaining
-
-
-  ###
-
-      Synchronously version of `Handle.write()`.
-
-  ###
-
-  writeSync: (batch, options) ->
-    @self.write batch.self, options
-    @ # return this for chaining
+    @
 
 
   ###
@@ -325,8 +248,7 @@ class Handle
           corresponding checksums.
         @param {Boolean} [options.fill_cache=true] If true, data read from
           disk will be cached in memory.
-      @param {Function} [callback] Optional callback. If not given, returns
-        an iterator synchronously.
+      @param {Function} callback The callback function.
         @param {Error} error The error value on error, null otherwise.
         @param {leveldb.Iterator} iterator The iterator if successful.
 
@@ -339,47 +261,30 @@ class Handle
       callback = options
       options = null
 
-    if callback
+    throw new Error 'Missing callback' unless callback
 
-      # async
-      @self.iterator options, (err, it) ->
-        wrap = new Iterator it unless err
-        callback err, wrap
-      @ # return this for chaining
-
-    else
-
-      # sync
-      it = @self.iterator options
-      new Iterator it
+    @self.iterator options, (err, it) ->
+      wrap = new Iterator it unless err
+      callback err, wrap
+    @
 
 
   ###
 
       Create a new snapshot.
 
-      @param {Function} [callback] Optional callback. If not given, returns
-        a snapshot synchronously.
+      @param {Function} callback The callback function.
         @param {Error} error The error value on error, null otherwise.
         @param {leveldb.Snapshot} snapshot The snapshot if successful.
 
   ###
 
   snapshot: (callback) ->
-
-    if callback
-
-      # async
-      @self.snapshot (err, snap) =>
-        wrap = new Snapshot @, snap unless err
-        callback err, wrap
-      @ # return this for chaining
-
-    else
-
-      # sync
-      snap = @self.snapshot()
-      new Snapshot @, snap
+    throw new Error 'Missing callback' unless callback
+    @self.snapshot (err, snap) =>
+      wrap = new Snapshot @, snap unless err
+      callback err, wrap
+    @
 
 
   ###
@@ -388,25 +293,16 @@ class Handle
 
       @param {String} name The database property name. See the
         `leveldb/db.h` header file for property names.
-      @param {Function} [callback] Optional callback. If not given, returns
-        the property value synchronously.
+      @param {Function} callback The callback function.
         @param {Error} error The error value on error, null otherwise.
         @param {String} value The property value if successful.
 
   ###
 
   property: (name, callback) ->
-
-    if callback
-
-      # async
-      @self.property name, callback
-      @ # return this for chaining
-
-    else
-
-      # sync
-      @self.property(name)
+    throw new Error 'Missing callback' unless callback
+    @self.property name, callback
+    @
 
 
   ###
@@ -421,8 +317,7 @@ class Handle
       @param {Array} slices An array of start/limit key ranges.
         @param {String|Buffer} start The start key in the range, inclusive.
         @param {String|Buffer} limit The limit key in the range, exclusive.
-      @param {Function} [callback] Optional callback. If not given, returns
-        the approximate sizes synchronously.
+      @param {Function} callback The callback function.
         @param {Error} error The error value on error, null otherwise.
         @param {String} value The property value if successful.
 
@@ -433,8 +328,9 @@ class Handle
     # variable args
     args = Array.prototype.slice.call arguments
 
-    # optional callback
+    # required callback
     callback = args.pop() if typeof args[args.length - 1] is 'function'
+    throw new Error 'Missing callback' unless callback
 
     # (['foo', 'bar'], ['baz', 'zee']) or ([['foo', 'bar'], ['baz', 'zee']])
     args = if Array.isArray args[0][0] then args[0] else args
@@ -446,16 +342,8 @@ class Handle
       slices.push if Buffer.isBuffer start then start else Buffer start
       slices.push if Buffer.isBuffer limit then limit else Buffer limit
 
-    if callback
-
-      # async
-      @self.approximateSizes slices, callback
-      @ # return this for chaining
-
-    else
-
-      # sync
-      @self.approximateSizes slices
+    @self.approximateSizes slices, callback
+    @
 
 
   # TODO: compactRange
