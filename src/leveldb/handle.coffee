@@ -168,6 +168,28 @@ class Handle
 
   ###
 
+      Apply a callback over a range. See `Iterator.forRange()`.
+
+  ###
+
+  forRange: ->
+    args = arguments
+
+    # required callback
+    callback = args[args.length - 1]
+    throw new Error 'Missing callback' unless callback
+
+    # optional options
+    options = args[args.length - 2]
+    options = null unless typeof options isnt 'object' or Buffer.isBuffer options
+
+    @iterator options, (err, it) ->
+      return callback err if err
+      it.forRange.apply it, args
+
+
+  ###
+
       Put a key-value pair in the database.
 
       @param {String|Buffer} key The key to put.

@@ -11,34 +11,28 @@ describe 'Batch', ->
 
   hasPut = (done) -> (err) ->
     assert.ifError err
-    db.iterator (err, it) ->
+    i = 110
+    db.forRange '110', '119', (err, key, val) ->
       assert.ifError err
-      i = 110
-      it.forRange '110', '119', (err, key, val) ->
-        assert.ifError err
-        assert.equal "#{i}", key
-        assert.equal "Goodbye #{i}", val
-        done() if ++i >= 120
+      assert.equal "#{i}", key
+      assert.equal "Goodbye #{i}", val
+      done() if ++i >= 120
 
   hasDel = (done) -> (err) ->
     assert.ifError err
-    db.iterator (err, it) ->
-      assert.ifError err
-      it.forRange '180', '200', (err) -> assert.fail err
-      done()
+    db.forRange '180', '200', (err) -> assert.fail err
+    done()
 
   hasBoth = hasPut
 
   hasNoop = (done) -> (err) ->
     assert.ifError err
-    db.iterator (err, it) ->
+    i = 110
+    db.forRange (err, key, val) ->
       assert.ifError err
-      i = 110
-      it.forRange (err, key, val) ->
-        assert.ifError err
-        assert.equal "#{i}", key
-        assert.equal "Hello #{i}", val
-        done() if ++i >= 190
+      assert.equal "#{i}", key
+      assert.equal "Hello #{i}", val
+      done() if ++i >= 190
 
   # populate fresh database
   beforeEach (done) ->

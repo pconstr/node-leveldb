@@ -74,7 +74,11 @@ exports.Iterator = class Iterator
     throw new Error 'Missing callback' unless callback
 
     # optional options
-    options = args.pop() if typeof args[args.length - 1] is 'object'
+    options = args[args.length - 1]
+    if typeof options is 'object' and not Buffer.isBuffer options
+      args.pop()
+    else
+      options = null
 
     # optional keys
     if args.length is 2
