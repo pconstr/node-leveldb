@@ -1,9 +1,9 @@
 #include <node.h>
 
-#include "handle.h"
 #include "batch.h"
+#include "comparator.h"
+#include "handle.h"
 #include "iterator.h"
-//#include "snapshot.h"
 
 namespace node_leveldb {
 
@@ -13,6 +13,7 @@ static void init(Handle<Object> target) {
   JHandle::Initialize(target);
   JBatch::Initialize(target);
   JIterator::Initialize(target);
+  PartitionedBitwiseComparator::Initialize(target);
 }
 
 NODE_MODULE(leveldb, init);

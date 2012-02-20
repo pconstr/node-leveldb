@@ -5,3 +5,4 @@ leveldb.version = '0.5.0'
 leveldb.bindingVersion = binding.bindingVersion
 
 leveldb.Batch = require('./leveldb/batch').Batch
+leveldb.partitionedBitwiseComparator = binding.createPartitionedBitwiseComparator

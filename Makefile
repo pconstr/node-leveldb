@@ -6,6 +6,8 @@ SOURCES=\
 	./src/binding/batch.cc \
 	./src/binding/batch.h \
 	./src/binding/binding.cc \
+	./src/binding/comparator.cc \
+	./src/binding/comparator.h \
 	./src/binding/handle.cc \
 	./src/binding/handle.h \
 	./src/binding/helpers.h \

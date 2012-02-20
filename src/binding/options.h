@@ -3,6 +3,7 @@
 
 #include <assert.h>
 
+#include <leveldb/comparator.h>
 #include <leveldb/options.h>
 #include <node.h>
 #include <v8.h>
@@ -12,7 +13,10 @@ using namespace v8;
 
 namespace node_leveldb {
 
-static void UnpackOptions(Handle<Value> val, leveldb::Options& options) {
+static void UnpackOptions(
+  Handle<Value> val, leveldb::Options& options,
+  Persistent<Value>* comp = NULL)
+{
   HandleScope scope;
   if (!val->IsObject()) return;
   Local<Object> obj = val->ToObject();
@@ -25,8 +29,8 @@ static void UnpackOptions(Handle<Value> val, leveldb::Options& options) {
   static const Persistent<String> kBlockSize = NODE_PSYMBOL("block_size");
   static const Persistent<String> kBlockRestartInterval = NODE_PSYMBOL("block_restart_interval");
   static const Persistent<String> kCompression = NODE_PSYMBOL("compression");
-  /*
   static const Persistent<String> kComparator = NODE_PSYMBOL("comparator");
+  /*
   static const Persistent<String> kInfoLog = NODE_PSYMBOL("info_log");
   */
 
@@ -56,10 +60,16 @@ static void UnpackOptions(Handle<Value> val, leveldb::Options& options) {
                         ? leveldb::kSnappyCompression : leveldb::kNoCompression;
   }
 
-  /*
-  if (obj->Has(kComparator))
-    options.comparator = NULL;
+  if (comp && obj->Has(kComparator)) {
+    Local<Value> ext = obj->Get(kComparator);
+    if (ext->IsExternal()) {
+      options.comparator =
+        static_cast<leveldb::Comparator*>(External::Unwrap(ext));
+      *comp = Persistent<Value>::New(ext);
+    }
+  }
 
+  /*
   if (obj->Has(kInfoLog))
     options.info_log = NULL;
   */
@@ -75,9 +85,10 @@ static void UnpackReadOptions(Handle<Value> val, leveldb::ReadOptions& options) 
   static const Persistent<String> kFillCache = NODE_PSYMBOL("fill_cache");
 
   if (obj->Has(kSnapshot)) {
-    Handle<Value> ext = obj->Get(kSnapshot);
+    Local<Value> ext = obj->Get(kSnapshot);
     if (ext->IsExternal()) {
-      options.snapshot = (leveldb::Snapshot*)External::Unwrap(ext);
+      options.snapshot =
+        static_cast<leveldb::Snapshot*>(External::Unwrap(ext));
     }
   }
 

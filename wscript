@@ -55,9 +55,10 @@ snappy_src = ["deps/snappy/" + path for path in [
 ]]
 
 node_leveldb_src = ["src/binding/" + path for path in [
-  "binding.cc",
-  "handle.cc",
   "batch.cc",
+  "binding.cc",
+  "comparator.cc",
+  "handle.cc",
   "iterator.cc"
 ]]
 
