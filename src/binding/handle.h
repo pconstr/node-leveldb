@@ -48,6 +48,7 @@ class JHandle : public ObjectWrap {
       delete db_;
       db_ = NULL;
     }
+    comparator_.Dispose();
   };
 
   inline bool Valid() {
@@ -122,6 +123,8 @@ class JHandle : public ObjectWrap {
     leveldb::Options options_;
     leveldb::Status status_;
     leveldb::DB* db_;
+
+    Persistent<Value> comparator_;
   };
 
   class ReadOp;
@@ -253,6 +256,7 @@ class JHandle : public ObjectWrap {
                                Handle<Value>& error, Handle<Value>& result);
 
   leveldb::DB* db_;
+  Persistent<Value> comparator_;
 };
 
 } // namespace node_leveldb

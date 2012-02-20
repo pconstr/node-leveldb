@@ -88,7 +88,7 @@ Handle<Value> JHandle::Open(const Arguments& args) {
 
   // Optional options
   if (args.Length() > 1 && !args[1]->IsFunction())
-    UnpackOptions(args[1], op->options_);
+    UnpackOptions(args[1], op->options_, &op->comparator_);
 
   return op->Run();
 }
@@ -252,10 +252,14 @@ void JHandle::Open(OpenOp* op) {
 void JHandle::Open(OpenOp* op, Handle<Value>& error, Handle<Value>& result) {
   if (op->status_.ok()) {
     Local<Value> argc[] = { External::New(op->db_) };
-    result = constructor->GetFunction()->NewInstance(1, argc);
+    Local<Object> instance = constructor->GetFunction()->NewInstance(1, argc);
+    JHandle* handle = ObjectWrap::Unwrap<JHandle>(instance);
+    handle->comparator_ = op->comparator_;
+    result = instance;
   } else {
     error = Exception::Error(String::New(op->status_.ToString().c_str()));
   }
+  op->comparator_.Clear();
 }
 
 void JHandle::Destroy(OpenOp* op) {
