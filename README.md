@@ -24,15 +24,17 @@ base to implement things like CouchDB.
 ```js
 var leveldb = require('leveldb');
 
-var db = leveldb.open("path/to/my/db", { create_if_missing: true });
+leveldb.open("path/to/my/db", { create_if_missing: true }, onOpen);
 
-var key = "mykey";
-db.putSync(key, "My Value!");
-
-var value = db.getSync(key);
-console.dir(value); // prints: My Value!
-
-db.delSync(key);
+function onOpen(err, db) {
+  var key = "mykey";
+  db.put(key, "My Value!", function(err) {
+    db.getSync(key, function(err, value) {
+      console.dir(value); // prints: My Value!
+      db.del(key);
+    });
+  });
+}
 
 // db closes automatically when out of scope
 ```
