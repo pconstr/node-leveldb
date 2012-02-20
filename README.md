@@ -1,3 +1,5 @@
+[![Build Status](https://secure.travis-ci.org/mikepb/node-leveldb.png)](http://travis-ci.org/mikepb/node-leveldb)
+
 # Node-LevelDB
 
 The leveldb library provides a persistent key value store. Keys and values
