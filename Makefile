@@ -1,31 +1,16 @@
 REPORTER=dot
 BINARY=./lib/leveldb.node
-BUILD_CONFIG=./deps/leveldb/build_config.mk
-SOURCES=\
-	./src/binding \
-	./src/binding/batch.cc \
-	./src/binding/batch.h \
-	./src/binding/binding.cc \
-	./src/binding/comparator.cc \
-	./src/binding/comparator.h \
-	./src/binding/handle.cc \
-	./src/binding/handle.h \
-	./src/binding/helpers.h \
-	./src/binding/iterator.cc \
-	./src/binding/iterator.h \
-	./src/binding/node_async_shim.h \
-	./src/binding/operation.h \
-	./src/binding/options.h
 
-COFFEE=./node_modules/.bin/coffee
-MOCHA=./node_modules/.bin/mocha
-
-build: $(BINARY)
-
-package: distclean build clean
+build:
+	if [ ! -f ./deps/snappy/Makefile ]; then node-waf configure; fi
+	node-waf build
 
 coffee:
-	$(COFFEE) --bare --compile --output lib src
+	if [ -f ./node_modules/.bin/coffee ]; then \
+		./node_modules/.bin/coffee --bare --compile --output lib src; \
+	else \
+		coffee --bare --compile --output lib src; \
+	fi
 
 clean:
 	node-waf clean
@@ -33,15 +18,9 @@ clean:
 distclean: clean
 	rm -rf lib
 
-test: $(BINARY) coffee
+test: build coffee
 	mkdir -p tmp
-	-@$(MOCHA) --reporter $(REPORTER) test/*-test.coffee
+	-@./node_modules/.bin/mocha --reporter $(REPORTER) test/*-test.coffee
 	rm -rf tmp
 
-$(BUILD_CONFIG):
-	node-waf configure
-
-$(BINARY): $(SOURCES) $(BUILD_CONFIG)
-	node-waf build
-
-.PHONY: build coffee clean distclean package test
+.PHONY: build coffee clean distclean test

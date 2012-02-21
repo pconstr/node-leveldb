@@ -13,7 +13,8 @@
   },
   "scripts": {
     "prepublish": "make coffee",
-    "preinstall": "make package",
+    "preinstall": "make distclean build clean",
+    "postinstall": "if [ ! -f ./lib/index.js ]; then make coffee; fi",
     "test": "make test"
   },
   "repository": {
