@@ -16,7 +16,7 @@ clean:
 	node-waf clean
 
 distclean: clean
-	rm -rf lib
+	rm -rf lib node_modules
 
 test: build coffee
 	mkdir -p tmp
