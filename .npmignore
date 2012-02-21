@@ -1,8 +1,10 @@
 .DS_Store
+.lock-wscript
 .git
 .svn
 *.o
 build
+build/
 demo/testdb
 deps/leveldb/build_config.mk
 deps/snappy/Makefile
