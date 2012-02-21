@@ -1,16 +1,15 @@
 REPORTER=dot
 BINARY=./lib/leveldb.node
 
+# prefer installed scripts
+PATH:=./node_modules/.bin:${PATH}
+
 build:
 	if [ ! -f ./deps/snappy/Makefile ]; then node-waf configure; fi
 	node-waf build
 
 coffee:
-	if [ -f ./node_modules/.bin/coffee ]; then \
-		./node_modules/.bin/coffee --bare --compile --output lib src; \
-	else \
-		coffee --bare --compile --output lib src; \
-	fi
+	coffee --bare --compile --output lib src
 
 clean:
 	node-waf clean
@@ -20,7 +19,7 @@ distclean: clean
 
 test: build coffee
 	mkdir -p tmp
-	-@./node_modules/.bin/mocha --reporter $(REPORTER) test/*-test.coffee
+	-@mocha --reporter $(REPORTER) test/*-test.coffee
 	rm -rf tmp
 
 .PHONY: build coffee clean distclean test
