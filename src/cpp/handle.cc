@@ -557,20 +557,69 @@ Handle<Value> JHandle::Property(const Arguments& args) {
   return Undefined();
 }
 
+
+/**
+
+    Approximate sizes
+
+ */
+
+class approxsizes_params : public async_params {
+ public:
+  virtual ~approxsizes_params() {
+    std::vector< Persistent<Value> >::iterator it;
+    for (it = handles_.begin(); it < handles_.end(); ++it) it->Dispose();
+    if (sizes_) delete[] sizes_;
+  }
+
+  virtual void Result(Handle<Value>& error, Handle<Value>& result) {
+    int len = ranges_.size();
+
+    Handle<Array> array = Array::New(len);
+
+    for (int i = 0; i < len; ++i) {
+      uint64_t size = sizes_[i];
+      if (size < INT_MAX) {
+        array->Set(i, Integer::New(static_cast<uint32_t>(size)));
+      } else {
+        array->Set(i, Number::New(static_cast<double>(size)));
+      }
+    }
+
+    result = array;
+  }
+
+  leveldb::DB* db_;
+
+  std::vector<leveldb::Range> ranges_;
+  std::vector< Persistent<Value> > handles_;
+
+  uint64_t* sizes_;
+};
+
+void AsyncApproxSizes(uv_work_t* req) {
+  approxsizes_params* op = static_cast<approxsizes_params*>(req->data);
+  int len = op->ranges_.size();
+  op->sizes_ = new uint64_t[len];
+  op->db_->GetApproximateSizes(&op->ranges_[0], len, op->sizes_);
+}
+
 Handle<Value> JHandle::ApproximateSizes(const Arguments& args) {
   HandleScope scope;
 
-  if (args.Length() < 1 || !args[0]->IsArray())
+  if (args.Length() != 2 || !args[0]->IsArray() || !args[1]->IsFunction())
     return ThrowTypeError("Invalid arguments");
 
   Local<Array> array(Array::Cast(*args[0]));
 
+  approxsizes_params* op = new approxsizes_params;
+  op->handles_.push_back(Persistent<Value>::New(args.This()));
+  op->db_ = ObjectWrap::Unwrap<JHandle>(args.This())->db_;
+  op->callback_ = Persistent<Function>::New(Local<Function>::Cast(args[1]));
+
   int len = array->Length();
   if (len % 2 != 0)
     return ThrowTypeError("Invalid arguments");
-
-  ApproximateSizesOp* op =
-    ApproximateSizesOp::New(ApproximateSizes, ApproximateSizes, args);
 
   for (int i = 0; i < len; i += 2) {
     if (array->Has(i) && array->Has(i + 1)) {
@@ -584,42 +633,14 @@ Handle<Value> JHandle::ApproximateSizes(const Arguments& args) {
     }
   }
 
-  return op->Run();
+  AsyncQueue(op, AsyncApproxSizes, AfterAsync);
+
+  return Undefined();
 }
 
 Handle<Value> JHandle::CompactRange(const Arguments& args) {
   HandleScope scope;
   return ThrowError("Method not implemented");
-}
-
-
-//
-// ASYNC FUNCTIONS
-//
-
-void JHandle::ApproximateSizes(ApproximateSizesOp* op) {
-  int len = op->ranges_.size();
-  op->sizes_ = new uint64_t[len];
-  op->self_->db_->GetApproximateSizes(&op->ranges_[0], len, op->sizes_);
-}
-
-void JHandle::ApproximateSizes(ApproximateSizesOp* op,
-                               Handle<Value>& error, Handle<Value>& result)
-{
-  int len = op->ranges_.size();
-
-  Handle<Array> array = Array::New(len);
-
-  for (int i = 0; i < len; ++i) {
-    uint64_t size = op->sizes_[i];
-    if (size < INT_MAX) {
-      array->Set(i, Integer::New(static_cast<uint32_t>(size)));
-    } else {
-      array->Set(i, Number::New(static_cast<double>(size)));
-    }
-  }
-
-  result = array;
 }
 
 } // namespace node_leveldb

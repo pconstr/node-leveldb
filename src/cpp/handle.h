@@ -67,61 +67,6 @@ class JHandle : public ObjectWrap {
   static void UnrefIterator(Persistent<Value> object, void* parameter);
   static void UnrefSnapshot(Persistent<Value> object, void* parameter);
 
-  template <class T>
-  class Op : public Operation<T> {
-   public:
-
-    typedef void (*ExecFunction)(T* op);
-    typedef void (*ConvFunction)(
-      T* op, Handle<Value>& error, Handle<Value>& result);
-
-    inline Op(const ExecFunction exec, const ConvFunction conv,
-              Handle<Object>& handle, Handle<Function>& callback)
-      : Operation<T>(exec, conv, handle, callback)
-    {
-      self_ = ObjectWrap::Unwrap<JHandle>(handle);
-      self_->Ref();
-    }
-
-    virtual ~Op() {
-      self_->Unref();
-    }
-
-    virtual inline Handle<Value> BeforeRun() {
-      if (self_->db_ == NULL) return ThrowError("Handle closed");
-      return Handle<Value>();
-    }
-
-    JHandle* self_;
-
-    leveldb::Status status_;
-
-  };
-
-  class ApproximateSizesOp;
-  class ApproximateSizesOp : public Op<ApproximateSizesOp> {
-   public:
-
-    inline ApproximateSizesOp(const ExecFunction exec, const ConvFunction conv,
-                              Handle<Object>& handle, Handle<Function>& callback)
-      : Op<ApproximateSizesOp>(exec, conv, handle, callback), sizes_(NULL) {}
-
-    virtual ~ApproximateSizesOp() {
-      std::vector< Persistent<Value> >::iterator it;
-      for (it = handles_.begin(); it < handles_.end(); ++it) it->Dispose();
-      if (sizes_) delete[] sizes_;
-    }
-
-    std::vector<leveldb::Range> ranges_;
-    std::vector< Persistent<Value> > handles_;
-
-    uint64_t* sizes_;
-  };
-
-  static void ApproximateSizes(ApproximateSizesOp* op);
-  static void ApproximateSizes(ApproximateSizesOp* op,
-                               Handle<Value>& error, Handle<Value>& result);
-
   leveldb::DB* db_;
   Persistent<Value> comparator_;
 };
