@@ -9,7 +9,7 @@ build:
 	node-waf build
 
 coffee:
-	coffee --bare --compile --output lib src
+	coffee --bare --compile --output lib src/coffee
 
 clean:
 	node-waf clean

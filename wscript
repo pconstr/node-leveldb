@@ -54,7 +54,7 @@ snappy_src = ["deps/snappy/" + path for path in [
   "snappy-c.cc"
 ]]
 
-node_leveldb_src = ["src/binding/" + path for path in [
+node_leveldb_src = ["src/cpp/" + path for path in [
   "batch.cc",
   "binding.cc",
   "comparator.cc",
