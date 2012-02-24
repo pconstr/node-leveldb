@@ -160,7 +160,7 @@ Handle<Value> JHandle::Open(const Arguments& args) {
 
 /**
 
-    Destroy
+    Destroy or repair
 
  */
 
@@ -198,12 +198,7 @@ static void AfterDbOp(uv_work_t* req) {
   delete req;
 }
 
-static void AsyncDestroy(uv_work_t* req) {
-  open_params_t* op = static_cast<open_params_t*>(req->data);
-  op->status_ = leveldb::DestroyDB(op->name_, op->options_);
-}
-
-Handle<Value> JHandle::Destroy(const Arguments& args) {
+static Handle<Value> DbOp(const Arguments& args, const uv_work_cb async) {
   HandleScope scope;
 
   if (args.Length() != 3 || !args[0]->IsString())
@@ -221,10 +216,27 @@ Handle<Value> JHandle::Destroy(const Arguments& args) {
   if (args[2]->IsFunction())
     op->callback_ = Persistent<Function>::New(Local<Function>::Cast(args[2]));
 
-  AsyncQueue(op, AsyncDestroy, AfterDbOp);
+  AsyncQueue(op, async, AfterDbOp);
 
   return Undefined();
 }
+
+
+/**
+
+    Destroy
+
+ */
+
+static void AsyncDestroy(uv_work_t* req) {
+  open_params_t* op = static_cast<open_params_t*>(req->data);
+  op->status_ = leveldb::DestroyDB(op->name_, op->options_);
+}
+
+Handle<Value> JHandle::Destroy(const Arguments& args) {
+  return DbOp(args, AsyncDestroy);
+}
+
 
 /**
 
@@ -232,20 +244,21 @@ Handle<Value> JHandle::Destroy(const Arguments& args) {
 
  */
 
-Handle<Value> JHandle::Repair(const Arguments& args) {
-  HandleScope scope;
-
-  if (args.Length() < 1 || !args[0]->IsString())
-    return ThrowTypeError("Invalid arguments");
-
-  OpenOp* op = OpenOp::New(Repair, OpenConv, args);
-  op->name_ = *String::Utf8Value(args[0]);
-
-  // Optional options
-  if (args.Length() > 1) UnpackOptions(args[1], op->options_);
-
-  return op->Run();
+static void AsyncRepair(uv_work_t* req) {
+  open_params_t* op = static_cast<open_params_t*>(req->data);
+  op->status_ = leveldb::RepairDB(op->name_, op->options_);
 }
+
+Handle<Value> JHandle::Repair(const Arguments& args) {
+  return DbOp(args, AsyncRepair);
+}
+
+
+/**
+
+    Read
+
+ */
 
 Handle<Value> JHandle::Read(const Arguments& args) {
   HandleScope scope;
