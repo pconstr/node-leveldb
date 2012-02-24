@@ -92,23 +92,6 @@ class JHandle : public ObjectWrap {
 
   };
 
-  class OpenOp;
-  class OpenOp : public Operation<OpenOp> {
-   public:
-
-    inline OpenOp(const ExecFunction exec, const ConvFunction conv,
-                  Handle<Object>& handle, Handle<Function>& callback)
-      : Operation<OpenOp>(exec, conv, handle, callback), db_(NULL) {}
-
-    std::string name_;
-
-    leveldb::Options options_;
-    leveldb::Status status_;
-    leveldb::DB* db_;
-
-    Persistent<Value> comparator_;
-  };
-
   class ReadOp;
   class ReadOp : public Op<ReadOp> {
    public:
@@ -206,14 +189,6 @@ class JHandle : public ObjectWrap {
 
     uint64_t* sizes_;
   };
-
-  static void Open(OpenOp* op);
-  static void Open(OpenOp* op, Handle<Value>& error, Handle<Value>& result);
-
-  static void Destroy(OpenOp* op);
-  static void Repair(OpenOp* op);
-
-  static void OpenConv(OpenOp* op, Handle<Value>& error, Handle<Value>& result);
 
   static void Read(ReadOp* op);
   static void Read(ReadOp* op, Handle<Value>& error, Handle<Value>& result);

@@ -403,15 +403,6 @@ Handle<Value> JHandle::CompactRange(const Arguments& args) {
 // ASYNC FUNCTIONS
 //
 
-void JHandle::Repair(OpenOp* op) {
-  op->status_ = leveldb::RepairDB(op->name_, op->options_);
-}
-
-void JHandle::OpenConv(OpenOp* op, Handle<Value>& error, Handle<Value>& result) {
-  if (!op->status_.ok())
-    error = Exception::Error(String::New(op->status_.ToString().c_str()));
-}
-
 void JHandle::Read(ReadOp* op) {
   op->result_ = new std::string;
   op->status_ = op->self_->db_->Get(op->options_, op->key_, op->result_);
