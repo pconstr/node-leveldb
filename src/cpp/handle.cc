@@ -369,6 +369,55 @@ Handle<Value> JHandle::Write(const Arguments& args) {
   return Undefined();
 }
 
+
+/**
+
+    Iterator
+
+ */
+
+class JHandle::iterator_params : public async_params {
+ public:
+  virtual ~iterator_params() {
+    handle_.Dispose();
+  }
+
+  virtual void Result(Handle<Value>& error, Handle<Value>& result) {
+    if (status_.ok()) result = self_->RefIterator(it_);
+  }
+
+  JHandle *self_;
+
+  leveldb::Iterator* it_;
+  leveldb::ReadOptions options_;
+
+  Persistent<Value> handle_;
+};
+
+void JHandle::AsyncIterator(uv_work_t* req) {
+  iterator_params* op = static_cast<iterator_params*>(req->data);
+  op->it_ = op->self_->db_->NewIterator(op->options_);
+}
+
+Handle<Value> JHandle::Iterator(const Arguments& args) {
+  HandleScope scope;
+
+  if (args.Length() != 2 || !args[1]->IsFunction())
+    return ThrowTypeError("Invalid arguments");
+
+  iterator_params* op = new iterator_params;
+  op->self_ = ObjectWrap::Unwrap<JHandle>(args.This());
+  op->handle_ = Persistent<Value>::New(args.This());
+  op->callback_ = Persistent<Function>::New(Local<Function>::Cast(args[1]));
+
+  // Optional options
+  UnpackReadOptions(args[0], op->options_);
+
+  AsyncQueue(op, AsyncIterator, AfterAsync);
+
+  return Undefined();
+}
+
 Handle<Value> JHandle::RefIterator(leveldb::Iterator* it) {
   Local<Value> argv[] = { External::New(it) };
   Local<Object> instance = JIterator::constructor->GetFunction()->NewInstance(1, argv);
@@ -390,13 +439,6 @@ void JHandle::UnrefIterator(Persistent<Value> object, void* parameter) {
 
   self->Unref();
   object.Dispose();
-}
-
-Handle<Value> JHandle::Iterator(const Arguments& args) {
-  HandleScope scope;
-  IteratorOp* op = IteratorOp::New(Iterator, Iterator, args);
-  if (args.Length() > 0) UnpackReadOptions(args[0], op->options_);
-  return op->Run();
 }
 
 Handle<Value> JHandle::RefSnapshot(const leveldb::Snapshot* snapshot) {
@@ -479,18 +521,6 @@ Handle<Value> JHandle::CompactRange(const Arguments& args) {
 //
 // ASYNC FUNCTIONS
 //
-
-void JHandle::Iterator(IteratorOp* op) {
-  op->it_ = op->self_->db_->NewIterator(op->options_);
-}
-
-void JHandle::Iterator(IteratorOp* op, Handle<Value>& error, Handle<Value>& result) {
-  if (op->status_.ok()) {
-    result = op->self_->RefIterator(op->it_);
-  } else {
-    error = Exception::Error(String::New(op->status_.ToString().c_str()));
-  }
-}
 
 void JHandle::Snapshot(SnapshotOp* op) {
   op->snap_ = const_cast<leveldb::Snapshot*>(op->self_->db_->GetSnapshot());

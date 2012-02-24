@@ -55,6 +55,10 @@ class JHandle : public ObjectWrap {
     return db_ != NULL;
   };
 
+  class iterator_params;
+
+  static void AsyncIterator(uv_work_t* req);
+
   Handle<Value> RefIterator(leveldb::Iterator* it);
   Handle<Value> RefSnapshot(const leveldb::Snapshot* snapshot);
 
@@ -90,18 +94,6 @@ class JHandle : public ObjectWrap {
 
     leveldb::Status status_;
 
-  };
-
-  class IteratorOp;
-  class IteratorOp : public Op<IteratorOp> {
-   public:
-
-    inline IteratorOp(const ExecFunction exec, const ConvFunction conv,
-                      Handle<Object>& handle, Handle<Function>& callback)
-      : Op<IteratorOp>(exec, conv, handle, callback) {}
-
-    leveldb::Iterator* it_;
-    leveldb::ReadOptions options_;
   };
 
   class SnapshotOp;
@@ -147,10 +139,6 @@ class JHandle : public ObjectWrap {
 
     uint64_t* sizes_;
   };
-
-  static void Iterator(IteratorOp* op);
-  static void Iterator(IteratorOp* op,
-                       Handle<Value>& error, Handle<Value>& result);
 
   static void Snapshot(SnapshotOp* op);
   static void Snapshot(SnapshotOp* op,
