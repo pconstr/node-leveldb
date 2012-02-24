@@ -65,33 +65,104 @@ void JHandle::Initialize(Handle<Object> target) {
 Handle<Value> JHandle::New(const Arguments& args) {
   HandleScope scope;
 
-  assert(args.Length() == 1);
+  assert(args.Length() == 2);
   assert(args[0]->IsExternal());
 
   leveldb::DB* db = (leveldb::DB*)External::Unwrap(args[0]);
   JHandle* self = new JHandle(db);
+
+  if (args[1]->IsExternal())
+    self->comparator_ = Persistent<Value>::New(args[1]);
+
   self->Wrap(args.This());
 
   return args.This();
 }
 
+
+/**
+
+    Open
+
+ */
+
+typedef struct open_params {
+  std::string name_;
+
+  leveldb::Options options_;
+  leveldb::Status status_;
+  leveldb::DB* db_;
+
+  Persistent<Value> comparator_;
+  Persistent<Function> callback_;
+
+  virtual ~open_params() {
+    comparator_.Dispose();
+    callback_.Dispose();
+  }
+} open_params_t;
+
+static void AsyncOpen(uv_work_t* req) {
+  open_params_t* op = static_cast<open_params_t*>(req->data);
+  op->status_ = leveldb::DB::Open(op->options_, op->name_, &op->db_);
+}
+
+static void AfterOpen(uv_work_t* req) {
+  HandleScope scope;
+  open_params_t* op = static_cast<open_params_t*>(req->data);
+  assert(!op->callback_.IsEmpty());
+
+  Handle<Value> error = Null();
+  Handle<Value> result = Undefined();
+
+  if (op->status_.ok()) {
+    Handle<Value> args[] = { External::New(op->db_), Undefined() };
+    if (!op->comparator_.IsEmpty()) args[1] = op->comparator_;
+    result = JHandle::constructor->GetFunction()->NewInstance(2, args);
+  } else {
+    error = Exception::Error(String::New(op->status_.ToString().c_str()));
+  }
+
+  Handle<Value> argv[] = { error, result };
+
+  TryCatch tryCatch;
+  op->callback_->Call(Context::GetCurrent()->Global(), 2, argv);
+  if (tryCatch.HasCaught()) FatalException(tryCatch);
+
+  delete op;
+  delete req;
+}
+
 Handle<Value> JHandle::Open(const Arguments& args) {
   HandleScope scope;
 
-  if (args.Length() < 1 || !args[0]->IsString())
+  if (args.Length() != 3 ||
+      !args[0]->IsString() ||
+      !args[2]->IsFunction())
     return ThrowTypeError("Invalid arguments");
 
-  OpenOp* op = OpenOp::New(Open, Open, args);
+  open_params_t* op = new open_params_t;
 
   // Required filename
   op->name_ = *String::Utf8Value(args[0]);
 
-  // Optional options
-  if (args.Length() > 1 && !args[1]->IsFunction())
-    UnpackOptions(args[1], op->options_, &op->comparator_);
+  // Required callback
+  op->callback_ = Persistent<Function>::New(Local<Function>::Cast(args[2]));
 
-  return op->Run();
+  // Optional options
+  UnpackOptions(args[1], op->options_, &op->comparator_);
+
+  AsyncQueue(op, AsyncOpen, AfterOpen);
+
+  return Undefined();
 }
+
+
+/**
+
+    Destroy
+
+ */
 
 Handle<Value> JHandle::Destroy(const Arguments& args) {
   HandleScope scope;
@@ -107,6 +178,17 @@ Handle<Value> JHandle::Destroy(const Arguments& args) {
 
   return op->Run();
 }
+
+
+void JHandle::Destroy(OpenOp* op) {
+  op->status_ = leveldb::DestroyDB(op->name_, op->options_);
+}
+
+/**
+
+    Repair
+
+ */
 
 Handle<Value> JHandle::Repair(const Arguments& args) {
   HandleScope scope;
@@ -265,27 +347,6 @@ Handle<Value> JHandle::CompactRange(const Arguments& args) {
 //
 // ASYNC FUNCTIONS
 //
-
-void JHandle::Open(OpenOp* op) {
-  op->status_ = leveldb::DB::Open(op->options_, op->name_, &op->db_);
-}
-
-void JHandle::Open(OpenOp* op, Handle<Value>& error, Handle<Value>& result) {
-  if (op->status_.ok()) {
-    Local<Value> argc[] = { External::New(op->db_) };
-    Local<Object> instance = constructor->GetFunction()->NewInstance(1, argc);
-    JHandle* handle = ObjectWrap::Unwrap<JHandle>(instance);
-    handle->comparator_ = op->comparator_;
-    result = instance;
-  } else {
-    error = Exception::Error(String::New(op->status_.ToString().c_str()));
-  }
-  op->comparator_.Clear();
-}
-
-void JHandle::Destroy(OpenOp* op) {
-  op->status_ = leveldb::DestroyDB(op->name_, op->options_);
-}
 
 void JHandle::Repair(OpenOp* op) {
   op->status_ = leveldb::RepairDB(op->name_, op->options_);
