@@ -86,19 +86,33 @@ Handle<Value> JHandle::New(const Arguments& args) {
 
  */
 
-class async_params {
+class JHandle::async_params {
  public:
+  async_params(const Arguments& args) {
+    if (JHandle::HasInstance(args.This())) {
+      self_ = ObjectWrap::Unwrap<JHandle>(args.This());
+      if (self_ != NULL) self_->Ref();
+    } else {
+      self_ = NULL;
+    }
+    assert(args[args.Length() - 1]->IsFunction());
+    Local<Function> fn = Local<Function>::Cast(args[args.Length() - 1]);
+    callback_ = Persistent<Function>::New(fn);
+  }
+
   virtual ~async_params() {
+    if (self_ != NULL) self_->Unref();
     callback_.Dispose();
   }
 
   virtual void Result(Handle<Value>& error, Handle<Value>& result) {}
 
+  JHandle* self_;
   leveldb::Status status_;
   Persistent<Function> callback_;
 };
 
-static void AfterAsync(uv_work_t* req) {
+void JHandle::AfterAsync(uv_work_t* req) {
   HandleScope scope;
   async_params* op = static_cast<async_params*>(req->data);
   assert(!op->callback_.IsEmpty());
@@ -132,8 +146,10 @@ static void AfterAsync(uv_work_t* req) {
 
  */
 
-class open_params : public async_params {
+class JHandle::open_params : public async_params {
  public:
+  open_params(const Arguments& args) : async_params(args) {}
+
   virtual ~open_params() {
     comparator_.Dispose();
   }
@@ -154,7 +170,7 @@ class open_params : public async_params {
   Persistent<Value> comparator_;
 };
 
-static void AsyncOpen(uv_work_t* req) {
+void JHandle::AsyncOpen(uv_work_t* req) {
   open_params* op = static_cast<open_params*>(req->data);
   op->status_ = leveldb::DB::Open(op->options_, op->name_, &op->db_);
 }
@@ -162,18 +178,13 @@ static void AsyncOpen(uv_work_t* req) {
 Handle<Value> JHandle::Open(const Arguments& args) {
   HandleScope scope;
 
-  if (args.Length() != 3 ||
-      !args[0]->IsString() ||
-      !args[2]->IsFunction())
+  if (args.Length() != 3 || !args[0]->IsString() || !args[2]->IsFunction())
     return ThrowTypeError("Invalid arguments");
 
-  open_params* op = new open_params;
+  open_params* op = new open_params(args);
 
   // Required filename
   op->name_ = *String::Utf8Value(args[0]);
-
-  // Required callback
-  op->callback_ = Persistent<Function>::New(Local<Function>::Cast(args[2]));
 
   // Optional options
   UnpackOptions(args[1], op->options_, &op->comparator_);
@@ -190,29 +201,27 @@ Handle<Value> JHandle::Open(const Arguments& args) {
 
  */
 
-class dbop_params : public async_params {
+class JHandle::dbop_params : public async_params {
  public:
+  dbop_params(const Arguments& args) : async_params(args) {}
+
   std::string name_;
   leveldb::Options options_;
 };
 
-static Handle<Value> DbOp(const Arguments& args, const uv_work_cb async) {
+Handle<Value> JHandle::DbOp(const Arguments& args, const uv_work_cb async) {
   HandleScope scope;
 
-  if (args.Length() != 3 || !args[0]->IsString())
+  if (args.Length() != 3 || !args[0]->IsString() || !args[2]->IsFunction())
     return ThrowTypeError("Invalid arguments");
 
-  dbop_params* op = new dbop_params;
+  dbop_params* op = new dbop_params(args);
 
   // Required filename
   op->name_ = *String::Utf8Value(args[0]);
 
   // Optional options
   UnpackOptions(args[1], op->options_);
-
-  // Optional callback
-  if (args[2]->IsFunction())
-    op->callback_ = Persistent<Function>::New(Local<Function>::Cast(args[2]));
 
   AsyncQueue(op, async, AfterAsync);
 
@@ -226,7 +235,7 @@ static Handle<Value> DbOp(const Arguments& args, const uv_work_cb async) {
 
  */
 
-static void AsyncDestroy(uv_work_t* req) {
+void JHandle::AsyncDestroy(uv_work_t* req) {
   dbop_params* op = static_cast<dbop_params*>(req->data);
   op->status_ = leveldb::DestroyDB(op->name_, op->options_);
 }
@@ -242,7 +251,7 @@ Handle<Value> JHandle::Destroy(const Arguments& args) {
 
  */
 
-static void AsyncRepair(uv_work_t* req) {
+void JHandle::AsyncRepair(uv_work_t* req) {
   dbop_params* op = static_cast<dbop_params*>(req->data);
   op->status_ = leveldb::RepairDB(op->name_, op->options_);
 }
@@ -258,10 +267,11 @@ Handle<Value> JHandle::Repair(const Arguments& args) {
 
  */
 
-class read_params : public async_params {
+class JHandle::read_params : public async_params {
  public:
+  read_params(const Arguments& args) : async_params(args) {}
+
   virtual ~read_params() {
-    handle_.Dispose();
     keyHandle_.Dispose();
   }
 
@@ -273,20 +283,18 @@ class read_params : public async_params {
     }
   }
 
-  leveldb::DB* db_;
   leveldb::ReadOptions options_;
   leveldb::Slice key_;
 
   std::string* result_;
 
-  Persistent<Value> handle_;
   Persistent<Value> keyHandle_;
 };
 
-static void AsyncRead(uv_work_t* req) {
+void JHandle::AsyncRead(uv_work_t* req) {
   read_params* op = static_cast<read_params*>(req->data);
   op->result_ = new std::string;
-  op->status_ = op->db_->Get(op->options_, op->key_, op->result_);
+  op->status_ = op->self_->db_->Get(op->options_, op->key_, op->result_);
 }
 
 Handle<Value> JHandle::Read(const Arguments& args) {
@@ -297,15 +305,10 @@ Handle<Value> JHandle::Read(const Arguments& args) {
       !args[2]->IsFunction())
     return ThrowTypeError("Invalid arguments");
 
-  read_params* op = new read_params;
-  op->handle_ = Persistent<Value>::New(args.This());
-  op->db_ = ObjectWrap::Unwrap<JHandle>(args.This())->db_;
+  read_params* op = new read_params(args);
 
   // Required key
   op->key_ = ToSlice(args[0], op->keyHandle_);
-
-  // Required callback
-  op->callback_ = Persistent<Function>::New(Local<Function>::Cast(args[2]));
 
   // Optional read options
   UnpackReadOptions(args[1], op->options_);
@@ -322,14 +325,15 @@ Handle<Value> JHandle::Read(const Arguments& args) {
 
  */
 
-class write_params : public async_params {
+class JHandle::write_params : public async_params {
  public:
+  write_params(const Arguments& args) : async_params(args) {}
+
   virtual ~write_params() {
     handle_.Dispose();
     batchHandle_.Dispose();
   }
 
-  leveldb::DB* db_;
   leveldb::WriteBatch* batch_;
   leveldb::WriteOptions options_;
 
@@ -337,9 +341,9 @@ class write_params : public async_params {
   Persistent<Value> batchHandle_;
 };
 
-static void AsyncWrite(uv_work_t* req) {
+void JHandle::AsyncWrite(uv_work_t* req) {
   write_params* op = static_cast<write_params*>(req->data);
-  op->status_ = op->db_->Write(op->options_, op->batch_);
+  op->status_ = op->self_->db_->Write(op->options_, op->batch_);
 }
 
 Handle<Value> JHandle::Write(const Arguments& args) {
@@ -350,19 +354,14 @@ Handle<Value> JHandle::Write(const Arguments& args) {
       !args[2]->IsFunction())
     return ThrowTypeError("Invalid arguments");
 
-  write_params* op = new write_params;
-  op->handle_ = Persistent<Value>::New(args.This());
-  op->batchHandle_ = Persistent<Value>::New(args[0]);
+  write_params* op = new write_params(args);
 
-  // Required db and batch
-  op->db_ = ObjectWrap::Unwrap<JHandle>(args.This())->db_;
+  // Required batch
   op->batch_ = &ObjectWrap::Unwrap<JBatch>(args[0]->ToObject())->wb_;
+  op->batchHandle_ = Persistent<Value>::New(args[0]);
 
   // Optional write options
   UnpackWriteOptions(args[1], op->options_);
-
-  // Optional callback
-  op->callback_ = Persistent<Function>::New(Local<Function>::Cast(args[2]));
 
   AsyncQueue(op, AsyncWrite, AfterAsync);
 
@@ -378,20 +377,14 @@ Handle<Value> JHandle::Write(const Arguments& args) {
 
 class JHandle::iterator_params : public async_params {
  public:
-  virtual ~iterator_params() {
-    handle_.Dispose();
-  }
+  iterator_params(const Arguments& args) : async_params(args) {}
 
   virtual void Result(Handle<Value>& error, Handle<Value>& result) {
     if (status_.ok()) result = self_->RefIterator(it_);
   }
 
-  JHandle* self_;
-
   leveldb::Iterator* it_;
   leveldb::ReadOptions options_;
-
-  Persistent<Value> handle_;
 };
 
 void JHandle::AsyncIterator(uv_work_t* req) {
@@ -405,10 +398,7 @@ Handle<Value> JHandle::Iterator(const Arguments& args) {
   if (args.Length() != 2 || !args[1]->IsFunction())
     return ThrowTypeError("Invalid arguments");
 
-  iterator_params* op = new iterator_params;
-  op->self_ = ObjectWrap::Unwrap<JHandle>(args.This());
-  op->handle_ = Persistent<Value>::New(args.This());
-  op->callback_ = Persistent<Function>::New(Local<Function>::Cast(args[1]));
+  iterator_params* op = new iterator_params(args);
 
   // Optional options
   UnpackReadOptions(args[0], op->options_);
@@ -450,17 +440,13 @@ void JHandle::UnrefIterator(Persistent<Value> object, void* parameter) {
 
 class JHandle::snapshot_params : public async_params {
  public:
-  virtual ~snapshot_params() {
-    handle_.Dispose();
-  }
+  snapshot_params(const Arguments& args) : async_params(args) {}
 
   virtual void Result(Handle<Value>& error, Handle<Value>& result) {
     if (status_.ok()) result = self_->RefSnapshot(snap_);
   }
 
-  JHandle* self_;
   leveldb::Snapshot* snap_;
-  Persistent<Value> handle_;
 };
 
 void JHandle::AsyncSnapshot(uv_work_t* req) {
@@ -474,10 +460,7 @@ Handle<Value> JHandle::Snapshot(const Arguments& args) {
   if (args.Length() != 1 || !args[0]->IsFunction())
     return ThrowTypeError("Invalid arguments");
 
-  snapshot_params* op = new snapshot_params;
-  op->self_ = ObjectWrap::Unwrap<JHandle>(args.This());
-  op->handle_ = Persistent<Value>::New(args.This());
-  op->callback_ = Persistent<Function>::New(Local<Function>::Cast(args[0]));
+  snapshot_params* op = new snapshot_params(args);
 
   AsyncQueue(op, AsyncSnapshot, AfterAsync);
 
@@ -515,29 +498,23 @@ void JHandle::UnrefSnapshot(Persistent<Value> object, void* parameter) {
 
  */
 
-class property_params : public async_params {
+class JHandle::property_params : public async_params {
  public:
-  virtual ~property_params() {
-    handle_.Dispose();
-  }
+  property_params(const Arguments& args) : async_params(args) {}
 
   virtual void Result(Handle<Value>& error, Handle<Value>& result) {
     if (hasProperty_) result = String::New(value_.c_str());
   }
 
-  leveldb::DB* db_;
-
   std::string name_;
   std::string value_;
 
   bool hasProperty_;
-
-  Persistent<Value> handle_;
 };
 
-void AsyncProperty(uv_work_t* req) {
+void JHandle::AsyncProperty(uv_work_t* req) {
   property_params* op = static_cast<property_params*>(req->data);
-  op->hasProperty_ = op->db_->GetProperty(op->name_, &op->value_);
+  op->hasProperty_ = op->self_->db_->GetProperty(op->name_, &op->value_);
 }
 
 Handle<Value> JHandle::Property(const Arguments& args) {
@@ -546,11 +523,10 @@ Handle<Value> JHandle::Property(const Arguments& args) {
   if (args.Length() != 2 || !args[0]->IsString() || !args[1]->IsFunction())
     return ThrowTypeError("Invalid arguments");
 
-  property_params* op = new property_params;
-  op->handle_ = Persistent<Value>::New(args.This());
-  op->db_ = ObjectWrap::Unwrap<JHandle>(args.This())->db_;
+  property_params* op = new property_params(args);
+
+  // Required property name
   op->name_ = *String::Utf8Value(args[0]);
-  op->callback_ = Persistent<Function>::New(Local<Function>::Cast(args[1]));
 
   AsyncQueue(op, AsyncProperty, AfterAsync);
 
@@ -564,8 +540,10 @@ Handle<Value> JHandle::Property(const Arguments& args) {
 
  */
 
-class approxsizes_params : public async_params {
+class JHandle::approxsizes_params : public async_params {
  public:
+  approxsizes_params(const Arguments& args) : async_params(args) {}
+
   virtual ~approxsizes_params() {
     std::vector< Persistent<Value> >::iterator it;
     for (it = handles_.begin(); it < handles_.end(); ++it) it->Dispose();
@@ -589,19 +567,17 @@ class approxsizes_params : public async_params {
     result = array;
   }
 
-  leveldb::DB* db_;
-
   std::vector<leveldb::Range> ranges_;
   std::vector< Persistent<Value> > handles_;
 
   uint64_t* sizes_;
 };
 
-void AsyncApproxSizes(uv_work_t* req) {
+void JHandle::AsyncApproxSizes(uv_work_t* req) {
   approxsizes_params* op = static_cast<approxsizes_params*>(req->data);
   int len = op->ranges_.size();
   op->sizes_ = new uint64_t[len];
-  op->db_->GetApproximateSizes(&op->ranges_[0], len, op->sizes_);
+  op->self_->db_->GetApproximateSizes(&op->ranges_[0], len, op->sizes_);
 }
 
 Handle<Value> JHandle::ApproximateSizes(const Arguments& args) {
@@ -612,10 +588,7 @@ Handle<Value> JHandle::ApproximateSizes(const Arguments& args) {
 
   Local<Array> array(Array::Cast(*args[0]));
 
-  approxsizes_params* op = new approxsizes_params;
-  op->handles_.push_back(Persistent<Value>::New(args.This()));
-  op->db_ = ObjectWrap::Unwrap<JHandle>(args.This())->db_;
-  op->callback_ = Persistent<Function>::New(Local<Function>::Cast(args[1]));
+  approxsizes_params* op = new approxsizes_params(args);
 
   int len = array->Length();
   if (len % 2 != 0)
