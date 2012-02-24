@@ -260,20 +260,80 @@ Handle<Value> JHandle::Repair(const Arguments& args) {
 
  */
 
+typedef struct read_params {
+  leveldb::DB* db_;
+  leveldb::ReadOptions options_;
+  leveldb::Slice key_;
+  leveldb::Status status_;
+
+  std::string* result_;
+
+  Persistent<Value> handle_;
+  Persistent<Value> keyHandle_;
+  Persistent<Function> callback_;
+
+  virtual ~read_params() {
+    handle_.Dispose();
+    keyHandle_.Dispose();
+    callback_.Dispose();
+  }
+
+} read_params_t;
+
+
+static void AsyncRead(uv_work_t* req) {
+  read_params_t* op = static_cast<read_params_t*>(req->data);
+  op->result_ = new std::string;
+  op->status_ = op->db_->Get(op->options_, op->key_, op->result_);
+}
+
+static void AfterRead(uv_work_t* req) {
+  read_params_t* op = static_cast<read_params_t*>(req->data);
+  assert(!op->callback_.IsEmpty());
+
+  Handle<Value> error = Null();
+  Handle<Value> result = Undefined();
+
+  if (op->status_.ok()) {
+    result = ToBuffer(op->result_);
+  } else if (!op->status_.IsNotFound()) {
+    error = Exception::Error(String::New(op->status_.ToString().c_str()));
+  }
+
+  Handle<Value> argv[] = { error, result };
+
+  TryCatch tryCatch;
+  op->callback_->Call(Context::GetCurrent()->Global(), 2, argv);
+  if (tryCatch.HasCaught()) FatalException(tryCatch);
+
+  delete op;
+  delete req;
+}
+
 Handle<Value> JHandle::Read(const Arguments& args) {
   HandleScope scope;
 
-  int argc = args.Length();
-  if (argc < 1 || !Buffer::HasInstance(args[0]))
+  if (args.Length() != 3 ||
+      !Buffer::HasInstance(args[0]) ||
+      !args[2]->IsFunction())
     return ThrowTypeError("Invalid arguments");
 
-  ReadOp* op = ReadOp::New(Read, Read, args);
+  read_params_t* op = new read_params_t;
+  op->handle_ = Persistent<Value>::New(args.This());
+  op->db_ = ObjectWrap::Unwrap<JHandle>(args.This())->db_;
+
+  // Required key
   op->key_ = ToSlice(args[0], op->keyHandle_);
 
-  // Optional read options
-  if (argc > 1) UnpackReadOptions(args[1], op->options_);
+  // Required callback
+  op->callback_ = Persistent<Function>::New(Local<Function>::Cast(args[2]));
 
-  return op->Run();
+  // Optional read options
+  UnpackReadOptions(args[1], op->options_);
+
+  AsyncQueue(op, AsyncRead, AfterRead);
+
+  return Undefined();
 }
 
 Handle<Value> JHandle::Write(const Arguments& args) {
@@ -402,19 +462,6 @@ Handle<Value> JHandle::CompactRange(const Arguments& args) {
 //
 // ASYNC FUNCTIONS
 //
-
-void JHandle::Read(ReadOp* op) {
-  op->result_ = new std::string;
-  op->status_ = op->self_->db_->Get(op->options_, op->key_, op->result_);
-}
-
-void JHandle::Read(ReadOp* op, Handle<Value>& error, Handle<Value>& result) {
-  if (op->status_.ok()) {
-    result = ToBuffer(op->result_);
-  } else if (!op->status_.IsNotFound()) {
-    error = Exception::Error(String::New(op->status_.ToString().c_str()));
-  }
-}
 
 void JHandle::Write(WriteOp* op) {
   op->batch_->ReadLock();

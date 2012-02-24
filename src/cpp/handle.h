@@ -92,26 +92,6 @@ class JHandle : public ObjectWrap {
 
   };
 
-  class ReadOp;
-  class ReadOp : public Op<ReadOp> {
-   public:
-
-    inline ReadOp(const ExecFunction exec, const ConvFunction conv,
-                  Handle<Object>& handle, Handle<Function>& callback)
-      : Op<ReadOp>(exec, conv, handle, callback), result_(NULL) {}
-
-    virtual ~ReadOp() {
-      keyHandle_.Dispose();
-    }
-
-    leveldb::Slice key_;
-    leveldb::ReadOptions options_;
-
-    std::string* result_;
-
-    Persistent<Value> keyHandle_;
-  };
-
   class WriteOp;
   class WriteOp : public Op<WriteOp> {
    public:
@@ -189,9 +169,6 @@ class JHandle : public ObjectWrap {
 
     uint64_t* sizes_;
   };
-
-  static void Read(ReadOp* op);
-  static void Read(ReadOp* op, Handle<Value>& error, Handle<Value>& result);
 
   static void Write(WriteOp* op);
   static void Write(WriteOp* op, Handle<Value>& error, Handle<Value>& result);
