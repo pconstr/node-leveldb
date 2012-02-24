@@ -229,7 +229,7 @@ static Handle<Value> DbOp(const Arguments& args, const uv_work_cb async) {
  */
 
 static void AsyncDestroy(uv_work_t* req) {
-  open_params_t* op = static_cast<open_params_t*>(req->data);
+  dbop_params* op = static_cast<dbop_params*>(req->data);
   op->status_ = leveldb::DestroyDB(op->name_, op->options_);
 }
 
@@ -245,7 +245,7 @@ Handle<Value> JHandle::Destroy(const Arguments& args) {
  */
 
 static void AsyncRepair(uv_work_t* req) {
-  open_params_t* op = static_cast<open_params_t*>(req->data);
+  dbop_params* op = static_cast<dbop_params*>(req->data);
   op->status_ = leveldb::RepairDB(op->name_, op->options_);
 }
 
