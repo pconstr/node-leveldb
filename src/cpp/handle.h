@@ -55,26 +55,8 @@ class JHandle : public ObjectWrap {
     return db_ != NULL;
   };
 
-  inline Handle<Value> RefIterator(leveldb::Iterator* it) {
-    Local<Value> argv[] = { External::New(it) };
-    Local<Object> instance = JIterator::constructor->GetFunction()->NewInstance(1, argv);
-
-    // Keep a weak reference
-    Persistent<Object> weak = Persistent<Object>::New(instance);
-    weak.MakeWeak(this, &UnrefIterator);
-
-    Ref();
-
-    return instance;
-  }
-
-  inline Handle<Value> RefSnapshot(const leveldb::Snapshot* snapshot) {
-    Local<Value> instance = External::New((void*)snapshot);
-    Persistent<Value> weak = Persistent<Value>::New(instance);
-    weak.MakeWeak(this, &UnrefSnapshot);
-    Ref();
-    return instance;
-  }
+  Handle<Value> RefIterator(leveldb::Iterator* it);
+  Handle<Value> RefSnapshot(const leveldb::Snapshot* snapshot);
 
   static void UnrefIterator(Persistent<Value> object, void* parameter);
   static void UnrefSnapshot(Persistent<Value> object, void* parameter);

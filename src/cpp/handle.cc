@@ -155,6 +155,19 @@ Handle<Value> JHandle::Write(const Arguments& args) {
   return op->Run();
 }
 
+Handle<Value> JHandle::RefIterator(leveldb::Iterator* it) {
+  Local<Value> argv[] = { External::New(it) };
+  Local<Object> instance = JIterator::constructor->GetFunction()->NewInstance(1, argv);
+
+  // Keep a weak reference
+  Persistent<Object> weak = Persistent<Object>::New(instance);
+  weak.MakeWeak(this, &UnrefIterator);
+
+  Ref();
+
+  return instance;
+}
+
 void JHandle::UnrefIterator(Persistent<Value> object, void* parameter) {
   assert(object->IsObject());
 
@@ -170,6 +183,14 @@ Handle<Value> JHandle::Iterator(const Arguments& args) {
   IteratorOp* op = IteratorOp::New(Iterator, Iterator, args);
   if (args.Length() > 0) UnpackReadOptions(args[0], op->options_);
   return op->Run();
+}
+
+Handle<Value> JHandle::RefSnapshot(const leveldb::Snapshot* snapshot) {
+  Local<Value> instance = External::New((void*)snapshot);
+  Persistent<Value> weak = Persistent<Value>::New(instance);
+  weak.MakeWeak(this, &UnrefSnapshot);
+  Ref();
+  return instance;
 }
 
 void JHandle::UnrefSnapshot(Persistent<Value> object, void* parameter) {
