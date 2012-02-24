@@ -315,20 +315,58 @@ Handle<Value> JHandle::Read(const Arguments& args) {
   return Undefined();
 }
 
+
+/**
+
+    Write
+
+ */
+
+class write_params : public async_params {
+ public:
+  virtual ~write_params() {
+    handle_.Dispose();
+    batchHandle_.Dispose();
+  }
+
+  leveldb::DB* db_;
+  leveldb::WriteBatch* batch_;
+  leveldb::WriteOptions options_;
+
+  Persistent<Value> handle_;
+  Persistent<Value> batchHandle_;
+};
+
+static void AsyncWrite(uv_work_t* req) {
+  write_params* op = static_cast<write_params*>(req->data);
+  op->status_ = op->db_->Write(op->options_, op->batch_);
+}
+
 Handle<Value> JHandle::Write(const Arguments& args) {
   HandleScope scope;
 
-  int argc = args.Length();
-  if (argc < 1 || !JBatch::HasInstance(args[0]))
+  if (args.Length() != 3 ||
+      !JBatch::HasInstance(args[0]) ||
+      !args[2]->IsFunction())
     return ThrowTypeError("Invalid arguments");
 
-  WriteOp* op = WriteOp::New(Write, Write, args);
-  op->batch_ = ObjectWrap::Unwrap<JBatch>(args[0]->ToObject());
+  write_params* op = new write_params;
+  op->handle_ = Persistent<Value>::New(args.This());
+  op->batchHandle_ = Persistent<Value>::New(args[0]);
+
+  // Required db and batch
+  op->db_ = ObjectWrap::Unwrap<JHandle>(args.This())->db_;
+  op->batch_ = &ObjectWrap::Unwrap<JBatch>(args[0]->ToObject())->wb_;
 
   // Optional write options
-  if (argc > 1) UnpackWriteOptions(args[1], op->options_);
+  UnpackWriteOptions(args[1], op->options_);
 
-  return op->Run();
+  // Optional callback
+  op->callback_ = Persistent<Function>::New(Local<Function>::Cast(args[2]));
+
+  AsyncQueue(op, AsyncWrite, AfterAsync);
+
+  return Undefined();
 }
 
 Handle<Value> JHandle::RefIterator(leveldb::Iterator* it) {
@@ -441,17 +479,6 @@ Handle<Value> JHandle::CompactRange(const Arguments& args) {
 //
 // ASYNC FUNCTIONS
 //
-
-void JHandle::Write(WriteOp* op) {
-  op->batch_->ReadLock();
-  op->status_ = op->self_->db_->Write(op->options_, &op->batch_->wb_);
-  op->batch_->ReadUnlock();
-}
-
-void JHandle::Write(WriteOp* op, Handle<Value>& error, Handle<Value>& result) {
-  if (!op->status_.ok())
-    error = Exception::Error(String::New(op->status_.ToString().c_str()));
-}
 
 void JHandle::Iterator(IteratorOp* op) {
   op->it_ = op->self_->db_->NewIterator(op->options_);

@@ -92,28 +92,6 @@ class JHandle : public ObjectWrap {
 
   };
 
-  class WriteOp;
-  class WriteOp : public Op<WriteOp> {
-   public:
-
-    inline WriteOp(const ExecFunction exec, const ConvFunction conv,
-                   Handle<Object>& handle, Handle<Function>& callback)
-      : Op<WriteOp>(exec, conv, handle, callback) {}
-
-    virtual ~WriteOp() {
-      batch_->Unref();
-    }
-
-    virtual inline Handle<Value> BeforeRun() {
-      assert(batch_);
-      batch_->Ref();
-      return Op<WriteOp>::BeforeRun();
-    }
-
-    JBatch* batch_;
-    leveldb::WriteOptions options_;
-  };
-
   class IteratorOp;
   class IteratorOp : public Op<IteratorOp> {
    public:
@@ -169,9 +147,6 @@ class JHandle : public ObjectWrap {
 
     uint64_t* sizes_;
   };
-
-  static void Write(WriteOp* op);
-  static void Write(WriteOp* op, Handle<Value>& error, Handle<Value>& result);
 
   static void Iterator(IteratorOp* op);
   static void Iterator(IteratorOp* op,

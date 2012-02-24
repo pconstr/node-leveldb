@@ -235,14 +235,23 @@ class Handle
 
   ###
 
-  write: (batch, options, callback) ->
+  write: (batch, options, callback = noop) ->
 
     # optional options
     if typeof options is 'function'
       callback = options
       options = null
 
-    @self.write batch.self, options, callback or noop
+    # read lock
+    ++batch.readLock_
+
+    @self.write batch.self, options, (err) ->
+
+      # read unlock
+      --batch.readLock_
+
+      callback err
+
     @
 
 

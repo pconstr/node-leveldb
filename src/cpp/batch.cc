@@ -33,7 +33,7 @@ Handle<Value> JBatch::New(const Arguments& args) {
   JBatch* writeBatch = new JBatch();
   writeBatch->Wrap(args.This());
 
-  return args.This();
+  return Undefined();
 }
 
 Handle<Value> JBatch::Put(const Arguments& args) {
@@ -44,14 +44,13 @@ Handle<Value> JBatch::Put(const Arguments& args) {
     return ThrowTypeError("Invalid arguments");
 
   JBatch* self = ObjectWrap::Unwrap<JBatch>(args.This());
-  if (self->IsReadLocked()) return ThrowError("Batch read locked");
 
   leveldb::Slice key = ToSlice(args[0], self->buffers_);
   leveldb::Slice val = ToSlice(args[1], self->buffers_);
 
   self->wb_.Put(key, val);
 
-  return args.This();
+  return Undefined();
 }
 
 Handle<Value> JBatch::Del(const Arguments& args) {
@@ -62,23 +61,20 @@ Handle<Value> JBatch::Del(const Arguments& args) {
 
   JBatch* self = ObjectWrap::Unwrap<JBatch>(args.This());
 
-  if (self->IsReadLocked()) return ThrowError("Batch read locked");
-
   leveldb::Slice key = ToSlice(args[0], self->buffers_);
   self->wb_.Delete(key);
 
-  return args.This();
+  return Undefined();
 }
 
 Handle<Value> JBatch::Clear(const Arguments& args) {
   HandleScope scope;
 
   JBatch* self = ObjectWrap::Unwrap<JBatch>(args.This());
-  if (self->IsReadLocked()) return ThrowError("Batch read locked");
 
   self->Clear();
 
-  return args.This();
+  return Undefined();
 }
 
 } // namespace node_leveldb
