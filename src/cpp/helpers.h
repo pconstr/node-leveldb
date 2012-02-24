@@ -18,7 +18,7 @@ using namespace v8;
 namespace node_leveldb {
 
 static inline void AsyncQueue(
-  void* data, uv_work_cb async, uv_after_work_cb after)
+  void* data, const uv_work_cb async, const uv_after_work_cb after)
 {
   uv_work_t* req = new uv_work_t;
   req->data = data;
