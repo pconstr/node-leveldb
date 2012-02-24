@@ -386,7 +386,7 @@ class JHandle::iterator_params : public async_params {
     if (status_.ok()) result = self_->RefIterator(it_);
   }
 
-  JHandle *self_;
+  JHandle* self_;
 
   leveldb::Iterator* it_;
   leveldb::ReadOptions options_;
@@ -458,7 +458,7 @@ class JHandle::snapshot_params : public async_params {
     if (status_.ok()) result = self_->RefSnapshot(snap_);
   }
 
-  JHandle *self_;
+  JHandle* self_;
   leveldb::Snapshot* snap_;
   Persistent<Value> handle_;
 };
