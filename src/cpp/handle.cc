@@ -508,16 +508,53 @@ void JHandle::UnrefSnapshot(Persistent<Value> object, void* parameter) {
   object.Dispose();
 }
 
+
+/**
+
+    Property
+
+ */
+
+class property_params : public async_params {
+ public:
+  virtual ~property_params() {
+    handle_.Dispose();
+  }
+
+  virtual void Result(Handle<Value>& error, Handle<Value>& result) {
+    if (hasProperty_) result = String::New(value_.c_str());
+  }
+
+  leveldb::DB* db_;
+
+  std::string name_;
+  std::string value_;
+
+  bool hasProperty_;
+
+  Persistent<Value> handle_;
+};
+
+void AsyncProperty(uv_work_t* req) {
+  property_params* op = static_cast<property_params*>(req->data);
+  op->hasProperty_ = op->db_->GetProperty(op->name_, &op->value_);
+}
+
 Handle<Value> JHandle::Property(const Arguments& args) {
   HandleScope scope;
 
-  if (args.Length() < 1 || !args[0]->IsString())
+  if (args.Length() != 2 || !args[0]->IsString() || !args[1]->IsFunction())
     return ThrowTypeError("Invalid arguments");
 
-  PropertyOp* op = PropertyOp::New(Property, Property, args);
+  property_params* op = new property_params;
+  op->handle_ = Persistent<Value>::New(args.This());
+  op->db_ = ObjectWrap::Unwrap<JHandle>(args.This())->db_;
   op->name_ = *String::Utf8Value(args[0]);
+  op->callback_ = Persistent<Function>::New(Local<Function>::Cast(args[1]));
 
-  return op->Run();
+  AsyncQueue(op, AsyncProperty, AfterAsync);
+
+  return Undefined();
 }
 
 Handle<Value> JHandle::ApproximateSizes(const Arguments& args) {
@@ -559,15 +596,6 @@ Handle<Value> JHandle::CompactRange(const Arguments& args) {
 //
 // ASYNC FUNCTIONS
 //
-
-void JHandle::Property(PropertyOp* op) {
-  leveldb::Slice name(op->name_);
-  op->hasProperty_ = op->self_->db_->GetProperty(name, &op->value_);
-}
-
-void JHandle::Property(PropertyOp* op, Handle<Value>& error, Handle<Value>& result) {
-  if (op->hasProperty_) result = String::New(op->value_.c_str());
-}
 
 void JHandle::ApproximateSizes(ApproximateSizesOp* op) {
   int len = op->ranges_.size();
