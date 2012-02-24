@@ -82,46 +82,37 @@ Handle<Value> JHandle::New(const Arguments& args) {
 
 /**
 
-    Open
+    Async support
 
  */
 
-typedef struct open_params {
-  std::string name_;
-
-  leveldb::Options options_;
-  leveldb::Status status_;
-  leveldb::DB* db_;
-
-  Persistent<Value> comparator_;
-  Persistent<Function> callback_;
-
-  virtual ~open_params() {
-    comparator_.Dispose();
+class async_params {
+ public:
+  virtual ~async_params() {
     callback_.Dispose();
   }
-} open_params_t;
 
-static void AsyncOpen(uv_work_t* req) {
-  open_params_t* op = static_cast<open_params_t*>(req->data);
-  op->status_ = leveldb::DB::Open(op->options_, op->name_, &op->db_);
-}
+  virtual void Result(Handle<Value>& error, Handle<Value>& result) {}
 
-static void AfterOpen(uv_work_t* req) {
+  leveldb::Status status_;
+  Persistent<Function> callback_;
+};
+
+static void AfterAsync(uv_work_t* req) {
   HandleScope scope;
-  open_params_t* op = static_cast<open_params_t*>(req->data);
+  async_params* op = static_cast<async_params*>(req->data);
   assert(!op->callback_.IsEmpty());
 
-  Handle<Value> error = Null();
-  Handle<Value> result = Undefined();
+  Handle<Value> error;
+  Handle<Value> result;
 
-  if (op->status_.ok()) {
-    Handle<Value> args[] = { External::New(op->db_), Undefined() };
-    if (!op->comparator_.IsEmpty()) args[1] = op->comparator_;
-    result = JHandle::constructor->GetFunction()->NewInstance(2, args);
-  } else {
+  op->Result(error, result);
+
+  if (error.IsEmpty() && result.IsEmpty() && !op->status_.ok())
     error = Exception::Error(String::New(op->status_.ToString().c_str()));
-  }
+
+  if (error.IsEmpty()) error = Null();
+  if (result.IsEmpty()) result = Null();
 
   Handle<Value> argv[] = { error, result };
 
@@ -133,6 +124,41 @@ static void AfterOpen(uv_work_t* req) {
   delete req;
 }
 
+
+
+/**
+
+    Open
+
+ */
+
+class open_params : public async_params {
+ public:
+  virtual ~open_params() {
+    comparator_.Dispose();
+  }
+
+  virtual void Result(Handle<Value>& error, Handle<Value>& result) {
+    if (status_.ok()) {
+      Handle<Value> args[] = { External::New(db_), Undefined() };
+      if (!comparator_.IsEmpty()) args[1] = comparator_;
+      result = JHandle::constructor->GetFunction()->NewInstance(2, args);
+    }
+  }
+
+  std::string name_;
+
+  leveldb::Options options_;
+  leveldb::DB* db_;
+
+  Persistent<Value> comparator_;
+};
+
+static void AsyncOpen(uv_work_t* req) {
+  open_params* op = static_cast<open_params*>(req->data);
+  op->status_ = leveldb::DB::Open(op->options_, op->name_, &op->db_);
+}
+
 Handle<Value> JHandle::Open(const Arguments& args) {
   HandleScope scope;
 
@@ -141,7 +167,7 @@ Handle<Value> JHandle::Open(const Arguments& args) {
       !args[2]->IsFunction())
     return ThrowTypeError("Invalid arguments");
 
-  open_params_t* op = new open_params_t;
+  open_params* op = new open_params;
 
   // Required filename
   op->name_ = *String::Utf8Value(args[0]);
@@ -152,7 +178,7 @@ Handle<Value> JHandle::Open(const Arguments& args) {
   // Optional options
   UnpackOptions(args[1], op->options_, &op->comparator_);
 
-  AsyncQueue(op, AsyncOpen, AfterOpen);
+  AsyncQueue(op, AsyncOpen, AfterAsync);
 
   return Undefined();
 }
@@ -164,39 +190,11 @@ Handle<Value> JHandle::Open(const Arguments& args) {
 
  */
 
-typedef struct dbop_params {
+class dbop_params : public async_params {
+ public:
   std::string name_;
-
   leveldb::Options options_;
-  leveldb::Status status_;
-
-  Persistent<Function> callback_;
-
-  virtual ~dbop_params() {
-    callback_.Dispose();
-  }
-} dbop_params_t;
-
-static void AfterDbOp(uv_work_t* req) {
-  HandleScope scope;
-  dbop_params* op = static_cast<dbop_params*>(req->data);
-  assert(!op->callback_.IsEmpty());
-
-  Handle<Value> error = Null();
-
-  if (!op->status_.ok()) {
-    error = Exception::Error(String::New(op->status_.ToString().c_str()));
-  }
-
-  Handle<Value> argv[] = { error };
-
-  TryCatch tryCatch;
-  op->callback_->Call(Context::GetCurrent()->Global(), 1, argv);
-  if (tryCatch.HasCaught()) FatalException(tryCatch);
-
-  delete op;
-  delete req;
-}
+};
 
 static Handle<Value> DbOp(const Arguments& args, const uv_work_cb async) {
   HandleScope scope;
@@ -204,7 +202,7 @@ static Handle<Value> DbOp(const Arguments& args, const uv_work_cb async) {
   if (args.Length() != 3 || !args[0]->IsString())
     return ThrowTypeError("Invalid arguments");
 
-  dbop_params_t* op = new dbop_params_t;
+  dbop_params* op = new dbop_params;
 
   // Required filename
   op->name_ = *String::Utf8Value(args[0]);
@@ -216,7 +214,7 @@ static Handle<Value> DbOp(const Arguments& args, const uv_work_cb async) {
   if (args[2]->IsFunction())
     op->callback_ = Persistent<Function>::New(Local<Function>::Cast(args[2]));
 
-  AsyncQueue(op, async, AfterDbOp);
+  AsyncQueue(op, async, AfterAsync);
 
   return Undefined();
 }
@@ -260,54 +258,35 @@ Handle<Value> JHandle::Repair(const Arguments& args) {
 
  */
 
-typedef struct read_params {
+class read_params : public async_params {
+ public:
+  virtual ~read_params() {
+    handle_.Dispose();
+    keyHandle_.Dispose();
+  }
+
+  virtual void Result(Handle<Value>& error, Handle<Value>& result) {
+    if (status_.ok()) {
+      result = ToBuffer(result_);
+    } else if (status_.IsNotFound()) {
+      result = Null();
+    }
+  }
+
   leveldb::DB* db_;
   leveldb::ReadOptions options_;
   leveldb::Slice key_;
-  leveldb::Status status_;
 
   std::string* result_;
 
   Persistent<Value> handle_;
   Persistent<Value> keyHandle_;
-  Persistent<Function> callback_;
-
-  virtual ~read_params() {
-    handle_.Dispose();
-    keyHandle_.Dispose();
-    callback_.Dispose();
-  }
-
-} read_params_t;
-
+};
 
 static void AsyncRead(uv_work_t* req) {
-  read_params_t* op = static_cast<read_params_t*>(req->data);
+  read_params* op = static_cast<read_params*>(req->data);
   op->result_ = new std::string;
   op->status_ = op->db_->Get(op->options_, op->key_, op->result_);
-}
-
-static void AfterRead(uv_work_t* req) {
-  read_params_t* op = static_cast<read_params_t*>(req->data);
-  assert(!op->callback_.IsEmpty());
-
-  Handle<Value> error = Null();
-  Handle<Value> result = Undefined();
-
-  if (op->status_.ok()) {
-    result = ToBuffer(op->result_);
-  } else if (!op->status_.IsNotFound()) {
-    error = Exception::Error(String::New(op->status_.ToString().c_str()));
-  }
-
-  Handle<Value> argv[] = { error, result };
-
-  TryCatch tryCatch;
-  op->callback_->Call(Context::GetCurrent()->Global(), 2, argv);
-  if (tryCatch.HasCaught()) FatalException(tryCatch);
-
-  delete op;
-  delete req;
 }
 
 Handle<Value> JHandle::Read(const Arguments& args) {
@@ -318,7 +297,7 @@ Handle<Value> JHandle::Read(const Arguments& args) {
       !args[2]->IsFunction())
     return ThrowTypeError("Invalid arguments");
 
-  read_params_t* op = new read_params_t;
+  read_params* op = new read_params;
   op->handle_ = Persistent<Value>::New(args.This());
   op->db_ = ObjectWrap::Unwrap<JHandle>(args.This())->db_;
 
@@ -331,7 +310,7 @@ Handle<Value> JHandle::Read(const Arguments& args) {
   // Optional read options
   UnpackReadOptions(args[1], op->options_);
 
-  AsyncQueue(op, AsyncRead, AfterRead);
+  AsyncQueue(op, AsyncRead, AfterAsync);
 
   return Undefined();
 }
