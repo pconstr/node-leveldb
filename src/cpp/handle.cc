@@ -164,24 +164,66 @@ Handle<Value> JHandle::Open(const Arguments& args) {
 
  */
 
+typedef struct dbop_params {
+  std::string name_;
+
+  leveldb::Options options_;
+  leveldb::Status status_;
+
+  Persistent<Function> callback_;
+
+  virtual ~dbop_params() {
+    callback_.Dispose();
+  }
+} dbop_params_t;
+
+static void AfterDbOp(uv_work_t* req) {
+  HandleScope scope;
+  dbop_params* op = static_cast<dbop_params*>(req->data);
+  assert(!op->callback_.IsEmpty());
+
+  Handle<Value> error = Null();
+
+  if (!op->status_.ok()) {
+    error = Exception::Error(String::New(op->status_.ToString().c_str()));
+  }
+
+  Handle<Value> argv[] = { error };
+
+  TryCatch tryCatch;
+  op->callback_->Call(Context::GetCurrent()->Global(), 1, argv);
+  if (tryCatch.HasCaught()) FatalException(tryCatch);
+
+  delete op;
+  delete req;
+}
+
+static void AsyncDestroy(uv_work_t* req) {
+  open_params_t* op = static_cast<open_params_t*>(req->data);
+  op->status_ = leveldb::DestroyDB(op->name_, op->options_);
+}
+
 Handle<Value> JHandle::Destroy(const Arguments& args) {
   HandleScope scope;
 
-  if (args.Length() < 1 || !args[0]->IsString())
+  if (args.Length() != 3 || !args[0]->IsString())
     return ThrowTypeError("Invalid arguments");
 
-  OpenOp* op = OpenOp::New(Destroy, OpenConv, args);
+  dbop_params_t* op = new dbop_params_t;
+
+  // Required filename
   op->name_ = *String::Utf8Value(args[0]);
 
   // Optional options
-  if (args.Length() > 1) UnpackOptions(args[1], op->options_);
+  UnpackOptions(args[1], op->options_);
 
-  return op->Run();
-}
+  // Optional callback
+  if (args[2]->IsFunction())
+    op->callback_ = Persistent<Function>::New(Local<Function>::Cast(args[2]));
 
+  AsyncQueue(op, AsyncDestroy, AfterDbOp);
 
-void JHandle::Destroy(OpenOp* op) {
-  op->status_ = leveldb::DestroyDB(op->name_, op->options_);
+  return Undefined();
 }
 
 /**
