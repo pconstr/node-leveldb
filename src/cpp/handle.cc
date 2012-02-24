@@ -441,6 +441,49 @@ void JHandle::UnrefIterator(Persistent<Value> object, void* parameter) {
   object.Dispose();
 }
 
+
+/**
+
+    Snapshot
+
+ */
+
+class JHandle::snapshot_params : public async_params {
+ public:
+  virtual ~snapshot_params() {
+    handle_.Dispose();
+  }
+
+  virtual void Result(Handle<Value>& error, Handle<Value>& result) {
+    if (status_.ok()) result = self_->RefSnapshot(snap_);
+  }
+
+  JHandle *self_;
+  leveldb::Snapshot* snap_;
+  Persistent<Value> handle_;
+};
+
+void JHandle::AsyncSnapshot(uv_work_t* req) {
+  snapshot_params* op = static_cast<snapshot_params*>(req->data);
+  op->snap_ = const_cast<leveldb::Snapshot*>(op->self_->db_->GetSnapshot());
+}
+
+Handle<Value> JHandle::Snapshot(const Arguments& args) {
+  HandleScope scope;
+
+  if (args.Length() != 1 || !args[0]->IsFunction())
+    return ThrowTypeError("Invalid arguments");
+
+  snapshot_params* op = new snapshot_params;
+  op->self_ = ObjectWrap::Unwrap<JHandle>(args.This());
+  op->handle_ = Persistent<Value>::New(args.This());
+  op->callback_ = Persistent<Function>::New(Local<Function>::Cast(args[0]));
+
+  AsyncQueue(op, AsyncSnapshot, AfterAsync);
+
+  return Undefined();
+}
+
 Handle<Value> JHandle::RefSnapshot(const leveldb::Snapshot* snapshot) {
   Local<Value> instance = External::New((void*)snapshot);
   Persistent<Value> weak = Persistent<Value>::New(instance);
@@ -463,11 +506,6 @@ void JHandle::UnrefSnapshot(Persistent<Value> object, void* parameter) {
   self->Unref();
 
   object.Dispose();
-}
-
-Handle<Value> JHandle::Snapshot(const Arguments& args) {
-  HandleScope scope;
-  return SnapshotOp::Go(Snapshot, Snapshot, args);
 }
 
 Handle<Value> JHandle::Property(const Arguments& args) {
@@ -521,18 +559,6 @@ Handle<Value> JHandle::CompactRange(const Arguments& args) {
 //
 // ASYNC FUNCTIONS
 //
-
-void JHandle::Snapshot(SnapshotOp* op) {
-  op->snap_ = const_cast<leveldb::Snapshot*>(op->self_->db_->GetSnapshot());
-}
-
-void JHandle::Snapshot(SnapshotOp* op, Handle<Value>& error, Handle<Value>& result) {
-  if (op->status_.ok()) {
-    result = op->self_->RefSnapshot(op->snap_);
-  } else {
-    error = Exception::Error(String::New(op->status_.ToString().c_str()));
-  }
-}
 
 void JHandle::Property(PropertyOp* op) {
   leveldb::Slice name(op->name_);
