@@ -157,10 +157,9 @@ class Handle
     key = new Buffer key unless Buffer.isBuffer key
 
     @self.get key, options, (err, value) ->
-      if callback
-        # to string unless returning as buffer
-        value = value.toString 'utf8' if value and not options?.as_buffer
-        callback(err, value)
+      # to string unless returning as buffer
+      value = value.toString 'utf8' if value and not options?.as_buffer
+      callback err, value
     @
 
 
