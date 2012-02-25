@@ -203,7 +203,7 @@ exports.Iterator = class Iterator
 
     # async
     @self.key (err, key) ->
-      key = key.toString 'utf8' unless err or options.as_buffer
+      key = key.toString 'utf8' if key and not options.as_buffer
       callback err, key
 
 
@@ -257,7 +257,7 @@ exports.Iterator = class Iterator
     @self.current (err, kv) ->
       if kv
         [ key, val ] = kv
-        unless err or options.as_buffer
-          key = key.toString 'utf8'
-          val = val.toString 'utf8'
+        unless options.as_buffer
+          key = key.toString 'utf8' if key
+          val = val.toString 'utf8' if val
       callback err, key, val
