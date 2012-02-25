@@ -3,14 +3,12 @@
 
 #include <assert.h>
 #include <errno.h>
-#include <pthread.h>
 
 #include <leveldb/iterator.h>
 #include <node.h>
 #include <v8.h>
 
 #include "helpers.h"
-#include "operation.h"
 
 using namespace v8;
 using namespace node;
@@ -33,7 +31,6 @@ class JIterator : ObjectWrap {
   static void Initialize(Handle<Object> target);
   static Handle<Value> New(const Arguments& args);
 
-  static Handle<Value> Valid(const Arguments& args);
   static Handle<Value> Seek(const Arguments& args);
   static Handle<Value> First(const Arguments& args);
   static Handle<Value> Last(const Arguments& args);
@@ -53,47 +50,22 @@ class JIterator : ObjectWrap {
   JIterator(const JIterator&);
   void operator=(const JIterator&);
 
-  class Op;
-  class Op : public Operation<Op> {
-   public:
+  class iter_params;
+  class seek_params;
+  class kv_params;
 
-    inline Op(const ExecFunction exec, const ConvFunction conv,
-              Handle<Object>& handle, Handle<Function>& callback)
-      : Operation<Op>(exec, conv, handle, callback), invalidState_(0)
-    {
-      self_ = ObjectWrap::Unwrap<JIterator>(handle);
-      self_->Ref();
-    }
+  static void AsyncSeek(uv_work_t* req);
+  static void AsyncFirst(uv_work_t* req);
+  static void AsyncLast(uv_work_t* req);
+  static void AsyncNext(uv_work_t* req);
+  static void AsyncPrev(uv_work_t* req);
 
-    virtual ~Op() {
-      self_->Unref();
-      keyHandle_.Dispose();
-    }
+  static void AsyncGetKey(uv_work_t* req);
+  static void AsyncGetKeyValue(uv_work_t* req);
 
-    JIterator* self_;
-
-    leveldb::Status status_;
-    leveldb::Slice key_;
-    leveldb::Slice value_;
-
-    Persistent<Value> keyHandle_;
-
-    bool invalidState_;
-  };
-
-  static void Seek(Op* op);
-  static void First(Op* op);
-  static void Last(Op* op);
-  static void Next(Op* op);
-  static void Prev(Op* op);
-
-  static void GetKey(Op* op);
-  static void GetKeyValue(Op* op);
-
-  static void Conv(Op* op, Handle<Value>& error, Handle<Value>& result);
+  static void AfterAsync(uv_work_t* req);
 
   leveldb::Iterator* it_;
-  pthread_mutex_t lock_;
 };
 
 } // node_leveldb
