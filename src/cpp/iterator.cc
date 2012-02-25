@@ -29,7 +29,6 @@ void JIterator::Initialize(Handle<Object> target) {
   NODE_SET_PROTOTYPE_METHOD(constructor, "next", Next);
   NODE_SET_PROTOTYPE_METHOD(constructor, "prev", Prev);
   NODE_SET_PROTOTYPE_METHOD(constructor, "key", GetKey);
-  NODE_SET_PROTOTYPE_METHOD(constructor, "value", GetValue);
   NODE_SET_PROTOTYPE_METHOD(constructor, "current", GetKeyValue);
 }
 
@@ -94,10 +93,6 @@ Handle<Value> JIterator::GetKey(const Arguments& args) {
   return Op::Go(GetKey, Conv, args);
 }
 
-Handle<Value> JIterator::GetValue(const Arguments& args) {
-  return Op::Go(GetValue, Conv, args);
-}
-
 Handle<Value> JIterator::GetKeyValue(const Arguments& args) {
   return Op::Go(GetKeyValue, Conv, args);
 }
@@ -150,15 +145,6 @@ void JIterator::GetKey(Op* op) {
   leveldb::Iterator* it = op->self_->it_;
   if (it->Valid()) {
     op->value_ = it->key();
-  } else {
-    op->status_ = it->status();
-  }
-}
-
-void JIterator::GetValue(Op* op) {
-  leveldb::Iterator* it = op->self_->it_;
-  if (it->Valid()) {
-    op->value_ = it->value();
   } else {
     op->status_ = it->status();
   }

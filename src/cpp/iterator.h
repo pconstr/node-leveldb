@@ -43,7 +43,6 @@ class JIterator : ObjectWrap {
   static Handle<Value> Prev(const Arguments& args);
 
   static Handle<Value> GetKey(const Arguments& args);
-  static Handle<Value> GetValue(const Arguments& args);
   static Handle<Value> GetKeyValue(const Arguments& args);
 
  private:
@@ -114,7 +113,6 @@ class JIterator : ObjectWrap {
   static void Prev(Op* op);
 
   static void GetKey(Op* op);
-  static void GetValue(Op* op);
   static void GetKeyValue(Op* op);
 
   static void Conv(Op* op, Handle<Value>& error, Handle<Value>& result);

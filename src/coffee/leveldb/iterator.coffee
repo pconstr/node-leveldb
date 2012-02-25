@@ -227,12 +227,7 @@ exports.Iterator = class Iterator
       callback = options
       options = {}
 
-    throw new Error 'Missing callback' unless callback
-
-    # async
-    @self.value (err, val) ->
-      val = val.toString 'utf8' unless err or options.as_buffer
-      callback err, val
+    @current options, (err, key, val) -> callback err, val
 
 
   ###
