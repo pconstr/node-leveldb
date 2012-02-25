@@ -52,12 +52,7 @@ Handle<Value> JIterator::New(const Arguments& args) {
 Handle<Value> JIterator::Valid(const Arguments& args) {
   HandleScope scope;
   JIterator* self = ObjectWrap::Unwrap<JIterator>(args.This());
-
-  if (self->Lock()) return ThrowError("Concurrent operations not supported");
-  bool valid = self->it_ != NULL && self->it_->Valid();
-  self->Unlock();
-
-  return valid ? True() : False();
+  return self->it_ != NULL && self->it_->Valid() ? True() : False();
 }
 
 Handle<Value> JIterator::Seek(const Arguments& args) {

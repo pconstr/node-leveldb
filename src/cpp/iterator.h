@@ -26,8 +26,6 @@ class JIterator : ObjectWrap {
       delete it_;
       it_ = NULL;
     }
-    int err = pthread_mutex_destroy(&lock_);
-    assert(err == 0);
   }
 
   static Persistent<FunctionTemplate> constructor;
@@ -49,25 +47,11 @@ class JIterator : ObjectWrap {
   friend class JHandle;
 
   // No instance creation outside of Handle
-  inline JIterator(leveldb::Iterator* it) : ObjectWrap(), it_(it) {
-    int err = pthread_mutex_init(&lock_, NULL);
-    assert(err == 0);
-  }
+  inline JIterator(leveldb::Iterator* it) : ObjectWrap(), it_(it) {}
 
   // No copying allowed
   JIterator(const JIterator&);
   void operator=(const JIterator&);
-
-  inline bool Lock() {
-    int err = pthread_mutex_trylock(&lock_);
-    assert(err == 0 || err == EBUSY);
-    return err == EBUSY;
-  }
-
-  inline void Unlock() {
-    int err = pthread_mutex_unlock(&lock_);
-    assert(err == 0);
-  }
 
   class Op;
   class Op : public Operation<Op> {
@@ -84,15 +68,6 @@ class JIterator : ObjectWrap {
     virtual ~Op() {
       self_->Unref();
       keyHandle_.Dispose();
-    }
-
-    virtual inline Handle<Value> BeforeRun() {
-      if (self_->Lock()) return ThrowError("Concurrent operations not supported");
-      return Handle<Value>();
-    }
-
-    virtual inline void BeforeReturn() {
-      self_->Unlock();
     }
 
     JIterator* self_;

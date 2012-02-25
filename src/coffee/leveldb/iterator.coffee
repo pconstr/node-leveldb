@@ -28,8 +28,15 @@ binding = require '../leveldb.node'
 
 exports.Iterator = class Iterator
 
-  noop = ->
+  busy = false
 
+  lock = ->
+    throw new Error 'Concurrent operations not supported' if busy
+    busy = true
+
+  unlock = ->
+    throw new Error 'Not locked' unless busy
+    busy = false
 
   ###
 
@@ -109,7 +116,10 @@ exports.Iterator = class Iterator
   ###
 
   valid: ->
-    @self.valid()
+    lock()
+    answer = @self.valid()
+    unlock()
+    answer
 
 
   ###
@@ -122,9 +132,12 @@ exports.Iterator = class Iterator
 
   ###
 
-  seek: (key, callback = noop) ->
+  seek: (key, callback) ->
     key = new Buffer key unless Buffer.isBuffer key
-    @self.seek key, callback
+    lock()
+    @self.seek key, (err) ->
+      unlock()
+      callback err if callback
 
 
   ###
@@ -136,8 +149,11 @@ exports.Iterator = class Iterator
 
   ###
 
-  first: (callback = noop) ->
-    @self.first callback
+  first: (callback) ->
+    lock()
+    @self.first (err) ->
+      unlock()
+      callback err if callback
 
 
   ###
@@ -149,8 +165,11 @@ exports.Iterator = class Iterator
 
   ###
 
-  last: (callback = noop) ->
-    @self.last callback
+  last: (callback) ->
+    lock()
+    @self.last (err) ->
+      unlock()
+      callback err if callback
 
 
   ###
@@ -162,8 +181,11 @@ exports.Iterator = class Iterator
 
   ###
 
-  next: (callback = noop) ->
-    @self.next callback
+  next: (callback) ->
+    lock()
+    @self.next (err) ->
+      unlock()
+      callback err if callback
 
 
   ###
@@ -175,8 +197,11 @@ exports.Iterator = class Iterator
 
   ###
 
-  prev: (callback = noop) ->
-    @self.prev callback
+  prev: (callback) ->
+    lock()
+    @self.prev (err) ->
+      unlock()
+      callback err if callback
 
 
   ###
@@ -202,7 +227,9 @@ exports.Iterator = class Iterator
     throw new Error 'Missing callback' unless callback
 
     # async
+    lock()
     @self.key (err, key) ->
+      unlock()
       key = key.toString 'utf8' if key and not options.as_buffer
       callback err, key
 
@@ -254,7 +281,9 @@ exports.Iterator = class Iterator
     throw new Error 'Missing callback' unless callback
 
     # async
+    lock()
     @self.current (err, kv) ->
+      unlock()
       if kv
         [ key, val ] = kv
         unless options.as_buffer
