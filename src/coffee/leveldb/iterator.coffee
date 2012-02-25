@@ -94,10 +94,7 @@ exports.Iterator = class Iterator
       options = null
 
     # optional keys
-    if args.length is 2
-      [ startKey, limitKey ] = args
-    else
-      startKey = args[0]
+    [ startKey, limitKey ] = args
 
     limit = limitKey.toString 'binary' if limitKey
 
