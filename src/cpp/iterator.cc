@@ -11,6 +11,36 @@ namespace node_leveldb {
 
 Persistent<FunctionTemplate> JIterator::constructor;
 
+
+
+
+
+JIterator::JIterator(leveldb::Iterator* it)
+  : ObjectWrap()
+  , it_(it)
+  , status_(leveldb::Status())
+  , key_(leveldb::Slice())
+  , value_(leveldb::Slice())
+  , busy_(false)
+  , valid_(false)
+  , callback_(Persistent<Function>())
+  , keyHandle_(Persistent<Value>())
+{
+}
+
+JIterator::~JIterator() {
+  assert(it_ != NULL);
+  assert(callback_.IsEmpty());
+  assert(keyHandle_.IsEmpty());
+  delete it_;
+  it_ = NULL;
+}
+
+
+
+
+
+
 void JIterator::Initialize(Handle<Object> target) {
   HandleScope scope;
 
@@ -47,32 +77,6 @@ Handle<Value> JIterator::New(const Arguments& args) {
 
 
 
-JIterator::JIterator(leveldb::Iterator* it)
-  : ObjectWrap()
-  , it_(it)
-  , status_(leveldb::Status())
-  , key_(leveldb::Slice())
-  , value_(leveldb::Slice())
-  , busy_(false)
-  , valid_(false)
-  , callback_(Persistent<Function>())
-  , keyHandle_(Persistent<Value>())
-{
-}
-
-JIterator::~JIterator() {
-  assert(it_ != NULL);
-  assert(callback_.IsEmpty());
-  assert(keyHandle_.IsEmpty());
-  delete it_;
-  it_ = NULL;
-}
-
-
-
-
-
-
 Handle<Value> JIterator::Async(const uv_work_cb fn, const Local<Value>& callback) {
   assert(!busy_);
   assert(callback->IsFunction());
@@ -84,8 +88,7 @@ Handle<Value> JIterator::Async(const uv_work_cb fn, const Local<Value>& callback
   busy_ = true;
   Ref();
 
-  AsyncQueue(this, fn, AfterAsync);
-  return Undefined();
+  return AsyncQueue(this, fn, AfterAsync);
 }
 
 void JIterator::AfterAsync(uv_work_t* req) {

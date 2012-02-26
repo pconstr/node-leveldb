@@ -16,10 +16,11 @@ class JIterator : ObjectWrap {
  public:
   static Persistent<FunctionTemplate> constructor;
   static void Initialize(Handle<Object> target);
-  static Handle<Value> New(const Arguments& args);
 
  private:
   friend class JHandle;
+
+  static Handle<Value> New(const Arguments& args);
 
   static Handle<Value> Seek(const Arguments& args);
   static Handle<Value> SeekToFirst(const Arguments& args);
