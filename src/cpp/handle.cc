@@ -589,10 +589,11 @@ void JHandle::Initialize(Handle<Object> target) {
   NODE_SET_METHOD(target, "repair", OpenAsync::Hook<RepairAsync>);
 
   // Set version
-  std::stringstream version;
-  version << leveldb::kMajorVersion << "." << leveldb::kMinorVersion;
-  target->Set(String::New("bindingVersion"),
-              String::New(version.str().c_str()),
+  target->Set(String::New("majorVersion"),
+              Integer::New(leveldb::kMajorVersion),
+              static_cast<PropertyAttribute>(ReadOnly|DontDelete));
+  target->Set(String::New("minorVersion"),
+              Integer::New(leveldb::kMinorVersion),
               static_cast<PropertyAttribute>(ReadOnly|DontDelete));
 }
 
