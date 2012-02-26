@@ -5,7 +5,7 @@ BINARY=./lib/leveldb.node
 PATH:=./node_modules/.bin:${PATH}
 
 build:
-	if [ ! -f ./deps/snappy/Makefile ]; then node-waf configure; fi
+	if [ ! -d ./build ]; then node-waf configure; fi
 	node-waf build
 
 coffee:
