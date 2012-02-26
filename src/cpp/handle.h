@@ -34,7 +34,8 @@ class JHandle : public ObjectWrap {
   // No copying allowed
   JHandle(const JHandle&);
   void operator=(const JHandle&);
-  ~JHandle();
+
+  virtual ~JHandle();
 
   static Handle<Value> New(const Arguments& args);
 
