@@ -69,6 +69,11 @@ class JIterator::iter_params {
     result = valid_ ? True() : False();
   }
 
+  virtual void UpdateStatus() {
+    status_ = self_->it_->status();
+    valid_ = self_->it_->Valid();
+  }
+
   JIterator* self_;
   leveldb::Status status_;
   Persistent<Function> callback_;
@@ -146,8 +151,7 @@ Handle<Value> JIterator::Seek(const Arguments& args) {
 void JIterator::AsyncSeek(uv_work_t* req) {
   seek_params* op = static_cast<seek_params*>(req->data);
   op->self_->it_->Seek(op->key_);
-  op->status_ = op->self_->it_->status();
-  op->valid_ = op->self_->it_->Valid();
+  op->UpdateStatus();
 }
 
 
@@ -163,8 +167,7 @@ Handle<Value> JIterator::First(const Arguments& args) {
 void JIterator::AsyncFirst(uv_work_t* req) {
   iter_params* op = static_cast<iter_params*>(req->data);
   op->self_->it_->SeekToFirst();
-  op->status_ = op->self_->it_->status();
-  op->valid_ = op->self_->it_->Valid();
+  op->UpdateStatus();
 }
 
 
@@ -180,8 +183,7 @@ Handle<Value> JIterator::Last(const Arguments& args) {
 void JIterator::AsyncLast(uv_work_t* req) {
   iter_params* op = static_cast<iter_params*>(req->data);
   op->self_->it_->SeekToLast();
-  op->status_ = op->self_->it_->status();
-  op->valid_ = op->self_->it_->Valid();
+  op->UpdateStatus();
 }
 
 
@@ -197,8 +199,7 @@ Handle<Value> JIterator::Next(const Arguments& args) {
 void JIterator::AsyncNext(uv_work_t* req) {
   iter_params* op = static_cast<iter_params*>(req->data);
   op->self_->it_->Next();
-  op->status_ = op->self_->it_->status();
-  op->valid_ = op->self_->it_->Valid();
+  op->UpdateStatus();
 }
 
 
@@ -214,8 +215,7 @@ Handle<Value> JIterator::Prev(const Arguments& args) {
 void JIterator::AsyncPrev(uv_work_t* req) {
   iter_params* op = static_cast<iter_params*>(req->data);
   op->self_->it_->Prev();
-  op->status_ = op->self_->it_->status();
-  op->valid_ = op->self_->it_->Valid();
+  op->UpdateStatus();
 }
 
 
