@@ -6,6 +6,7 @@ path    = require 'path'
 
 describe 'Handle', ->
   filename = "#{__dirname}/../tmp/handle-test-file"
+  writeOptions = sync: true
   db = null
 
   itShouldBehave = (test) ->
@@ -66,7 +67,7 @@ describe 'Handle', ->
   it 'should get approximate size of range', (done) ->
     batch = db.batch()
     batch.put "#{i}", crypto.randomBytes 1024 for i in [10..99]
-    batch.write sync: true, (err) ->
+    batch.write writeOptions, (err) ->
       assert.ifError err
 
       # reopen database for accurate sizes
@@ -94,7 +95,7 @@ describe 'Handle', ->
   itShouldBehave (key, val, asBuffer) ->
 
     it 'should put key/value pair', (done) ->
-      db.put key, val, (err) ->
+      db.put key, val, writeOptions, (err) ->
         assert.ifError err
         db.get key, as_buffer: asBuffer, (err, value) ->
           assert.ifError err
@@ -103,9 +104,9 @@ describe 'Handle', ->
           done()
 
     it 'should delete key', (done) ->
-      db.put key, val, (err) ->
+      db.put key, val, writeOptions, (err) ->
         assert.ifError err
-        db.del key, (err) ->
+        db.del key, writeOptions, (err) ->
           assert.ifError err
           db.get key, (err, value) ->
             assert.ifError value

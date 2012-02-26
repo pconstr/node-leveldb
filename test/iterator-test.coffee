@@ -6,6 +6,7 @@ leveldb = require '../lib'
 
 describe 'Iterator', ->
   filename = "#{__dirname}/../tmp/iterator-test-file"
+  writeOptions = sync: true
   db = null
   iterator = null
 
@@ -17,7 +18,7 @@ describe 'Iterator', ->
   beforeEach (done) ->
     batch = db.batch()
     batch.put "#{i}", "Hello #{i}" for i in [100..200]
-    batch.write done
+    batch.write writeOptions, done
 
   beforeEach (done) ->
     i = 100
