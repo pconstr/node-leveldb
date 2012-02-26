@@ -12,6 +12,20 @@ namespace node_leveldb {
 
 Persistent<FunctionTemplate> JBatch::constructor;
 
+JBatch::JBatch() : ObjectWrap() {
+}
+
+JBatch::~JBatch() {
+  Clear();
+}
+
+void JBatch::Clear() {
+  std::vector< Persistent<Value> >::iterator it;
+  for (it = buffers_.begin(); it < buffers_.end(); ++it) it->Dispose();
+  buffers_.clear();
+  wb_.Clear();
+}
+
 void JBatch::Initialize(Handle<Object> target) {
   HandleScope scope;
 

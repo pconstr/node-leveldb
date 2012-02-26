@@ -17,10 +17,6 @@ namespace node_leveldb {
 
 class JBatch : ObjectWrap {
  public:
-  virtual ~JBatch() {
-    Clear();
-  }
-
   static inline bool HasInstance(Handle<Value> value) {
     return value->IsObject() && constructor->HasInstance(value->ToObject());
   }
@@ -28,21 +24,25 @@ class JBatch : ObjectWrap {
   static Persistent<FunctionTemplate> constructor;
   static void Initialize(Handle<Object> target);
 
+ private:
+  friend class JHandle;
+
+  // No instance creation outside of Handle
+  JBatch();
+
+  // No copying allowed
+  JBatch(const JBatch&);
+  void operator=(const JBatch&);
+
+  virtual ~JBatch();
+
+  void Clear();
+
   static Handle<Value> New(const Arguments& args);
 
   static Handle<Value> Put(const Arguments& args);
   static Handle<Value> Del(const Arguments& args);
   static Handle<Value> Clear(const Arguments& args);
-
- private:
-  friend class JHandle;
-
-  inline void Clear() {
-    std::vector< Persistent<Value> >::iterator it;
-    for (it = buffers_.begin(); it < buffers_.end(); ++it) it->Dispose();
-    buffers_.clear();
-    wb_.Clear();
-  }
 
   leveldb::WriteBatch wb_;
   std::vector< Persistent<Value> > buffers_;
