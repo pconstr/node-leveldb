@@ -4,7 +4,6 @@
 #include <node.h>
 #include <v8.h>
 
-#include "handle.h"
 #include "helpers.h"
 #include "iterator.h"
 
@@ -20,13 +19,11 @@ void JIterator::Initialize(Handle<Object> target) {
   constructor->InstanceTemplate()->SetInternalFieldCount(1);
   constructor->SetClassName(String::NewSymbol("Iterator"));
 
-  NODE_SET_PROTOTYPE_METHOD(constructor, "first", First);
-  NODE_SET_PROTOTYPE_METHOD(constructor, "last", Last);
+  NODE_SET_PROTOTYPE_METHOD(constructor, "first", SeekToFirst);
+  NODE_SET_PROTOTYPE_METHOD(constructor, "last", SeekToLast);
   NODE_SET_PROTOTYPE_METHOD(constructor, "seek", Seek);
   NODE_SET_PROTOTYPE_METHOD(constructor, "next", Next);
   NODE_SET_PROTOTYPE_METHOD(constructor, "prev", Prev);
-  NODE_SET_PROTOTYPE_METHOD(constructor, "key", GetKey);
-  NODE_SET_PROTOTYPE_METHOD(constructor, "current", GetKeyValue);
 }
 
 Handle<Value> JIterator::New(const Arguments& args) {
@@ -50,84 +47,116 @@ Handle<Value> JIterator::New(const Arguments& args) {
 
 
 
-class JIterator::iter_params {
- public:
-  iter_params(const Arguments& args) : valid_(false) {
-    self_ = ObjectWrap::Unwrap<JIterator>(args.This());
-    self_->Ref();
-    assert(args[args.Length() - 1]->IsFunction());
-    Local<Function> fn = Local<Function>::Cast(args[args.Length() - 1]);
-    callback_ = Persistent<Function>::New(fn);
-  }
+JIterator::JIterator(leveldb::Iterator* it)
+  : ObjectWrap()
+  , it_(it)
+  , status_(leveldb::Status())
+  , key_(leveldb::Slice())
+  , value_(leveldb::Slice())
+  , busy_(false)
+  , valid_(false)
+  , callback_(Persistent<Function>())
+  , keyHandle_(Persistent<Value>())
+{
+}
 
-  virtual ~iter_params() {
-    self_->Unref();
-    callback_.Dispose();
-  }
+JIterator::~JIterator() {
+  assert(it_ != NULL);
+  assert(callback_.IsEmpty());
+  assert(keyHandle_.IsEmpty());
+  delete it_;
+  it_ = NULL;
+}
 
-  virtual void Result(Handle<Value>& result) {
-    result = valid_ ? True() : False();
-  }
 
-  virtual void UpdateStatus() {
-    status_ = self_->it_->status();
-    valid_ = self_->it_->Valid();
-  }
 
-  JIterator* self_;
-  leveldb::Status status_;
-  Persistent<Function> callback_;
-  bool valid_;
-};
 
-class JIterator::seek_params : public iter_params {
- public:
-  seek_params(const Arguments& args) : iter_params(args) {}
-  ~seek_params() { keyHandle_.Dispose(); }
-  leveldb::Slice key_;
-  Persistent<Value> keyHandle_;
-};
 
-class JIterator::kv_params : public iter_params {
- public:
-  kv_params(const Arguments& args) : iter_params(args) {}
 
-  virtual void Result(Handle<Value>& result) {
-    if (!value_.empty()) {
-      Handle<Array> array = Array::New(2);
-      array->Set(0, ToBuffer(key_));
-      array->Set(1, ToBuffer(value_));
-      result = array;
-    } else {
-      result = ToBuffer(key_);
-    }
-  }
+Handle<Value> JIterator::Async(const uv_work_cb fn, const Local<Value>& callback) {
+  assert(!busy_);
+  assert(callback->IsFunction());
 
-  leveldb::Slice key_;
-  leveldb::Slice value_;
-};
+  Local<Function> cb = Local<Function>::Cast(callback);
+  callback_ = Persistent<Function>::New(cb);
+  assert(!callback_.IsEmpty());
+
+  busy_ = true;
+  Ref();
+
+  AsyncQueue(this, fn, AfterAsync);
+  return Undefined();
+}
 
 void JIterator::AfterAsync(uv_work_t* req) {
   HandleScope scope;
-  iter_params* op = static_cast<iter_params*>(req->data);
-  assert(!op->callback_.IsEmpty());
+  JIterator* self = static_cast<JIterator*>(req->data);
+
+  assert(self->busy_);
+  assert(!self->callback_.IsEmpty());
 
   Handle<Value> error = Null();
-  Handle<Value> result = Null();
+  Handle<Value> valid = self->valid_ ? True() : False();
+  Handle<Value> key = Null();
+  Handle<Value> value = Null();
 
-  if (!op->status_.ok()) {
-    error = Exception::Error(String::New(op->status_.ToString().c_str()));
-  } else {
-    op->Result(result);
+  if (!self->status_.ok())
+    error = Exception::Error(String::New(self->status_.ToString().c_str()));
+
+  if (self->valid_) {
+    if (!self->key_.empty()) key = ToBuffer(self->key_);
+    if (!self->value_.empty()) value = ToBuffer(self->value_);
   }
 
+  Persistent<Function> callback = self->callback_;
+
+  self->callback_.Clear();
+  self->keyHandle_.Dispose();
+  self->keyHandle_.Clear();
+  self->Unref();
+
+  self->busy_ = false;
+
   TryCatch tryCatch;
-  Handle<Value> args[] = { error, result };
-  op->callback_->Call(Context::GetCurrent()->Global(), 2, args);
+  Handle<Value> args[] = { error, valid, key, value };
+  callback->Call(Context::GetCurrent()->Global(), 4, args);
   if (tryCatch.HasCaught()) FatalException(tryCatch);
 
-  delete op;
+  callback.Dispose();
   delete req;
+}
+
+
+
+
+
+void JIterator::BeforeSeek() {
+  status_ = leveldb::Status();
+  valid_ = false;
+  key_.clear();
+  value_.clear();
+}
+
+void JIterator::AfterSeek() {
+  status_ = it_->status();
+  if (status_.ok() && (valid_ = it_->Valid())) {
+    key_ = it_->key();
+    value_ = it_->value();
+  }
+}
+
+
+
+
+
+Handle<Value> JIterator::Seek(const uv_work_cb fn, const Arguments& args) {
+  HandleScope scope;
+
+  assert(args.Length() == 1);
+  assert(args[0]->IsFunction());
+
+  JIterator* self = ObjectWrap::Unwrap<JIterator>(args.This());
+  return self->Async(fn, args[0]);
 }
 
 
@@ -137,53 +166,51 @@ void JIterator::AfterAsync(uv_work_t* req) {
 Handle<Value> JIterator::Seek(const Arguments& args) {
   HandleScope scope;
 
-  // Required key
-  if (args.Length() < 1 || !Buffer::HasInstance(args[0]))
-    return ThrowTypeError("Invalid arguments");
+  assert(args.Length() == 2);
+  assert(Buffer::HasInstance(args[0]));
+  assert(args[1]->IsFunction());
 
-  seek_params* op = new seek_params(args);
-  op->key_ = ToSlice(args[0], op->keyHandle_);
-
-  AsyncQueue(op, AsyncSeek, AfterAsync);
-  return Undefined();
+  JIterator* self = ObjectWrap::Unwrap<JIterator>(args.This());
+  self->key_ = ToSlice(args[0], self->keyHandle_);
+  return self->Async(SeekAsync, args[1]);
 }
 
-void JIterator::AsyncSeek(uv_work_t* req) {
-  seek_params* op = static_cast<seek_params*>(req->data);
-  op->self_->it_->Seek(op->key_);
-  op->UpdateStatus();
-}
-
-
-
-
-
-Handle<Value> JIterator::First(const Arguments& args) {
-  iter_params* op = new iter_params(args);
-  AsyncQueue(op, AsyncFirst, AfterAsync);
-  return Undefined();
-}
-
-void JIterator::AsyncFirst(uv_work_t* req) {
-  iter_params* op = static_cast<iter_params*>(req->data);
-  op->self_->it_->SeekToFirst();
-  op->UpdateStatus();
+void JIterator::SeekAsync(uv_work_t* req) {
+  JIterator* self = static_cast<JIterator*>(req->data);
+  const leveldb::Slice target = self->key_;
+  self->BeforeSeek();
+  self->it_->Seek(target);
+  self->AfterSeek();
 }
 
 
 
 
 
-Handle<Value> JIterator::Last(const Arguments& args) {
-  iter_params* op = new iter_params(args);
-  AsyncQueue(op, AsyncLast, AfterAsync);
-  return Undefined();
+Handle<Value> JIterator::SeekToFirst(const Arguments& args) {
+  return Seek(SeekToFirstAsync, args);
 }
 
-void JIterator::AsyncLast(uv_work_t* req) {
-  iter_params* op = static_cast<iter_params*>(req->data);
-  op->self_->it_->SeekToLast();
-  op->UpdateStatus();
+void JIterator::SeekToFirstAsync(uv_work_t* req) {
+  JIterator* self = static_cast<JIterator*>(req->data);
+  self->BeforeSeek();
+  self->it_->SeekToFirst();
+  self->AfterSeek();
+}
+
+
+
+
+
+Handle<Value> JIterator::SeekToLast(const Arguments& args) {
+  return Seek(SeekToLastAsync, args);
+}
+
+void JIterator::SeekToLastAsync(uv_work_t* req) {
+  JIterator* self = static_cast<JIterator*>(req->data);
+  self->BeforeSeek();
+  self->it_->SeekToLast();
+  self->AfterSeek();
 }
 
 
@@ -191,15 +218,15 @@ void JIterator::AsyncLast(uv_work_t* req) {
 
 
 Handle<Value> JIterator::Next(const Arguments& args) {
-  iter_params* op = new iter_params(args);
-  AsyncQueue(op, AsyncNext, AfterAsync);
-  return Undefined();
+  return Seek(NextAsync, args);
 }
 
-void JIterator::AsyncNext(uv_work_t* req) {
-  iter_params* op = static_cast<iter_params*>(req->data);
-  op->self_->it_->Next();
-  op->UpdateStatus();
+void JIterator::NextAsync(uv_work_t* req) {
+  JIterator* self = static_cast<JIterator*>(req->data);
+  assert(self->valid_);
+  self->BeforeSeek();
+  self->it_->Next();
+  self->AfterSeek();
 }
 
 
@@ -207,46 +234,15 @@ void JIterator::AsyncNext(uv_work_t* req) {
 
 
 Handle<Value> JIterator::Prev(const Arguments& args) {
-  iter_params* op = new iter_params(args);
-  AsyncQueue(op, AsyncPrev, AfterAsync);
-  return Undefined();
+  return Seek(PrevAsync, args);
 }
 
-void JIterator::AsyncPrev(uv_work_t* req) {
-  iter_params* op = static_cast<iter_params*>(req->data);
-  op->self_->it_->Prev();
-  op->UpdateStatus();
-}
-
-
-
-
-
-Handle<Value> JIterator::GetKey(const Arguments& args) {
-  kv_params* op = new kv_params(args);
-  AsyncQueue(op, AsyncGetKey, AfterAsync);
-  return Undefined();
-}
-
-void JIterator::AsyncGetKey(uv_work_t* req) {
-  kv_params* op = static_cast<kv_params*>(req->data);
-  op->key_ = op->self_->it_->key();
-}
-
-
-
-
-
-Handle<Value> JIterator::GetKeyValue(const Arguments& args) {
-  kv_params* op = new kv_params(args);
-  AsyncQueue(op, AsyncGetKeyValue, AfterAsync);
-  return Undefined();
-}
-
-void JIterator::AsyncGetKeyValue(uv_work_t* req) {
-  kv_params* op = static_cast<kv_params*>(req->data);
-  op->key_ = op->self_->it_->key();
-  op->value_ = op->self_->it_->value();
+void JIterator::PrevAsync(uv_work_t* req) {
+  JIterator* self = static_cast<JIterator*>(req->data);
+  assert(self->valid_);
+  self->BeforeSeek();
+  self->it_->Prev();
+  self->AfterSeek();
 }
 
 } // node_leveldb

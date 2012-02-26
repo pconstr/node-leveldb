@@ -29,7 +29,9 @@ binding = require '../leveldb.node'
 exports.Iterator = class Iterator
 
   busy = false
-  validKey = false
+  isValid = false
+  keybuf = null
+  valbuf = null
 
   lock = ->
     throw new Error 'Concurrent operations not supported' if busy
@@ -39,10 +41,29 @@ exports.Iterator = class Iterator
     throw new Error 'Not locked' unless busy
     busy = false
 
-  afterSeek = (callback) -> (err, valid) ->
+  afterSeek = (callback) -> (err, valid, key, val) ->
     unlock()
-    validKey = valid
+    isValid = valid
+    keybuf = key
+    valbuf = val
     callback err if callback
+
+  getKey = (options = {}) ->
+    unless keybuf
+      return null
+    else unless options.as_buffer
+      keybuf.toString 'utf8'
+    else
+      keybuf
+
+  getValue = (options = {}) ->
+    unless valbuf
+      return null
+    else unless options.as_buffer
+      valbuf.toString 'utf8'
+    else
+      valbuf
+
 
   ###
 
@@ -53,6 +74,7 @@ exports.Iterator = class Iterator
   ###
 
   constructor: (@self) ->
+
 
   ###
 
@@ -91,7 +113,7 @@ exports.Iterator = class Iterator
     if typeof options is 'object' and not Buffer.isBuffer options
       args.pop()
     else
-      options = null
+      options = {}
 
     # optional keys
     [ startKey, limitKey ] = args
@@ -100,11 +122,10 @@ exports.Iterator = class Iterator
 
     next = (err) =>
       return callback err if err
-      @current options, (err, key, val) =>
-        return callback err if err
-        if key
-          callback null, key, val
-          @next next if not limit or limit isnt key.toString 'binary'
+      if isValid
+        callback null, getKey(options), getValue(options)
+        if not limit or limit isnt keybuf.toString 'binary'
+          @next next
 
     if startKey
       @seek startKey, next
@@ -118,7 +139,7 @@ exports.Iterator = class Iterator
 
   ###
 
-  valid: -> validKey
+  valid: -> isValid
 
 
   ###
@@ -175,7 +196,7 @@ exports.Iterator = class Iterator
   ###
 
   next: (callback) ->
-    throw new Error 'Illegal state' unless validKey
+    throw new Error 'Illegal state' unless isValid
     lock()
     @self.next afterSeek callback
 
@@ -190,7 +211,7 @@ exports.Iterator = class Iterator
   ###
 
   prev: (callback) ->
-    throw new Error 'Illegal state' unless validKey
+    throw new Error 'Illegal state' unless isValid
     lock()
     @self.prev afterSeek callback
 
@@ -208,23 +229,17 @@ exports.Iterator = class Iterator
 
   ###
 
-  key: (options = {}, callback) ->
-    throw new Error 'Illegal state' unless validKey
+  key: (options, callback) ->
+    throw new Error 'Illegal state' unless isValid
 
     # optional options
     if typeof options is 'function'
       callback = options
-      options = {}
+      options = null
 
     throw new Error 'Missing callback' unless callback
 
-    return callback() unless validKey
-
-    lock()
-    @self.key (err, key) ->
-      unlock()
-      key = key.toString 'utf8' if key and not options.as_buffer
-      callback err, key
+    callback null, getKey options
 
 
   ###
@@ -240,14 +255,14 @@ exports.Iterator = class Iterator
 
   ###
 
-  value: (options = {}, callback) ->
+  value: (options, callback) ->
 
     # optional options
     if typeof options is 'function'
       callback = options
-      options = {}
+      options = null
 
-    @current options, (err, key, val) -> callback err, val
+    callback null, getValue options
 
 
   ###
@@ -264,22 +279,13 @@ exports.Iterator = class Iterator
 
   ###
 
-  current: (options = {}, callback) ->
+  current: (options, callback) ->
+
     # optional options
     if typeof options is 'function'
       callback = options
-      options = {}
+      options = null
 
     throw new Error 'Missing callback' unless callback
 
-    return callback() unless validKey
-
-    lock()
-    @self.current (err, kv) ->
-      unlock()
-      if kv
-        [ key, val ] = kv
-        unless options.as_buffer
-          key = key.toString 'utf8' if key
-          val = val.toString 'utf8' if val
-      callback err, key, val
+    callback null, getKey(options), getValue(options)
