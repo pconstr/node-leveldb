@@ -4,7 +4,6 @@ leveldb = require '../lib'
 
 describe 'snapshot', ->
   filename = "#{__dirname}/../tmp/snapshot-test-file"
-  writeOptions = sync: true
   db = null
   snapshot = null
 
@@ -17,7 +16,7 @@ describe 'snapshot', ->
       done err
 
   beforeEach (done) ->
-    db.put key, val, writeOptions, done
+    db.put key, val, done
 
   beforeEach (done) ->
     db.get key, (err, value) ->
@@ -36,7 +35,7 @@ describe 'snapshot', ->
     leveldb.destroy filename, done
 
   it 'should get value', (done) ->
-    db.put key, 'Goodbye', writeOptions, (err) ->
+    db.put key, 'Goodbye', (err) ->
       assert.ifError err
       db.get key, (err, value) ->
         assert.ifError err
@@ -47,7 +46,7 @@ describe 'snapshot', ->
           done()
 
   it 'should not deleted value', (done) ->
-    db.del key, writeOptions, (err) ->
+    db.del key, (err) ->
       assert.ifError err
       db.get key, (err, value) ->
         assert.ifError err

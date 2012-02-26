@@ -6,7 +6,6 @@ leveldb = require '../lib'
 
 describe 'PartitionedBitwiseComparator', ->
   filename = "#{__dirname}/../tmp/comparator-test-file"
-  writeOptions = sync: true
   comparator = null
   db = null
 
@@ -22,7 +21,7 @@ describe 'PartitionedBitwiseComparator', ->
       db = handle
       batch = db.batch()
       batch.put "#{i}", "xyzzy" for i in [100..999]
-      batch.write writeOptions, done
+      batch.write done
 
   # close and destroy database
   afterEach (done) ->

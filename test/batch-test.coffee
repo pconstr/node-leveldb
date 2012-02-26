@@ -6,7 +6,6 @@ leveldb = require '../lib'
 
 describe 'Batch', ->
   filename = "#{__dirname}/../tmp/batch-test-file"
-  writeOptions = sync: true
   db = null
 
   hasPut = (done) -> (err) ->
@@ -44,7 +43,7 @@ describe 'Batch', ->
       next = (err) ->
         assert.ifError err
         return hasNoop(done) err if ++i >= 190
-        db.put "#{i}", "Hello #{i}", writeOptions, next
+        db.put "#{i}", "Hello #{i}", next
       next()
 
   # close and destroy database
@@ -58,21 +57,21 @@ describe 'Batch', ->
     it 'should put()', (done) ->
       batch = new leveldb.Batch
       batch.put "#{i}", "Goodbye #{i}" for i in [100..119]
-      db.write batch, writeOptions, hasPut done
+      db.write batch, hasPut done
 
     it 'should del()', (done) ->
       batch = new leveldb.Batch
       batch.del "#{i}" for i in [180..189]
-      db.write batch, writeOptions, hasDel done
+      db.write batch, hasDel done
 
     it 'should put() del()', (done) ->
       b = batch = new leveldb.Batch
       batch.put "#{i}", "Goodbye #{i}" for i in [100..119]
       batch.del "#{i}" for i in [180..189]
-      db.write batch, writeOptions, hasBoth done
+      db.write batch, hasBoth done
 
     it 'should put() del() again', (done) ->
-      db.write b, writeOptions, hasBoth done
+      db.write b, hasBoth done
 
     it 'should not put() del() after clear()', (done) ->
       b.clear()
@@ -84,18 +83,18 @@ describe 'Batch', ->
     it 'should put()', (done) ->
       batch = db.batch()
       batch.put "#{i}", "Goodbye #{i}" for i in [100..119]
-      batch.write writeOptions, hasPut done
+      batch.write hasPut done
 
     it 'should del()', (done) ->
       batch = db.batch()
       batch.del "#{i}" for i in [180..189]
-      batch.write writeOptions, hasDel done
+      batch.write hasDel done
 
     it 'should put() del()', (done) ->
       b = batch = db.batch()
       batch.put "#{i}", "Goodbye #{i}" for i in [100..119]
       batch.del "#{i}" for i in [180..189]
-      batch.write writeOptions, hasBoth done
+      batch.write hasBoth done
 
     it 'should not put() del() again', (done) ->
-      db.write b, writeOptions, hasNoop done
+      db.write b, hasNoop done
