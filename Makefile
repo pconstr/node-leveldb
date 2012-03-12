@@ -21,7 +21,7 @@ distclean: clean
 pkgclean:
 	if [ ! -d .git ]; then rm -r build deps src; fi
 
-test: coffee
+test:
 	rm -rf tmp
 	mkdir -p tmp
 	@mocha --reporter $(REPORTER) test/*-test.coffee
