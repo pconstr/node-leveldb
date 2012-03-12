@@ -39,7 +39,7 @@ exports.Iterator = class Iterator
     else
       val
 
-  wrapSeek = (callback, validate) ->
+  _wrapSeek: (callback, validate) =>
     @_lock()
 
     throw new Error 'Illegal state' if validate and not @_valid
@@ -78,7 +78,6 @@ exports.Iterator = class Iterator
   constructor: (@self) ->
     @_busy = @_valid = false
     @_key = @_val = null
-    @_wrapSeek = wrapSeek.bind @
 
 
   ###
