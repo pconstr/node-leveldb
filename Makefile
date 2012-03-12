@@ -18,9 +18,12 @@ clean:
 distclean: clean
 	rm -rf lib node_modules
 
+pkgclean:
+	if [ ! -d .git ]; then rm -r build deps src; fi
+
 test: coffee
 	rm -rf tmp
 	mkdir -p tmp
 	@mocha --reporter $(REPORTER) test/*-test.coffee
 
-.PHONY: build coffee clean distclean test
+.PHONY: build coffee clean distclean pkgclean test
