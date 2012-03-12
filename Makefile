@@ -13,6 +13,7 @@ coffee:
 
 clean:
 	node-waf clean
+	rm -rf tmp
 
 distclean: clean
 	rm -rf lib node_modules
