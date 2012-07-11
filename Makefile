@@ -18,7 +18,7 @@ clean:
 distclean: clean
 	rm -rf lib node_modules
 
-pkgclean: coffee
+pkgclean:
 	if [ ! -d .git ]; then rm -r build deps src; fi
 
 test:
