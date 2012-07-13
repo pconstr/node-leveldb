@@ -12,3 +12,4 @@ describe 'package', ->
 
   it 'should have binding version', () ->
     assert.equal leveldb.bindingVersion, bindingVersion
+

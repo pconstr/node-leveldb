@@ -112,8 +112,6 @@ exports.Iterator = class Iterator
     #Optional finished callback
     if typeof(args[args.length - 1]) is 'function' and typeof(args[args.length - 2]) is 'function'
         finishedCallback = args.pop()
-    else
-        finishedCallback = ->{}
 
     # required callback
     callback = args.pop()
@@ -139,7 +137,7 @@ exports.Iterator = class Iterator
         callback null, @_getKey(options), @_getVal(options)
         if not limit or limit isnt @_key.toString 'binary'
           @next next
-      else
+      else if finishedCallback
           finishedCallback()
 
     # start loop
