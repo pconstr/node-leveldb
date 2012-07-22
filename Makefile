@@ -5,14 +5,14 @@ BINARY=./lib/leveldb.node
 PATH:=./node_modules/.bin:${PATH}
 
 build:
-	if [ ! -d ./build ]; then node-waf configure; fi
-	node-waf build
+	if [ ! -d ./build ]; then node-gyp configure; fi
+	node-gyp build
 
 coffee:
 	coffee --bare --compile --output lib src/coffee
 
 clean:
-	node-waf clean
+	node-gyp clean
 	rm -rf tmp
 
 distclean: clean

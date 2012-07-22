@@ -8,7 +8,7 @@
   },
   'target_defaults': {
     'defines': [
-      'LEVELDB_PLATFORM_CHROMIUM=1',
+      'LEVELDB_PLATFORM_POSIX=1'
     ],
     'include_dirs': [
       '.',
@@ -19,6 +19,12 @@
         'include_dirs': [
           'port/win',
         ],
+      }],
+      ['OS == "mac"', {
+        'defines': [
+          'OS_MACOSX=1',
+          'PLATFORM=OS_MACOSX'
+        ]
       }],
       ['use_snappy', {
         'defines': [
@@ -32,12 +38,6 @@
       'target_name': 'leveldb',
       'type': '<(library)',
       'dependencies': [
-        # The base libary is a lightweight abstraction layer for things like
-        # threads and IO. http://src.chromium.org/viewvc/chrome/trunk/src/base/
-        '../../base/base.gyp:base',
-        # base::LazyInstance is a template that pulls in dynamic_annotations so
-        # we need to explictly link in the code for dynamic_annotations.
-        '../../base/third_party/dynamic_annotations/dynamic_annotations.gyp:dynamic_annotations',
       ],
       'conditions': [
         ['use_snappy', {
@@ -101,8 +101,6 @@
         'include/leveldb/table_builder.h',
         'include/leveldb/write_batch.h',
         'port/port.h',
-        'port/port_chromium.cc',
-        'port/port_chromium.h',
         'port/port_example.h',
         'port/port_posix.cc',
         'port/port_posix.h',
@@ -129,7 +127,6 @@
         'util/crc32c.cc',
         'util/crc32c.h',
         'util/env.cc',
-        'util/env_chromium.cc',
         'util/env_posix.cc',
         'util/hash.cc',
         'util/hash.h',
@@ -141,19 +138,17 @@
         'util/status.cc',
       ],
       'sources/': [
-        ['exclude', '_(android|example|portable|posix)\\.cc$'],
+        ['exclude', '_(android|example|portable)\\.cc$'],
       ],
     },
     {
       'target_name': 'leveldb_testutil',
       'type': '<(library)',
       'dependencies': [
-        '../../base/base.gyp:base',
         'leveldb',
       ],
       'export_dependent_settings': [
         # The tests use include directories from these projects.
-        '../../base/base.gyp:base',
         'leveldb',
       ],
       'sources': [
