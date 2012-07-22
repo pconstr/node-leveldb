@@ -36,7 +36,7 @@
   'targets': [
     {
       'target_name': 'leveldb',
-      'type': '<(library)',
+      'type': 'static_library',
       'dependencies': [
       ],
       'conditions': [
