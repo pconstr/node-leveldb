@@ -24,6 +24,6 @@ pkgclean:
 test: build coffee
 	rm -rf tmp
 	mkdir -p tmp
-	@mocha --reporter $(REPORTER) test/*-test.coffee
+	@mocha --compilers coffee:coffee-script --reporter $(REPORTER) test/*-test.coffee
 
 .PHONY: build coffee clean distclean pkgclean test
